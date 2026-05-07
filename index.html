@@ -2449,6 +2449,30 @@ body.light-mode .admin-card {
 body.light-mode .dash-stat {
   background: linear-gradient(145deg, #ffffff 0%, #f8fafd 100%) !important;
 }
+
+/* ── Empty State Components ──────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  gap: 10px;
+  text-align: center;
+}
+.empty-state-icon {
+  font-size: 28px;
+  opacity: 0.6;
+  filter: grayscale(0.2);
+}
+.empty-state-text {
+  color: var(--q-muted2);
+  font-size: 12px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
 </style>
 </head>
 <body>
@@ -3647,7 +3671,7 @@ function renderHomePage(){
   // Upcoming meetings
   const upEl=document.getElementById('home-upcoming');upEl.innerHTML='';
   const upcoming=events.filter(e=>e.type!=='task'&&!e.isShared&&!e.completed).filter(e=>{const d=new Date(e.date+'T12:00:00');return d>=now&&d<=soon;}).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
-  if(!upcoming.length)upEl.innerHTML='<div style="color:var(--q-muted2);font-size:12px">No upcoming meetings in 2 weeks</div>';
+  if(!upcoming.length)upEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">No upcoming meetings in 2 weeks</div></div>';
   else upcoming.forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId);
     const color=ev.color||cal?.color||'#2979ff';
@@ -3690,7 +3714,7 @@ function renderHomePage(){
     _seenInvIds.add(e.id);
     return true;
   });
-  if(!myMtgInvites.length)invEl.innerHTML='<div style="color:var(--q-muted2);font-size:12px">No pending invitations</div>';
+  if(!myMtgInvites.length)invEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">✉️</div><div class="empty-state-text">No pending invitations</div></div>';
   else myMtgInvites.forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
     const color=ev.color||cal?.color||'#2979ff';
@@ -3722,7 +3746,7 @@ function renderHomePage(){
     if(pa!==pb)return pa-pb;
     return a.date.localeCompare(b.date);
   });
-  if(!myTasks.length)taskEl.innerHTML='<div style="color:var(--q-muted2);font-size:12px">No tasks assigned to you</div>';
+  if(!myTasks.length)taskEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">No tasks assigned to you</div></div>';
   else myTasks.forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
     const me=(ev.assignees||[]).find(a=>a.uid===myUid);
