@@ -2473,6 +2473,420 @@ body.light-mode .dash-stat {
   letter-spacing: 0.02em;
   opacity: 0.85;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ADDITIONAL POLISH — Phase 3
+   Micro-interactions, refined states, color harmonics
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Topbar Bottom Gradient (Stronger) ───────────────────────── */
+.topbar::after {
+  opacity: 0.4;
+  background: linear-gradient(90deg, transparent 0%, var(--q-blue) 20%, var(--q-blue2) 50%, var(--q-blue3) 80%, transparent 100%);
+}
+
+/* ── Greeting gradient improvement ──────────────────────────── */
+.home-hero {
+  position: relative;
+}
+.home-hero::before {
+  content: '';
+  position: absolute;
+  top: -20px; left: -32px; right: 0; bottom: -10px;
+  background: radial-gradient(ellipse at 15% 50%, rgba(0,168,255,0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ── Upcoming row improvements ──────────────────────────────── */
+.upcoming-row:hover {
+  background: rgba(0,168,255,0.05);
+  padding-left: 12px;
+}
+.upcoming-dot {
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* ── Topbar badge (8404) improvement ─────────────────────────── */
+.topbar-badge {
+  background: linear-gradient(135deg, rgba(0,168,255,0.18), rgba(0,168,255,0.08));
+  border: 1px solid var(--q-blue-border);
+  border-radius: 7px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  color: var(--q-blue);
+  box-shadow: 0 2px 8px rgba(0,168,255,0.15);
+}
+
+/* ── Dashboard column header dot ────────────────────────────── */
+.dash-col-dot {
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* ── Dashboard "All" tab indicator ─────────────────────────── */
+.dash-tab {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Upcoming badge OVERDUE ─────────────────────────────────── */
+.overdue-badge {
+  background: var(--q-red-dim);
+  color: var(--q-red);
+  border: 1px solid rgba(255,59,92,0.25);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  box-shadow: 0 0 8px rgba(255,59,92,0.2);
+}
+
+/* ── Form elements ──────────────────────────────────────────── */
+.form-input, input[type="text"], input[type="email"], input[type="password"], textarea, select.form-select {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--q-border2);
+  border-radius: 9px;
+  color: var(--q-text);
+  transition: all 0.18s;
+  font-family: var(--font-body);
+}
+.form-input:focus, input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, textarea:focus, select.form-select:focus {
+  border-color: var(--q-blue-border);
+  background: rgba(0,168,255,0.04);
+  box-shadow: 0 0 0 3px rgba(0,168,255,0.1);
+  outline: none;
+}
+
+/* ── Save changes button ────────────────────────────────────── */
+.btn-save {
+  background: linear-gradient(135deg, var(--q-blue) 0%, #0095e6 100%);
+  box-shadow: 0 4px 16px rgba(0,168,255,0.3);
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-save:hover {
+  box-shadow: 0 6px 24px rgba(0,168,255,0.45);
+  transform: translateY(-1px);
+}
+
+/* ── Auth card improvements ─────────────────────────────────── */
+.auth-card {
+  background: linear-gradient(145deg, var(--q-dark) 0%, rgba(10,12,20,0.95) 100%);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,168,255,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* ── Auth background grid improvement ───────────────────────── */
+.auth-bg-grid {
+  opacity: 0.4;
+}
+
+/* ── Probation banner glow ──────────────────────────────────── */
+.probation-banner {
+  box-shadow: 0 2px 20px rgba(255,59,92,0.15);
+}
+
+/* ── Improved today strip ───────────────────────────────────── */
+.today-strip {
+  box-shadow: 0 2px 12px rgba(0,168,255,0.1);
+}
+
+/* ── Member card hover improvement ─────────────────────────── */
+.member-card {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+.member-card:hover {
+  box-shadow: 0 6px 24px rgba(0,168,255,0.12), 0 2px 10px rgba(0,0,0,0.3);
+}
+
+/* ── Admin sub-sections ─────────────────────────────────────── */
+.subsection-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--q-border);
+  border-radius: 8px;
+  transition: all 0.18s;
+}
+.subsection-item:hover {
+  background: rgba(0,168,255,0.05);
+  border-color: rgba(0,168,255,0.15);
+}
+
+/* ── Modal header enhancement ───────────────────────────────── */
+.modal-header {
+  border-bottom: 1px solid var(--q-border);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+
+/* ── Priority labels ────────────────────────────────────────── */
+.priority-badge.priority-critical {
+  background: var(--q-red-dim);
+  color: var(--q-red);
+  border: 1px solid rgba(255,59,92,0.2);
+  box-shadow: 0 2px 8px rgba(255,59,92,0.15);
+}
+.priority-badge.priority-important {
+  background: var(--q-amber-dim);
+  color: var(--q-amber);
+  border: 1px solid rgba(255,184,48,0.2);
+  box-shadow: 0 2px 8px rgba(255,184,48,0.15);
+}
+.priority-badge.priority-optional {
+  background: var(--q-green-dim);
+  color: var(--q-green);
+  border: 1px solid rgba(0,232,122,0.2);
+  box-shadow: 0 2px 8px rgba(0,232,122,0.12);
+}
+
+/* ── Notification button ────────────────────────────────────── */
+.btn-icon {
+  transition: all 0.18s;
+}
+.btn-icon:hover {
+  background: rgba(0,168,255,0.08);
+  border-color: var(--q-blue-border);
+  color: var(--q-blue2);
+}
+
+/* ── Week view improvements ─────────────────────────────────── */
+.week-day-header {
+  background: var(--q-dark2);
+  border-bottom: 1px solid var(--q-border);
+}
+.week-event-block {
+  backdrop-filter: blur(4px);
+}
+.week-event-block:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  transform: scaleX(1.01);
+  z-index: 5;
+}
+
+/* ── Sidebar calendar list item ─────────────────────────────── */
+.calendar-item {
+  border-radius: 8px;
+  transition: all 0.18s;
+}
+.calendar-item:hover {
+  background: rgba(0,168,255,0.05);
+}
+.calendar-item.active {
+  background: rgba(0,168,255,0.08);
+}
+
+/* ── Tag/role badge improvements ────────────────────────────── */
+.role-badge {
+  letter-spacing: 0.06em;
+}
+.role-badge.captain-role {
+  background: rgba(0,232,122,0.12);
+  color: var(--q-green);
+  border-color: rgba(0,232,122,0.25);
+}
+.role-badge.lead-role {
+  background: rgba(176,108,240,0.12);
+  color: var(--q-purple);
+  border-color: rgba(176,108,240,0.25);
+}
+
+/* ── Nav pill overall enhancement ──────────────────────────── */
+.nav-pill-btn {
+  font-size: 12.5px;
+  padding: 6px 16px;
+}
+
+/* ── Share button in calendar ─────────────────────────────── */
+.btn-share {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--q-border2);
+  border-radius: 8px;
+  transition: all 0.18s;
+}
+.btn-share:hover {
+  background: rgba(0,168,255,0.08);
+  border-color: var(--q-blue-border);
+}
+
+/* ── Mini calendar day hover ────────────────────────────────── */
+.mini-cal-day {
+  transition: all 0.15s;
+  border-radius: 6px;
+}
+.mini-cal-day:hover:not(.today) {
+  background: rgba(0,168,255,0.1);
+  color: var(--q-blue2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FINAL POLISH — Phase 4
+   Toast notifications, modals, micro-states
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Toast notification enhancement ─────────────────────────── */
+#toast {
+  background: linear-gradient(135deg, var(--q-dark5) 0%, var(--q-dark4) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) !important;
+  letter-spacing: 0.01em;
+}
+
+/* ── Enhanced modal box ─────────────────────────────────────── */
+.modal-box {
+  background: linear-gradient(145deg, var(--q-dark2) 0%, var(--q-dark) 100%);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.04);
+  border: 1px solid var(--q-border2);
+}
+.modal-header-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+/* ── Onboarding modal box ────────────────────────────────────── */
+#onboarding-modal .modal-box, .onboarding-box {
+  background: linear-gradient(145deg, var(--q-dark3) 0%, var(--q-dark2) 100%);
+  box-shadow: 0 40px 100px rgba(0,0,0,0.75), 0 0 0 1px rgba(0,168,255,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* ── Event blocks (calendar) ────────────────────────────────── */
+.month-event-pill {
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.15s;
+}
+.month-event-pill:hover {
+  opacity: 0.85;
+  transform: scaleY(0.97);
+}
+
+/* ── Tab bar active indicator ───────────────────────────────── */
+.dash-tab-bar {
+  background: transparent;
+}
+
+/* ── RSVP status badges ─────────────────────────────────────── */
+.rsvp-tab {
+  border-radius: 8px;
+  transition: all 0.18s;
+  font-weight: 600;
+}
+.rsvp-tab.active {
+  background: rgba(0,168,255,0.15);
+  color: var(--q-blue2);
+  border-color: var(--q-blue-border) !important;
+}
+
+/* ── Task item improvements ────────────────────────────────── */
+.dash-task-item {
+  border-radius: 6px;
+  transition: all 0.18s;
+}
+
+/* ── Section label improvements ─────────────────────────────── */
+.admin-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-card-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px; height: 12px;
+  background: linear-gradient(180deg, var(--q-blue) 0%, var(--q-blue3) 100%);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(0,168,255,0.4);
+}
+
+/* ── Selected date highlight in mini calendar ───────────────── */
+.mini-cal-day.in-month {
+  color: var(--q-text);
+}
+.mini-cal-day.out-of-month {
+  color: var(--q-muted2);
+  opacity: 0.5;
+}
+
+/* ── Improved hover for sidebar nav buttons ─────────────────── */
+.topbar-nav-btn:hover {
+  background: rgba(0,168,255,0.08);
+  border-color: var(--q-blue-border);
+  color: var(--q-blue2);
+}
+
+/* ── Invitee checklist improvements ────────────────────────── */
+.member-check {
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+.member-check:hover {
+  background: rgba(0,168,255,0.06);
+}
+.member-check.checked {
+  background: rgba(0,168,255,0.08);
+  border-color: rgba(0,168,255,0.2);
+}
+
+/* ── Priority-based task item colors ────────────────────────── */
+.dash-task-item[data-priority="critical"] {
+  border-left: 2px solid var(--q-red);
+}
+.dash-task-item[data-priority="important"] {
+  border-left: 2px solid var(--q-amber);
+}
+.dash-task-item[data-priority="optional"] {
+  border-left: 2px solid var(--q-green);
+}
+
+/* ── Smooth page transitions ────────────────────────────────── */
+.page.active {
+  animation: pageIn 0.3s cubic-bezier(0.22, 0.68, 0, 1.2) both;
+}
+
+/* ── Button group improvements ──────────────────────────────── */
+.btn-group {
+  border-radius: 9px;
+  overflow: hidden;
+}
+.btn-group > button {
+  border-radius: 0;
+}
+.btn-group > button:first-child { border-radius: 9px 0 0 9px; }
+.btn-group > button:last-child { border-radius: 0 9px 9px 0; }
+
+/* ── Form labels ─────────────────────────────────────────────── */
+.form-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--q-muted2);
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* ── Light mode final adjustments ───────────────────────────── */
+body.light-mode .home-card::before {
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.04), transparent);
+}
+body.light-mode #toast {
+  background: linear-gradient(135deg, #ffffff 0%, #f0f4fa 100%) !important;
+  color: var(--q-text) !important;
+  border-color: rgba(0,20,60,0.12) !important;
+}
+body.light-mode .topbar::after {
+  opacity: 0.1;
+}
+body.light-mode .nav-pill-btn.active {
+  box-shadow: 0 2px 12px rgba(0,168,255,0.2);
+  text-shadow: none;
+}
 </style>
 </head>
 <body>
