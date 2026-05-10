@@ -534,7 +534,9 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   border-radius: 99px; cursor: pointer;
   font-size: 12px; color: var(--q-muted);
   position: relative; transition: all 0.18s;
+  max-width: 180px;
 }
+#user-display-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .user-pill:hover { border-color: var(--q-blue-border); background: var(--q-dark4); }
 
@@ -821,7 +823,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   display: flex; align-items: center; gap: 4px;
   padding: 3px 7px; border-radius: 5px;
   font-size: 10px; font-weight: 600; cursor: pointer;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  overflow: hidden; min-width: 0;
   transition: all 0.18s; border: 1px solid transparent;
 }
 
@@ -829,6 +831,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .event-pill.completed { opacity: 0.3; text-decoration: line-through; filter: grayscale(1); }
 
 .event-pill-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+.event-pill-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 
 .more-events {
   font-family: var(--font-mono);
@@ -4086,7 +4089,7 @@ function renderCalendar(){
       const pill=document.createElement('div');pill.className=`event-pill${ev.completed?' completed':''}`;
       pill.style.background=ev.completed?'rgba(148,163,184,0.22)':color+'28';
       pill.style.color=ev.completed?'#94a3b8':color;
-      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div>${ev.allDay?'':(ev.time?fmt12(ev.time)+' · ':'')}${ev.title}`;
+      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${ev.allDay?'':(ev.time?fmt12(ev.time)+' · ':'')}${ev.title}</span>`;
       pill.onclick=e=>{e.stopPropagation();openViewEvent(ev);};evd.appendChild(pill);
     });
     if(cev.length>3){const mo=document.createElement('div');mo.className='more-events';mo.textContent=`+${cev.length-3} more`;evd.appendChild(mo);}
