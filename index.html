@@ -626,6 +626,33 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 
 /* ── Pages ────────────────────────────────────────────────────── */
 .page { display: none; flex: 1; overflow: hidden; }
+#page-help { overflow-y: auto; }
+/* Sidebar all-toggle */
+.cal-vis-toggle { background: none; border: 1px solid var(--q-border); color: var(--q-muted2); cursor: pointer; font-size: 9px; font-family: var(--font-mono); letter-spacing: .05em; padding: 2px 7px; border-radius: 5px; transition: all .15s; }
+.cal-vis-toggle:hover { border-color: var(--q-blue2); color: var(--q-blue2); }
+/* Hover card */
+.ev-hover-card {
+  position: fixed; z-index: 9999; background: var(--q-dark3); border: 1px solid var(--q-border2);
+  border-radius: var(--r-md); padding: 12px 14px; max-width: 260px; min-width: 180px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55); pointer-events: none;
+  animation: fadeIn .12s ease both;
+}
+.ev-hover-card-title { font-size: 13px; font-weight: 700; color: var(--q-text); margin-bottom: 5px; line-height: 1.3; }
+.ev-hover-card-meta { font-size: 11px; color: var(--q-muted); line-height: 1.6; }
+/* Overflow popup */
+.overflow-popup {
+  position: fixed; z-index: 9998; background: var(--q-dark3); border: 1px solid var(--q-border2);
+  border-radius: var(--r-md); padding: 10px 12px; min-width: 200px; max-width: 280px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+  animation: fadeIn .12s ease both;
+}
+.overflow-popup-title { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--q-muted2); margin-bottom: 8px; }
+.overflow-popup-pill { display: flex; align-items: center; gap: 6px; padding: 5px 7px; border-radius: 6px; cursor: pointer; transition: background .12s; margin-bottom: 2px; }
+.overflow-popup-pill:hover { background: var(--q-dark4); }
+.overflow-popup-pill-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.overflow-popup-pill-text { font-size: 12px; font-weight: 600; color: var(--q-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overflow-popup-pill-time { font-size: 10px; color: var(--q-muted2); flex-shrink: 0; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
 .page.active { display: flex; animation: pageIn 0.28s cubic-bezier(0.22,0.68,0,1.2) both; }
 
 @keyframes pageIn {
@@ -770,23 +797,19 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 
 .mini-day {
   font-size: 10px; text-align: center;
-  padding: 4px 2px; border-radius: 5px;
+  padding: 3px 2px 2px; border-radius: 5px;
   cursor: pointer; color: var(--q-muted);
   transition: all 0.15s; font-weight: 500;
+  display: flex; flex-direction: column; align-items: center;
 }
 .mini-day:hover { background: var(--q-dark5); color: var(--q-text); }
 .mini-day.today {
   background: linear-gradient(135deg, var(--q-blue), var(--q-blue2));
   color: #fff; font-weight: 700;
-  box-shadow: 0 2px 8px rgba(0,168,255,0.4),0 0 8px rgba(0,168,255,0.3);
+  box-shadow: 0 2px 8px rgba(0,168,255,0.4);
 }
 .mini-day.selected { border: 1px solid var(--q-blue2); color: var(--q-blue2); }
-.mini-day.other-month { opacity: 0.28; }
-.mini-day.has-event::after {
-  content: ''; display: block; width: 3px; height: 3px;
-  background: var(--q-blue2); border-radius: 50%;
-  margin: 2px auto 0;
-}
+.mini-day.other-month { opacity: 0.25; }
 
 /* ── Calendar Grid ────────────────────────────────────────────── */
 .cal-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -807,19 +830,31 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 
 .cal-grid {
   display: grid; grid-template-columns: repeat(7,1fr);
-  grid-template-rows: repeat(6,1fr); flex: 1; overflow-y: auto;
+  grid-template-rows: repeat(6,1fr);
 }
+#cal-scroll-viewport { position: relative; overflow: hidden; flex: 1; }
+#cal-grid, #cal-grid-ghost {
+  position: absolute; inset: 0; will-change: transform;
+  display: grid; grid-template-columns: repeat(7,1fr); grid-template-rows: repeat(6,1fr);
+}
+#cal-grid-ghost { opacity: 0; pointer-events: none; }
 
 .cal-cell {
   border-right: 1px solid var(--q-border);
   border-bottom: 1px solid var(--q-border);
-  padding: 10px 8px 6px; min-height: 115px;
-  cursor: pointer; transition: background 0.18s;
+  padding: 10px 8px 6px;
+  cursor: pointer; transition: background 0.12s;
   display: flex; flex-direction: column; position: relative;
+  overflow: hidden;
 }
 
-.cal-cell:hover { background: rgba(0,168,255,0.04); }
+.cal-cell:hover { background: rgba(0,168,255,0.05); }
+/* Weekend columns (Sun=col1, Sat=col7) get a subtle tint */
+.cal-cell:nth-child(7n+1), .cal-cell:nth-child(7n) { background: rgba(0,0,0,0.06); }
+.cal-cell:nth-child(7n+1):hover, .cal-cell:nth-child(7n):hover { background: rgba(0,168,255,0.05); }
 .cal-cell:nth-child(7n) { border-right: none; }
+/* Overdue task cells */
+.cal-cell.has-overdue { border-top: 2px solid rgba(239,68,68,0.35); }
 .cal-cell.other-month .cell-num { opacity: 0.25; }
 
 .cal-cell.today{background:rgba(0,168,255,0.06);box-shadow:inset 0 0 0 1px rgba(0,168,255,0.12)}
@@ -848,20 +883,21 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 
 .event-pill {
   display: flex; align-items: center; gap: 4px;
-  padding: 3px 7px; border-radius: 5px;
-  font-size: 10px; font-weight: 600; cursor: pointer;
+  padding: 3px 8px; border-radius: 5px;
+  font-size: 10.5px; font-weight: 600; cursor: pointer;
   overflow: hidden; min-width: 0;
-  transition: all 0.18s; border: 1px solid transparent;
+  transition: transform 0.13s, box-shadow 0.13s, opacity 0.13s;
+  border: 1px solid transparent;
 }
 
-.event-pill:hover{opacity:1;transform:translateY(-1px);box-shadow:0 3px 12px rgba(0,0,0,0.35);border-color:rgba(255,255,255,0.15)!important}
+.event-pill:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,0.4);border-color:rgba(255,255,255,0.12)!important}
 .event-pill.completed { opacity: 0.3; text-decoration: line-through; filter: grayscale(1); }
 
-.event-pill-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+.event-pill-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 .event-pill-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 
-.more-events{font-family:var(--font-mono);font-size:9px;color:var(--q-muted2);padding:2px 7px;cursor:pointer;border-radius:4px;transition:all 0.15s;display:inline-flex;align-items:center;gap:3px}
-.more-events:hover{background:var(--q-blue-dim);color:var(--q-blue2)}
+.more-events{font-family:var(--font-mono);font-size:9.5px;color:var(--q-muted2);padding:3px 7px;cursor:pointer;border-radius:5px;transition:all 0.15s;display:inline-flex;align-items:center;gap:3px;margin-top:1px}
+.more-events:hover{background:var(--q-blue-dim);color:var(--q-blue2);transform:none}
 
 /* ── Week View ────────────────────────────────────────────────── */
 .week-container { display: flex; flex: 1; overflow: hidden; }
@@ -3237,7 +3273,10 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
         <div class="sidebar-section">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
             <div class="sidebar-label" style="margin-bottom:0">Calendars</div>
-            <button onclick="openNewCalendarModal()" id="new-cal-btn" style="display:none;background:none;border:none;color:var(--q-muted);cursor:pointer;font-size:17px;padding:0 3px;line-height:1" title="New calendar">＋</button>
+            <div style="display:flex;gap:5px;align-items:center">
+              <button class="cal-vis-toggle" id="cal-vis-all-btn" onclick="toggleAllCals()" title="Show/hide all">All</button>
+              <button onclick="openNewCalendarModal()" id="new-cal-btn" style="display:none;background:none;border:none;color:var(--q-muted);cursor:pointer;font-size:17px;padding:0 3px;line-height:1" title="New calendar">＋</button>
+            </div>
           </div>
           <div class="calendar-list" id="cal-list"></div>
         </div>
@@ -3259,7 +3298,10 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
             <div class="cal-day-header">Sun</div><div class="cal-day-header">Mon</div><div class="cal-day-header">Tue</div>
             <div class="cal-day-header">Wed</div><div class="cal-day-header">Thu</div><div class="cal-day-header">Fri</div><div class="cal-day-header">Sat</div>
           </div>
-          <div class="cal-grid" id="cal-grid"></div>
+          <div id="cal-scroll-viewport">
+            <div id="cal-grid"></div>
+            <div id="cal-grid-ghost"></div>
+          </div>
         </div>
         <div id="week-view" style="display:none;flex-direction:column;flex:1;overflow:hidden">
           <div class="week-sticky-header" id="week-sticky-header"><div class="week-time-gutter-hdr"></div></div>
@@ -4222,11 +4264,18 @@ function updateAdminUI(){
   document.getElementById('nav-admin').style.display=isAnyLeader?'block':'none';
   document.getElementById('create-btns').style.display=isAdm?'flex':'none';
   document.getElementById('cal-type-filter').style.display=activeCalId?'flex':'none';
-  // Also show new-cal-btn only to Captain of own cals
   document.getElementById('new-cal-btn').style.display=isCaptain(activeCalId)?'inline':'none';
   const hn=document.getElementById('cal-header-name');
   if(hn){hn.className='cal-header-name'+(isAdm?' editable':'');hn.ondblclick=isAdm?startRenameCalendar:null;}
   document.getElementById('cal-header-hint').textContent=isAdm?'· dbl-click to rename':'';
+  // Update all-on/off button label
+  const allCals=[...calendars,...sharedCalendars];
+  const btn=document.getElementById('cal-vis-all-btn');
+  if(btn&&allCals.length){
+    const allOn=allCals.every(c=>enabledCalIds.has(c.id));
+    btn.textContent=allOn?'Hide all':'Show all';
+    btn.style.display='inline';
+  } else if(btn) btn.style.display='none';
 }
 
 // ── Render all ─────────────────────────────────────────────────────────────
@@ -4304,13 +4353,14 @@ function renderSidebar(){
 }
 
 // ── Month render ───────────────────────────────────────────────────────────
-function renderCalendar(){
-  const grid=document.getElementById('cal-grid');grid.innerHTML='';
-  if([...calendars,...sharedCalendars].length===0){
+function renderCalendar(container,forDate){
+  const grid=container||document.getElementById('cal-grid');grid.innerHTML='';
+  if(!container&&[...calendars,...sharedCalendars].length===0){
     grid.innerHTML='<div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;color:var(--q-muted2)"><div style="width:56px;height:56px;border-radius:50%;background:var(--q-blue-dim);border:1px solid var(--q-blue-border);display:flex;align-items:center;justify-content:center;font-size:24px">📅</div><div><div style="font-size:15px;font-weight:600;color:var(--q-muted);text-align:center;margin-bottom:4px">No calendars yet</div><div style="font-size:12px;text-align:center">Create a calendar to get started</div></div></div>';
     return;
   }
-  const y=currentDate.getFullYear(),m=currentDate.getMonth(),today=getNow();
+  const d=forDate||currentDate;
+  const y=d.getFullYear(),m=d.getMonth(),today=getNow();
   const fd=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate(),dip=new Date(y,m,0).getDate();
   const rs=new Date(y,m,1),re=new Date(y,m+1,0);
   const exp=expandRec(events,rs,re);
@@ -4327,37 +4377,53 @@ function renderCalendar(){
       if(e._invited&&enabledCalIds.has(e.calendarId))return true;
       return false;
     }).filter(e=>calTypeFilter==='all'||(calTypeFilter==='meetings'&&e.type!=='task')||(calTypeFilter==='tasks'&&e.type==='task')).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    const todayStr=today.toISOString().split('T')[0];
+    const hasOverdue=isCur&&ds<todayStr&&cev.some(e=>e.type==='task'&&!e.completed);
     const cell=document.createElement('div');
-    cell.className=`cal-cell${!isCur?' other-month':''}${isToday?' today':''}`;
+    cell.className=`cal-cell${!isCur?' other-month':''}${isToday?' today':''}${hasOverdue?' has-overdue':''}`;
     cell.onclick=ev=>{if(ev.target===cell||ev.target.classList.contains('cell-num')||ev.target.classList.contains('cell-events'))openNewEventOnDate(ds);};
     const nd=document.createElement('div');nd.className='cell-num';nd.textContent=day;cell.appendChild(nd);
     const evd=document.createElement('div');evd.className='cell-events';
-    cev.slice(0,3).forEach(ev=>{
+    const makePill=(ev)=>{
       const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
       let color=ev.color||cal?.color||'#2979ff';
+      const isOverdue=ev.type==='task'&&!ev.completed&&ev.date<todayStr;
       if(ev.completed){color='#94a3b8';}
       else if(ev.type==='task'){
         const pri=ev.priority||'important';
         color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';
       }
-      const pill=document.createElement('div');pill.className=`event-pill${ev.completed?' completed':''}`;
-      pill.style.background=ev.completed?'rgba(148,163,184,0.22)':color+'28';
+      const pill=document.createElement('div');
+      pill.className=`event-pill${ev.completed?' completed':''}`;
+      pill.style.background=ev.completed?'rgba(148,163,184,0.22)':color+'22';
       pill.style.color=ev.completed?'#94a3b8':color;
-      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${ev.allDay?'':(ev.time?fmt12(ev.time)+' · ':'')}${ev.title}</span>`;
-      pill.onclick=e=>{e.stopPropagation();openViewEvent(ev);};
-      pill.ondblclick=e=>{e.stopPropagation();closeModal('view-modal');openEventModal(ev);};
-      evd.appendChild(pill);
-    });
-    if(cev.length>3){const mo=document.createElement('div');mo.className='more-events';mo.textContent=`+${cev.length-3} more`;evd.appendChild(mo);}
+      if(isOverdue)pill.style.borderColor=color+'66';
+      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${ev.allDay?'':(ev.time?fmt12(ev.time)+' · ':'')}${ev.title}</span>${ev.repeat&&ev.repeat!=='none'?'<span style="font-size:8px;opacity:.6;flex-shrink:0">↻</span>':''}`;
+      pill.onclick=e=>{e.stopPropagation();closeOverflowPopup();openViewEvent(ev);};
+      pill.ondblclick=e=>{e.stopPropagation();closeModal('view-modal');closeOverflowPopup();openEventModal(ev);};
+      // Hover card
+      pill.addEventListener('mouseenter',e=>showHoverCard(ev,cal,color,e));
+      pill.addEventListener('mouseleave',hideHoverCard);
+      return pill;
+    };
+    cev.slice(0,3).forEach(ev=>evd.appendChild(makePill(ev)));
+    if(cev.length>3){
+      const mo=document.createElement('div');mo.className='more-events';
+      mo.innerHTML=`+${cev.length-3} more`;
+      mo.onclick=e=>{e.stopPropagation();showOverflowPopup(cev.slice(3),mo,ds);};
+      evd.appendChild(mo);
+    }
     cell.appendChild(evd);
-    const hint=document.createElement('div');hint.className='cell-add-hint';hint.textContent='＋';hint.title='Add event';hint.onclick=e=>{e.stopPropagation();openNewEventOnDate(ds);};cell.appendChild(hint);
+    if(!container){const hint=document.createElement('div');hint.className='cell-add-hint';hint.textContent='＋';hint.title='Add event';hint.onclick=e=>{e.stopPropagation();openNewEventOnDate(ds);};cell.appendChild(hint);}
     grid.appendChild(cell);
   }
-  // Highlight today's day-of-week column header
-  const dow=getNow().getDay();
-  document.querySelectorAll('.cal-day-header').forEach((h,i)=>{
-    h.classList.toggle('today-col', i===dow && currentDate.getFullYear()===getNow().getFullYear() && currentDate.getMonth()===getNow().getMonth());
-  });
+  if(!container){
+    // Highlight today's day-of-week column header
+    const dow=getNow().getDay();
+    document.querySelectorAll('.cal-day-header').forEach((h,i)=>{
+      h.classList.toggle('today-col', i===dow && d.getFullYear()===getNow().getFullYear() && d.getMonth()===getNow().getMonth());
+    });
+  }
 }
 
 function expandRec(evList,rs,re){
@@ -4466,18 +4532,87 @@ function renderMiniCal(){
     const cd=isCur?new Date(y,m,day):(i<fd?new Date(y,m-1,day):new Date(y,m+1,day));
     const ds=cd.toISOString().split('T')[0];
     const isT=today.toDateString()===cd.toDateString(),isSel=currentDate.toDateString()===cd.toDateString()&&isCur;
-    const hasEv=events.some(e=>e.date===ds&&(e.isShared?enabledCalIds.has(e.sharedCalId):enabledCalIds.has(e.calendarId)));
+    const dayEvs=events.filter(e=>e.date===ds&&(e.isShared?enabledCalIds.has(e.sharedCalId):enabledCalIds.has(e.calendarId)));
+    const hasEv=dayEvs.length>0;
     const el=document.createElement('div');
-    el.className=`mini-day${!isCur?' other-month':''}${isT?' today':''}${isSel&&!isT?' selected':''}${hasEv&&!isT?' has-event':''}`;
-    el.textContent=day;el.onclick=()=>{currentDate=new Date(y,m,day);renderAll();};
+    el.className=`mini-day${!isCur?' other-month':''}${isT?' today':''}${isSel&&!isT?' selected':''}`;
+    el.innerHTML=`<span>${day}</span>`;
+    if(hasEv&&!isT&&isCur){
+      const dots=document.createElement('div');dots.style.cssText='display:flex;gap:2px;justify-content:center;margin-top:1px';
+      const calColors=new Set();
+      dayEvs.slice(0,3).forEach(e=>{
+        const cal=calendars.find(c=>c.id===e.calendarId)||sharedCalendars.find(c=>c.id===e.sharedCalId||c.id===e.calendarId);
+        const col=e.type==='task'?(e.priority==='critical'?'#ef4444':e.priority==='important'?'#f59e0b':'#22c55e'):(e.color||cal?.color||'#00b4ff');
+        if(!calColors.has(col)){calColors.add(col);const dot=document.createElement('div');dot.style.cssText=`width:3px;height:3px;border-radius:50%;background:${col};flex-shrink:0`;dots.appendChild(dot);}
+      });
+      el.appendChild(dots);
+    }
+    el.onclick=()=>{currentDate=new Date(y,m,day);renderAll();};
     grid.appendChild(el);
   }
 }
 
 // ── Navigation ─────────────────────────────────────────────────────────────
-function animateCal(cls){const g=document.getElementById('cal-grid');if(!g)return;g.classList.remove('slide-up','slide-down');void g.offsetWidth;g.classList.add(cls);}
-window.navPrev=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();animateCal('slide-down');};
-window.navNext=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();animateCal('slide-up');};
+// ── Fluid month scroll ─────────────────────────────────────────────────────
+const _fluid={active:false,dir:0,progress:0,raf:null,timeout:null};
+function _fluidApply(){
+  const main=document.getElementById('cal-grid'),ghost=document.getElementById('cal-grid-ghost');
+  if(!main||!ghost)return;
+  const p=_fluid.progress,d=_fluid.dir;
+  main.style.transform=`translateY(${-d*p*100}%)`;
+  ghost.style.transform=`translateY(${d*(1-p)*100}%)`;
+}
+function _fluidStart(dir){
+  if(_fluid.active)return;
+  _fluid.active=true;_fluid.dir=dir;_fluid.progress=0;
+  const adjDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+dir,1);
+  const ghost=document.getElementById('cal-grid-ghost');
+  if(ghost){renderCalendar(ghost,adjDate);ghost.style.opacity='1';}
+}
+function _fluidCommit(advance){
+  if(!_fluid.active)return;
+  const from=_fluid.progress,to=advance?1:0,start=performance.now(),dur=260;
+  cancelAnimationFrame(_fluid.raf);
+  const step=(now)=>{
+    const t=Math.min(1,(now-start)/dur);
+    const ease=1-Math.pow(1-t,3);
+    _fluid.progress=from+(to-from)*ease;
+    _fluidApply();
+    if(t<1){_fluid.raf=requestAnimationFrame(step);return;}
+    if(advance){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+_fluid.dir,1);miniDate=new Date(currentDate);}
+    _fluidReset();
+    if(advance)renderAll();else renderCalendar();
+  };
+  requestAnimationFrame(step);
+}
+function _fluidReset(){
+  _fluid.active=false;_fluid.dir=0;_fluid.progress=0;
+  clearTimeout(_fluid.timeout);cancelAnimationFrame(_fluid.raf);
+  const ghost=document.getElementById('cal-grid-ghost');
+  if(ghost){ghost.style.opacity='0';ghost.innerHTML='';}
+  const main=document.getElementById('cal-grid');
+  if(main)main.style.transform='';
+}
+function _fluidScroll(deltaY){
+  if(currentView!=='month')return;
+  const dir=deltaY>0?1:-1;
+  if(_fluid.active&&_fluid.dir!==dir){_fluidCommit(false);return;}
+  if(!_fluid.active)_fluidStart(dir);
+  const H=document.getElementById('cal-scroll-viewport')?.offsetHeight||600;
+  _fluid.progress=Math.max(0,Math.min(1,_fluid.progress+Math.abs(deltaY)/(H*0.55)));
+  _fluidApply();
+  clearTimeout(_fluid.timeout);
+  _fluid.timeout=setTimeout(()=>_fluidCommit(_fluid.progress>0.28),180);
+}
+
+window.navPrev=()=>{
+  if(currentView==='month'){_fluidStart(-1);_fluidCommit(true);}
+  else{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();}
+};
+window.navNext=()=>{
+  if(currentView==='month'){_fluidStart(1);_fluidCommit(true);}
+  else{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();}
+};
 window.miniNavMonth=(d)=>{miniDate=new Date(miniDate.getFullYear(),miniDate.getMonth()+d,1);renderMiniCal();};
 window.setCalFilter=(f)=>{
   calTypeFilter=f;
@@ -4485,6 +4620,61 @@ window.setCalFilter=(f)=>{
   renderCalendar();renderMiniCal();
 };
 window.goToday=()=>{currentDate=getNow();miniDate=getNow();renderAll();};
+
+// ── Show-all / hide-all calendar toggle ────────────────────────────────────
+window.toggleAllCals=()=>{
+  const allCals=[...calendars,...sharedCalendars];
+  const allEnabled=allCals.every(c=>enabledCalIds.has(c.id));
+  if(allEnabled)enabledCalIds.clear();else allCals.forEach(c=>enabledCalIds.add(c.id));
+  renderSidebar();renderAll();
+};
+
+// ── Hover card ─────────────────────────────────────────────────────────────
+let _hoverCard=null,_hoverTimer=null;
+function showHoverCard(ev,cal,color,e){
+  clearTimeout(_hoverTimer);
+  _hoverTimer=setTimeout(()=>{
+    hideHoverCard();
+    const d=new Date(ev.date+'T12:00:00');
+    const card=document.createElement('div');card.className='ev-hover-card';
+    card.innerHTML=`<div class="ev-hover-card-title" style="color:${color}">${ev.title}</div><div class="ev-hover-card-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.allDay?' · All day':ev.time?' · '+fmt12(ev.time)+(ev.timeEnd?' – '+fmt12(ev.timeEnd):''):''}${cal?' · '+cal.name:''}${ev.type==='task'?' · '+((ev.priority||'important')[0].toUpperCase()+(ev.priority||'important').slice(1)):''}${ev.description?'<br><span style="color:var(--q-muted2)">'+ev.description.slice(0,80)+(ev.description.length>80?'…':'')+'</span>':''}</div>`;
+    document.body.appendChild(card);_hoverCard=card;
+    const r=e.target.getBoundingClientRect();
+    let left=r.right+10,top=r.top;
+    if(left+270>window.innerWidth)left=r.left-270;
+    if(top+card.offsetHeight>window.innerHeight)top=window.innerHeight-card.offsetHeight-10;
+    card.style.left=`${Math.max(8,left)}px`;card.style.top=`${Math.max(8,top)}px`;
+  },380);
+}
+function hideHoverCard(){clearTimeout(_hoverTimer);if(_hoverCard){_hoverCard.remove();_hoverCard=null;}}
+
+// ── Overflow popup ("+N more") ──────────────────────────────────────────────
+let _overflowPopup=null;
+function showOverflowPopup(evs,anchor,ds){
+  closeOverflowPopup();
+  const popup=document.createElement('div');popup.className='overflow-popup';
+  const dObj=new Date(ds+'T12:00:00');
+  popup.innerHTML=`<div class="overflow-popup-title">${dObj.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>`;
+  evs.forEach(ev=>{
+    const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
+    let color=ev.color||cal?.color||'#2979ff';
+    if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
+    if(ev.completed)color='#94a3b8';
+    const row=document.createElement('div');row.className='overflow-popup-pill';
+    row.innerHTML=`<div class="overflow-popup-pill-dot" style="background:${color}"></div><span class="overflow-popup-pill-text" style="color:${color}">${ev.title}</span>${ev.time?`<span class="overflow-popup-pill-time">${fmt12(ev.time)}</span>`:''}`;
+    row.onclick=()=>{closeOverflowPopup();openViewEvent(ev);};
+    popup.appendChild(row);
+  });
+  document.body.appendChild(popup);_overflowPopup=popup;
+  const r=anchor.getBoundingClientRect();
+  let left=r.left,top=r.bottom+6;
+  if(left+290>window.innerWidth)left=window.innerWidth-290;
+  if(top+popup.offsetHeight>window.innerHeight)top=r.top-popup.offsetHeight-6;
+  popup.style.left=`${Math.max(8,left)}px`;popup.style.top=`${Math.max(8,top)}px`;
+  const close=e=>{if(!popup.contains(e.target))closeOverflowPopup();};
+  setTimeout(()=>document.addEventListener('click',close,{once:true}),0);
+}
+function closeOverflowPopup(){if(_overflowPopup){_overflowPopup.remove();_overflowPopup=null;}}
 window.setView=(v)=>{currentView=v;document.getElementById('month-view').style.display=v==='month'?'flex':'none';document.getElementById('week-view').style.display=v==='week'?'flex':'none';document.getElementById('view-month-btn').classList.toggle('active',v==='month');document.getElementById('view-week-btn').classList.toggle('active',v==='week');renderAll();};
 
 // ── Home ───────────────────────────────────────────────────────────────────
@@ -6127,34 +6317,37 @@ window._nextOB=()=>{if(_obStep<ONBOARDING_STEPS.length-1){_obStep++;_renderOB(_o
 window._skipOB=()=>{document.getElementById('onboarding-modal').classList.remove('open');localStorage.setItem('ob_done','1');};
 function maybeShowOnboarding(){if(!localStorage.getItem('ob_done')){_obStep=0;_renderOB(0);document.getElementById('onboarding-modal').classList.add('open');}}
 
-// ── F1: Scroll wheel to navigate months ────────────────────────────────────
-let _wheelAcc=0,_wheelT=null;
+// ── F1: Scroll wheel — fluid month navigation ──────────────────────────────
 (()=>{
-  const mv=document.getElementById('month-view');
-  if(mv)mv.addEventListener('wheel',(e)=>{
+  const vp=document.getElementById('cal-scroll-viewport');
+  if(vp)vp.addEventListener('wheel',(e)=>{
     if(currentView!=='month'||document.querySelector('.modal-overlay.open'))return;
     e.preventDefault();
-    _wheelAcc+=e.deltaY;
-    clearTimeout(_wheelT);
-    _wheelT=setTimeout(()=>{
-      if(_wheelAcc>300)navNext();
-      else if(_wheelAcc<-300)navPrev();
-      _wheelAcc=0;
-    },250);
+    _fluidScroll(e.deltaY);
   },{passive:false});
 })();
 
 // ── F2: Touch swipe to navigate months ─────────────────────────────────────
-let _touchX=null;
+let _touchX=null,_touchY=null;
 (()=>{
-  const mv=document.getElementById('month-view');
-  if(mv){
-    mv.addEventListener('touchstart',e=>{_touchX=e.touches[0].clientX;},{passive:true});
-    mv.addEventListener('touchend',e=>{
+  const vp=document.getElementById('cal-scroll-viewport');
+  if(vp){
+    vp.addEventListener('touchstart',e=>{_touchX=e.touches[0].clientX;_touchY=e.touches[0].clientY;},{passive:true});
+    vp.addEventListener('touchmove',e=>{
+      if(_touchY===null||currentView!=='month')return;
+      const dy=e.touches[0].clientY-_touchY;
+      if(Math.abs(dy)>8)e.preventDefault();
+    },{passive:false});
+    vp.addEventListener('touchend',e=>{
       if(_touchX===null)return;
       const dx=e.changedTouches[0].clientX-_touchX;
-      if(Math.abs(dx)>50){dx<0?navNext():navPrev();}
-      _touchX=null;
+      const dy=e.changedTouches[0].clientY-(_touchY||0);
+      if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>40){
+        _fluidStart(dy<0?1:-1);_fluidCommit(true);
+      } else if(Math.abs(dx)>50){
+        _fluidStart(dx<0?1:-1);_fluidCommit(true);
+      }
+      _touchX=null;_touchY=null;
     },{passive:true});
   }
 })();
