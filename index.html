@@ -694,9 +694,11 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .calendar-item:hover .cal-action-btn { opacity: 1; }
 
 .cal-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  box-shadow: 0 0 6px currentColor;
+  width: 13px; height: 13px; border-radius: 4px; flex-shrink: 0;
+  cursor: pointer; transition: all 0.15s; box-sizing: border-box;
 }
+.cal-dot.enabled { box-shadow: 0 0 5px -1px currentColor; }
+.cal-dot.disabled { background: transparent !important; border: 2px solid; opacity: 0.5; }
 
 .cal-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 
@@ -714,6 +716,31 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   border-radius: 4px; transition: all 0.15s; line-height: 1;
 }
 .cal-action-btn:hover { color: var(--q-red); background: var(--q-red-dim); }
+
+/* Help page */
+.help-section { margin-bottom: 40px; }
+.help-section-title {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--q-blue2);
+  margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--q-border);
+}
+.help-grid { display: flex; flex-direction: column; gap: 2px; }
+.help-row {
+  display: flex; align-items: center; gap: 16px; padding: 9px 12px;
+  border-radius: var(--r); background: var(--q-dark3);
+  border: 1px solid var(--q-border); margin-bottom: 4px;
+}
+.help-keys { display: flex; gap: 5px; align-items: center; flex-shrink: 0; min-width: 100px; }
+.help-desc { font-size: 12px; color: var(--q-muted); line-height: 1.5; }
+.help-feature-list { display: flex; flex-direction: column; gap: 4px; }
+.help-feature {
+  padding: 12px 16px; border-radius: var(--r); background: var(--q-dark3);
+  border: 1px solid var(--q-border);
+}
+.help-feature-name { font-size: 13px; font-weight: 600; color: var(--q-text); margin-bottom: 5px; }
+.help-feature-body { font-size: 12px; color: var(--q-muted); line-height: 1.7; }
+.help-kbd-inline { margin-left: 6px; }
+.help-kbd-inline kbd { font-size: 9px; padding: 2px 5px; }
 
 /* Mini calendar */
 .mini-cal { padding: 0 16px 16px; }
@@ -3046,10 +3073,10 @@ body.light-mode .nav-pill-btn.active {
 }
 
 /* ── F3: Month slide animations ─────────────────────────────────── */
-@keyframes slideInRight{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
-@keyframes slideInLeft{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}
-.cal-grid.slide-right{animation:slideInRight 0.22s cubic-bezier(0.22,0.68,0,1.2) both}
-.cal-grid.slide-left{animation:slideInLeft 0.22s cubic-bezier(0.22,0.68,0,1.2) both}
+@keyframes slideInDown{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideInUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.cal-grid.slide-up{animation:slideInUp 0.22s cubic-bezier(0.22,0.68,0,1.2) both}
+.cal-grid.slide-down{animation:slideInDown 0.22s cubic-bezier(0.22,0.68,0,1.2) both}
 
 /* ── U1: Weekend Sunday tint ────────────────────────────────────── */
 .cal-cell:nth-child(7n+1){background:rgba(255,255,255,0.006)}
@@ -3131,6 +3158,7 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
       <button class="nav-pill-btn" id="nav-dash" onclick="showPage('dashboard')">Dashboard</button>
       <button class="nav-pill-btn" id="nav-admin" onclick="showPage('admin')" style="display:none">Admin</button>
       <button class="nav-pill-btn" id="nav-profile" onclick="showPage('profile')">Profile</button>
+      <button class="nav-pill-btn" id="nav-help" onclick="showPage('help')" title="Help guide">?</button>
     </div>
     <!-- RIGHT: Controls — flex:1 + justify-end to mirror left side -->
     <div class="topbar-right" style="flex:1;justify-content:flex-end">
@@ -3522,6 +3550,147 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
     </div>
   </div>
 
+  <!-- HELP PAGE -->
+  <div class="page" id="page-help">
+    <div style="max-width:760px;margin:0 auto;padding:32px 24px 64px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
+        <div style="font-size:28px;font-weight:700;font-family:var(--font-display);color:var(--q-text)">Help & Guide</div>
+        <div style="font-size:11px;font-family:var(--font-mono);color:var(--q-muted2);background:var(--q-dark4);padding:3px 8px;border-radius:6px;letter-spacing:.05em">QUIXILVER 8404</div>
+      </div>
+
+      <!-- Keyboard Shortcuts -->
+      <div class="help-section">
+        <div class="help-section-title">Keyboard Shortcuts</div>
+        <div class="help-grid">
+          <div class="help-row"><div class="help-keys"><kbd>⌘K</kbd> <span style="color:var(--q-muted2);font-size:10px">/ Ctrl+K</span></div><div class="help-desc">Open search — find any event, task, or person instantly</div></div>
+          <div class="help-row"><div class="help-keys"><kbd>←</kbd> <kbd>→</kbd></div><div class="help-desc">Navigate previous / next month or week</div></div>
+          <div class="help-row"><div class="help-keys"><kbd>T</kbd></div><div class="help-desc">Jump to today</div></div>
+          <div class="help-row"><div class="help-keys"><kbd>M</kbd></div><div class="help-desc">Switch to Month view</div></div>
+          <div class="help-row"><div class="help-keys"><kbd>W</kbd></div><div class="help-desc">Switch to Week view</div></div>
+          <div class="help-row"><div class="help-keys"><kbd>?</kbd></div><div class="help-desc">Show keyboard shortcuts reference</div></div>
+          <div class="help-row"><div class="help-keys"><kbd>Esc</kbd></div><div class="help-desc">Close any open modal or dialog</div></div>
+          <div class="help-row"><div class="help-keys">Scroll</div><div class="help-desc">Scroll up / down on the calendar to change months</div></div>
+          <div class="help-row"><div class="help-keys">Swipe</div><div class="help-desc">Swipe left / right on touch devices to navigate months</div></div>
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div class="help-section">
+        <div class="help-section-title">Calendar</div>
+        <div class="help-feature-list">
+          <div class="help-feature">
+            <div class="help-feature-name">Multi-calendar view</div>
+            <div class="help-feature-body">All your calendars are shown simultaneously, Apple Calendar-style. Toggle a calendar on/off by clicking its colored square in the sidebar. Click the calendar name to make it the active one (used when creating new events).</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Month & Week views <span class="help-kbd-inline"><kbd>M</kbd> <kbd>W</kbd></span></div>
+            <div class="help-feature-body">Switch between Month and Week views with the buttons in the top bar or keyboard shortcuts. Week view shows timed events as blocks on a 24-hour grid.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Create an event</div>
+            <div class="help-feature-body">Click any calendar cell to open the new event form pre-filled with that date. In week view, click a time slot to pre-fill the time too. Use the <strong style="color:var(--q-text)">+ Meeting</strong> and <strong style="color:var(--q-text)">+ Task</strong> buttons in the top bar for quick creation.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Recurring events</div>
+            <div class="help-feature-body">Set any event to repeat daily, weekly, bi-weekly, monthly, or yearly. Add an optional end date to stop recurrence automatically.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Event types & colors</div>
+            <div class="help-feature-body">Meetings use the calendar color. Tasks are color-coded by priority — <span style="color:#22c55e;font-weight:600">green = low</span>, <span style="color:#f59e0b;font-weight:600">amber = important</span>, <span style="color:#ef4444;font-weight:600">red = critical</span>. Completed events turn gray.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Mini calendar</div>
+            <div class="help-feature-body">The mini calendar in the sidebar shows dots for days with events. Click any date to jump to that month/week.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="help-section">
+        <div class="help-section-title">Search <span class="help-kbd-inline"><kbd>⌘K</kbd></span></div>
+        <div class="help-feature-list">
+          <div class="help-feature">
+            <div class="help-feature-name">Full-text search</div>
+            <div class="help-feature-body">Search by event title, description, or participant name. Results are grouped into Meetings and Tasks. Click a result to jump directly to that date on the calendar and open the event details.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Tips</div>
+            <div class="help-feature-body">Search works across all your own and shared calendars. Try searching a teammate's name to find every event they're part of.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard -->
+      <div class="help-section">
+        <div class="help-section-title">Dashboard</div>
+        <div class="help-feature-list">
+          <div class="help-feature">
+            <div class="help-feature-name">Team overview</div>
+            <div class="help-feature-body">The dashboard shows all events for a calendar week, grouped by member. Navigate weeks with the arrow buttons or jump back to the current week.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Attendance tracking</div>
+            <div class="help-feature-body">Admins and leaders can mark attendance directly from the dashboard or from an event's detail view. Attendance data is stored per-event.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Task completion</div>
+            <div class="help-feature-body">Task managers can mark tasks complete from the event detail view. Completed tasks appear grayed-out on the calendar and dashboard.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin & Sharing -->
+      <div class="help-section">
+        <div class="help-section-title">Admin & Sharing</div>
+        <div class="help-feature-list">
+          <div class="help-feature">
+            <div class="help-feature-name">Roles</div>
+            <div class="help-feature-body"><strong style="color:var(--q-text)">Captain</strong> — full control, can rename/delete the calendar and manage all events.<br><strong style="color:var(--q-text)">Leader</strong> — can create and edit events, manage attendance.<br><strong style="color:var(--q-text)">Member</strong> — can view events they're invited to.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Sharing a calendar</div>
+            <div class="help-feature-body">Click the <strong style="color:var(--q-text)">Share</strong> button in the calendar top bar. Share the invite code with teammates. They enter it in Admin → Shared Calendars to join. Joining auto-adds the shared calendar to their sidebar.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Rename a calendar</div>
+            <div class="help-feature-body">Double-click the calendar name in the top bar (Captains only) to rename it inline.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Post-meeting notes</div>
+            <div class="help-feature-body">After a meeting occurs, admins can add post-meeting notes to the event (visible in the detail view for all members).</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tips & Tricks -->
+      <div class="help-section">
+        <div class="help-section-title">Tips & Tricks</div>
+        <div class="help-feature-list">
+          <div class="help-feature">
+            <div class="help-feature-name">Double-click to edit</div>
+            <div class="help-feature-body">Double-click any event pill on the calendar to jump straight into the edit form, skipping the detail view.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Scroll to navigate</div>
+            <div class="help-feature-body">On the calendar page, scroll up or down with your mouse wheel to move between months. No need to reach for the arrow buttons.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Filter by type</div>
+            <div class="help-feature-body">Use the Meetings / Tasks / All filter buttons in the calendar subbar to quickly see only what you need.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Toggle calendars</div>
+            <div class="help-feature-body">Click the colored square next to a calendar name to hide or show it. Hidden calendars don't clutter the view but are still in the sidebar, ready to re-enable.</div>
+          </div>
+          <div class="help-feature">
+            <div class="help-feature-name">Dark mode</div>
+            <div class="help-feature-body">Toggle between light and dark mode with the sun/moon icon in the top-right corner. Your preference is saved locally.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- SEARCH MODAL -->
@@ -3838,6 +4007,7 @@ let userPfpUrl=null,myRole=null,currentTaskPriority='important',dashDate=getNow(
 let declineTargetEvId=null,unexcusedTarget=null;
 let viewTab='all',currentPage='home';
 let calTypeFilter='all';
+let enabledCalIds=new Set();
 
 const _lt=setTimeout(()=>{
   const ls=document.getElementById('loading-screen');
@@ -3916,6 +4086,8 @@ function subscribeData(uid){
     calendars=snap.docs.map(d=>({id:d.id,...d.data()}));
     if(!activeCalId&&calendars.length>0)activeCalId=calendars[0].id;
     if(activeCalId&&!calendars.find(c=>c.id===activeCalId)&&!sharedCalendars.find(c=>c.id===activeCalId)&&calendars.length>0)activeCalId=calendars[0].id;
+    // Auto-enable all own calendars
+    calendars.forEach(c=>{enabledCalIds.add(c.id);});
     renderSidebar();renderAll();updateAdminUI();
   },err=>console.error(err));
 
@@ -4020,7 +4192,7 @@ function isAdmin(calId){return isLeader(calId);} // Captain, Co-Captain, all lea
 // ── Page nav ───────────────────────────────────────────────────────────────
 window.showPage=(page)=>{
   currentPage=page;
-  ['home','calendar','profile','admin','dashboard'].forEach(p=>{
+  ['home','calendar','profile','admin','dashboard','help'].forEach(p=>{
     document.getElementById(`page-${p}`)?.classList.toggle('active',p===page);
     const nid=p==='calendar'?'nav-cal':p==='admin'?'nav-admin':p==='dashboard'?'nav-dash':`nav-${p}`;
     document.getElementById(nid)?.classList.toggle('active',p===page);
@@ -4090,36 +4262,58 @@ function renderSidebar(){
   const list=document.getElementById('cal-list');list.innerHTML='';
   const allSide=[...calendars,...sharedCalendars];
   if(!allSide.length){list.innerHTML='<div style="font-size:12px;color:var(--q-muted2);padding:4px">No calendars yet</div>';return;}
-  calendars.forEach(cal=>{
-    const cnt=events.filter(e=>e.calendarId===cal.id&&!e.isShared).length;
-    const isAct=activeCalId===cal.id;
-    const canDel=isCaptain(cal.id);
-    const div=document.createElement('div');div.className=`calendar-item${isAct?' active':''}`;
-    div.innerHTML=`<div class="cal-dot" style="background:${cal.color}"></div><div class="cal-name">${cal.name}</div>${cnt?`<div class="cal-badge">${cnt}</div>`:''} ${canDel?`<button class="cal-action-btn" title="Delete" onclick="confirmDeleteCalendar(event,'${cal.id}','${cal.name.replace(/'/g,"\\'")}')">✕</button>`:''}`;
-    div.addEventListener('click',e=>{if(e.target.classList.contains('cal-action-btn'))return;activeCalId=cal.id;renderSidebar();renderAll();updateAdminUI();});
-    list.appendChild(div);
-  });
-  sharedCalendars.forEach(cal=>{
+  const makeItem=(cal,isShared)=>{
+    const isEnabled=enabledCalIds.has(cal.id);
     const isAct=activeCalId===cal.id;
     const div=document.createElement('div');div.className=`calendar-item${isAct?' active':''}`;
-    div.innerHTML=`<div class="cal-dot" style="background:${cal.color}"></div><div class="cal-name">${cal.name}</div><button class="cal-action-btn" title="Leave" onclick="leaveCalendar('${cal.id}')">✕</button>`;
-    div.addEventListener('click',e=>{if(e.target.classList.contains('cal-action-btn'))return;activeCalId=cal.id;renderSidebar();renderAll();});
+    const dot=document.createElement('div');
+    dot.className=`cal-dot ${isEnabled?'enabled':'disabled'}`;
+    dot.style.background=isEnabled?cal.color:'transparent';
+    dot.style.borderColor=cal.color;
+    dot.style.color=cal.color;
+    dot.title=isEnabled?'Hide calendar':'Show calendar';
+    dot.addEventListener('click',e=>{
+      e.stopPropagation();
+      if(enabledCalIds.has(cal.id))enabledCalIds.delete(cal.id);
+      else enabledCalIds.add(cal.id);
+      renderSidebar();renderAll();
+    });
+    const nameEl=document.createElement('div');nameEl.className='cal-name';nameEl.textContent=cal.name;
+    div.appendChild(dot);div.appendChild(nameEl);
+    if(!isShared){
+      const cnt=events.filter(e=>e.calendarId===cal.id&&!e.isShared).length;
+      if(cnt){const badge=document.createElement('div');badge.className='cal-badge';badge.textContent=cnt;div.appendChild(badge);}
+      if(isCaptain(cal.id)){
+        const btn=document.createElement('button');btn.className='cal-action-btn';btn.title='Delete';btn.textContent='✕';
+        btn.onclick=e=>confirmDeleteCalendar(e,cal.id,cal.name);div.appendChild(btn);
+      }
+    } else {
+      const btn=document.createElement('button');btn.className='cal-action-btn';btn.title='Leave';btn.textContent='✕';
+      btn.onclick=()=>leaveCalendar(cal.id);div.appendChild(btn);
+    }
+    div.addEventListener('click',e=>{
+      if(e.target.classList.contains('cal-action-btn')||e.target.classList.contains('cal-dot'))return;
+      activeCalId=cal.id;
+      if(!enabledCalIds.has(cal.id))enabledCalIds.add(cal.id);
+      renderSidebar();renderAll();if(!isShared)updateAdminUI();
+    });
     list.appendChild(div);
-  });
+  };
+  calendars.forEach(cal=>makeItem(cal,false));
+  sharedCalendars.forEach(cal=>makeItem(cal,true));
 }
 
 // ── Month render ───────────────────────────────────────────────────────────
 function renderCalendar(){
   const grid=document.getElementById('cal-grid');grid.innerHTML='';
-  if(!activeCalId&&[...calendars,...sharedCalendars].length===0){
-    grid.innerHTML='<div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;color:var(--q-muted2)"><div style="width:56px;height:56px;border-radius:50%;background:var(--q-blue-dim);border:1px solid var(--q-blue-border);display:flex;align-items:center;justify-content:center;font-size:24px">📅</div><div><div style="font-size:15px;font-weight:600;color:var(--q-muted);text-align:center;margin-bottom:4px">No calendar selected</div><div style="font-size:12px;text-align:center">Select or create a calendar to get started</div></div></div>';
+  if([...calendars,...sharedCalendars].length===0){
+    grid.innerHTML='<div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;color:var(--q-muted2)"><div style="width:56px;height:56px;border-radius:50%;background:var(--q-blue-dim);border:1px solid var(--q-blue-border);display:flex;align-items:center;justify-content:center;font-size:24px">📅</div><div><div style="font-size:15px;font-weight:600;color:var(--q-muted);text-align:center;margin-bottom:4px">No calendars yet</div><div style="font-size:12px;text-align:center">Create a calendar to get started</div></div></div>';
     return;
   }
   const y=currentDate.getFullYear(),m=currentDate.getMonth(),today=getNow();
   const fd=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate(),dip=new Date(y,m,0).getDate();
   const rs=new Date(y,m,1),re=new Date(y,m+1,0);
   const exp=expandRec(events,rs,re);
-  const isShCal=sharedCalendars.find(c=>c.id===activeCalId);
   for(let i=0;i<42;i++){
     let day,isCur=true;
     if(i<fd){day=dip-fd+i+1;isCur=false;}else if(i>=fd+dim){day=i-fd-dim+1;isCur=false;}else{day=i-fd+1;}
@@ -4128,9 +4322,9 @@ function renderCalendar(){
     const ds=cd.toISOString().split('T')[0];
     const cev=exp.filter(e=>{
       if(e.date!==ds)return false;
-      if(isShCal)return e.sharedCalId===activeCalId||e.calendarId===activeCalId;
-      if(e.calendarId===activeCalId)return true;
-      if(e._invited&&e.calendarId===activeCalId)return true;
+      if(e.isShared)return enabledCalIds.has(e.sharedCalId);
+      if(enabledCalIds.has(e.calendarId))return true;
+      if(e._invited&&enabledCalIds.has(e.calendarId))return true;
       return false;
     }).filter(e=>calTypeFilter==='all'||(calTypeFilter==='meetings'&&e.type!=='task')||(calTypeFilter==='tasks'&&e.type==='task')).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
     const cell=document.createElement('div');
@@ -4192,7 +4386,6 @@ function renderWeekView(){
   const days=Array.from({length:7},(_,i)=>{const d=new Date(ws);d.setDate(d.getDate()+i);return d;});
   const H=60,re=new Date(ws);re.setDate(re.getDate()+6);
   const exp=expandRec(events,ws,re);
-  const isShCal=sharedCalendars.find(c=>c.id===activeCalId);
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const hdr=document.getElementById('week-sticky-header');hdr.innerHTML='<div class="week-time-gutter-hdr"></div>';
   days.forEach(d=>{
@@ -4205,7 +4398,7 @@ function renderWeekView(){
   days.forEach(d=>{
     const ds=d.toISOString().split('T')[0];
     const cell=document.createElement('div');cell.className='week-allday-cell';
-    exp.filter(e=>e.date===ds&&e.allDay&&(isShCal?(e.sharedCalId===activeCalId||e.calendarId===activeCalId):(e.calendarId===activeCalId||( e._invited&&e.calendarId===activeCalId)))).forEach(ev=>{
+    exp.filter(e=>e.date===ds&&e.allDay&&(e.isShared?enabledCalIds.has(e.sharedCalId):(enabledCalIds.has(e.calendarId)||(e._invited&&enabledCalIds.has(e.calendarId))))).forEach(ev=>{
       const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
       let color=ev.color||cal?.color||'#2979ff';
       if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
@@ -4240,7 +4433,7 @@ function renderWeekView(){
       const hh=Math.floor(mins/60).toString().padStart(2,'0'),mm=(mins%60).toString().padStart(2,'0');
       openEventModal(null,ds);setTimeout(()=>{document.getElementById('ev-time').value=`${hh}:${mm}`;},50);
     });
-    exp.filter(e=>e.date===ds&&!e.allDay&&e.time&&(isShCal?(e.sharedCalId===activeCalId||e.calendarId===activeCalId):(e.calendarId===activeCalId||(e._invited&&e.calendarId===activeCalId)))).forEach(ev=>{
+    exp.filter(e=>e.date===ds&&!e.allDay&&e.time&&(e.isShared?enabledCalIds.has(e.sharedCalId):(enabledCalIds.has(e.calendarId)||(e._invited&&enabledCalIds.has(e.calendarId))))).forEach(ev=>{
       const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
       let color=ev.color||cal?.color||'#2979ff';
       if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
@@ -4267,14 +4460,13 @@ function renderMiniCal(){
   const grid=document.getElementById('mini-grid');grid.innerHTML='';
   ['S','M','T','W','T','F','S'].forEach(d=>{const el=document.createElement('div');el.className='mini-day-label';el.textContent=d;grid.appendChild(el);});
   const y=miniDate.getFullYear(),m=miniDate.getMonth(),fd=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate(),dip=new Date(y,m,0).getDate(),today=getNow();
-  const isShCal=sharedCalendars.find(c=>c.id===activeCalId);
   for(let i=0;i<42;i++){
     let day,isCur=true;
     if(i<fd){day=dip-fd+i+1;isCur=false;}else if(i>=fd+dim){day=i-fd-dim+1;isCur=false;}else{day=i-fd+1;}
     const cd=isCur?new Date(y,m,day):(i<fd?new Date(y,m-1,day):new Date(y,m+1,day));
     const ds=cd.toISOString().split('T')[0];
     const isT=today.toDateString()===cd.toDateString(),isSel=currentDate.toDateString()===cd.toDateString()&&isCur;
-    const hasEv=events.some(e=>e.date===ds&&(isShCal?(e.sharedCalId===activeCalId||e.calendarId===activeCalId):e.calendarId===activeCalId));
+    const hasEv=events.some(e=>e.date===ds&&(e.isShared?enabledCalIds.has(e.sharedCalId):enabledCalIds.has(e.calendarId)));
     const el=document.createElement('div');
     el.className=`mini-day${!isCur?' other-month':''}${isT?' today':''}${isSel&&!isT?' selected':''}${hasEv&&!isT?' has-event':''}`;
     el.textContent=day;el.onclick=()=>{currentDate=new Date(y,m,day);renderAll();};
@@ -4283,9 +4475,9 @@ function renderMiniCal(){
 }
 
 // ── Navigation ─────────────────────────────────────────────────────────────
-function animateCal(cls){const g=document.getElementById('cal-grid');if(!g)return;g.classList.remove('slide-right','slide-left');void g.offsetWidth;g.classList.add(cls);}
-window.navPrev=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();animateCal('slide-right');};
-window.navNext=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();animateCal('slide-left');};
+function animateCal(cls){const g=document.getElementById('cal-grid');if(!g)return;g.classList.remove('slide-up','slide-down');void g.offsetWidth;g.classList.add(cls);}
+window.navPrev=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();animateCal('slide-down');};
+window.navNext=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();animateCal('slide-up');};
 window.miniNavMonth=(d)=>{miniDate=new Date(miniDate.getFullYear(),miniDate.getMonth()+d,1);renderMiniCal();};
 window.setCalFilter=(f)=>{
   calTypeFilter=f;
@@ -5211,6 +5403,8 @@ window.confirmDeleteCalendar=(e,calId,calName)=>{
 };
 async function execDeleteCal(calId,calName){
   closeModal('confirm-delete-cal-modal');
+  enabledCalIds.delete(calId);
+  if(activeCalId===calId)activeCalId=calendars.filter(c=>c.id!==calId)[0]?.id||null;
   try{const snap=await getDocs(query(collection(db,'events'),where('calendarId','==',calId)));const batch=writeBatch(db);snap.docs.forEach(d=>batch.delete(d.ref));batch.delete(doc(db,'calendars',calId));await batch.commit();toast(`"${calName}" deleted`);}
   catch(e){console.error(e);toast('Error');}
 }
@@ -5281,6 +5475,7 @@ async function loadJoinedCalendars(){
     div.innerHTML=`<div style="width:7px;height:7px;border-radius:50%;background:${cData.color||'#00b4ff'};flex-shrink:0"></div><span style="flex:1">${cData.name} <span style="color:var(--q-muted2);font-size:10px">by ${oName}</span></span><button onclick="leaveCalendar('${calId}')" style="background:none;border:none;color:var(--q-red);cursor:pointer;font-size:11px">Leave</button>`;
     listEl.appendChild(div);
     subscribeSharedCal(calId,cData.uid,cData.name,oName,cData.color||'#00b4ff',cData.roles||{},cData.subsections||[]);
+    enabledCalIds.add(calId);
   }
   renderSidebar();
 }
@@ -5344,6 +5539,7 @@ window.leaveCalendar=async(calId)=>{
   const uref=doc(db,'users',cu.uid),usnap=await getDoc(uref);
   const joined=(usnap.data().joinedCalendars||[]).filter(id=>id!==calId);await updateDoc(uref,{joinedCalendars:joined});
   events=events.filter(e=>!(e.isShared&&e.sharedCalId===calId));sharedCalendars=sharedCalendars.filter(c=>c.id!==calId);
+  enabledCalIds.delete(calId);
   if(activeCalId===calId&&calendars.length>0)activeCalId=calendars[0].id;
   renderSidebar();renderAll();await loadJoinedCalendars();toast('Left calendar');
 };
@@ -5772,7 +5968,16 @@ window.runSearch=(q)=>{
       const d=new Date(ev.date+'T12:00:00');
       const row=document.createElement('div');row.className='search-result-row';
       row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;margin-top:2px"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--q-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.title}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${cal?' · '+cal.name:''}</div></div>${ev.completed?'<span style="font-size:9px;color:var(--q-muted2);background:var(--q-dark4);padding:2px 6px;border-radius:5px;flex-shrink:0">Done</span>':''}`;
-      row.onclick=()=>{closeModal('search-modal');openViewEvent(ev);};
+      row.onclick=()=>{
+        closeModal('search-modal');
+        const evD=new Date(ev.date+'T12:00:00');
+        currentDate=new Date(evD.getFullYear(),evD.getMonth(),1);
+        miniDate=new Date(currentDate);
+        const calId=ev.calendarId;
+        if(calId){activeCalId=calId;enabledCalIds.add(calId);}
+        showPage('calendar');
+        setTimeout(()=>openViewEvent(ev),80);
+      };
       el.appendChild(row);
     });
   };
