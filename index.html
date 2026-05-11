@@ -723,7 +723,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   justify-content: space-between; margin-bottom: 10px;
 }
 
-.mini-cal-title { font-family: var(--font-body); font-size: 11px; font-weight: 700; color: var(--q-muted); }
+.mini-cal-title{font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--q-text);letter-spacing:-0.01em}
 
 .mini-nav {
   background: none; border: none; color: var(--q-muted2);
@@ -751,7 +751,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .mini-day.today {
   background: linear-gradient(135deg, var(--q-blue), var(--q-blue2));
   color: #fff; font-weight: 700;
-  box-shadow: 0 2px 8px rgba(0,168,255,0.4);
+  box-shadow: 0 2px 8px rgba(0,168,255,0.4),0 0 8px rgba(0,168,255,0.3);
 }
 .mini-day.selected { border: 1px solid var(--q-blue2); color: var(--q-blue2); }
 .mini-day.other-month { opacity: 0.28; }
@@ -795,7 +795,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .cal-cell:nth-child(7n) { border-right: none; }
 .cal-cell.other-month .cell-num { opacity: 0.25; }
 
-.cal-cell.today { background: rgba(0,168,255,0.04); }
+.cal-cell.today{background:rgba(0,168,255,0.06);box-shadow:inset 0 0 0 1px rgba(0,168,255,0.12)}
 .cal-cell.today .cell-num {
   background: linear-gradient(135deg, var(--q-blue), var(--q-blue2));
   color: #fff; width: 27px; height: 27px; border-radius: 50%;
@@ -827,17 +827,14 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   transition: all 0.18s; border: 1px solid transparent;
 }
 
-.event-pill:hover { opacity: 0.85; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.3); }
+.event-pill:hover{opacity:1;transform:translateY(-1px);box-shadow:0 3px 12px rgba(0,0,0,0.35);border-color:rgba(255,255,255,0.15)!important}
 .event-pill.completed { opacity: 0.3; text-decoration: line-through; filter: grayscale(1); }
 
 .event-pill-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
 .event-pill-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 
-.more-events {
-  font-family: var(--font-mono);
-  font-size: 9px; color: var(--q-muted2);
-  padding: 1px 6px; cursor: pointer;
-}
+.more-events{font-family:var(--font-mono);font-size:9px;color:var(--q-muted2);padding:2px 7px;cursor:pointer;border-radius:4px;transition:all 0.15s;display:inline-flex;align-items:center;gap:3px}
+.more-events:hover{background:var(--q-blue-dim);color:var(--q-blue2)}
 
 /* ── Week View ────────────────────────────────────────────────── */
 .week-container { display: flex; flex: 1; overflow: hidden; }
@@ -1647,6 +1644,8 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .upcoming-row{ animation: fadeIn 0.2s ease both; }
 .member-card { animation: fadeUp 0.2s cubic-bezier(0.22,0.68,0,1.2) both; }
 
+.modal-overlay.open{animation:overlayIn 0.18s ease both}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
 .modal-overlay.open .modal { animation: modalIn 0.22s cubic-bezier(0.22,0.68,0,1.2) both; }
 
 /* ── Install Guide ──────────────────────────────────────────────── */
@@ -3045,6 +3044,37 @@ body.light-mode .nav-pill-btn.active {
   color: var(--q-blue2);
   border-color: var(--q-blue-border);
 }
+
+/* ── F3: Month slide animations ─────────────────────────────────── */
+@keyframes slideInRight{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+@keyframes slideInLeft{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}
+.cal-grid.slide-right{animation:slideInRight 0.22s cubic-bezier(0.22,0.68,0,1.2) both}
+.cal-grid.slide-left{animation:slideInLeft 0.22s cubic-bezier(0.22,0.68,0,1.2) both}
+
+/* ── U1: Weekend Sunday tint ────────────────────────────────────── */
+.cal-cell:nth-child(7n+1){background:rgba(255,255,255,0.006)}
+.cal-cell:nth-child(7n+1):hover{background:rgba(0,168,255,0.04)}
+
+/* ── U3: Cell add hint ──────────────────────────────────────────── */
+.cal-cell .cell-add-hint{display:none;position:absolute;top:8px;right:8px;font-size:14px;color:var(--q-muted2);line-height:1;transition:color 0.15s}
+.cal-cell:hover .cell-add-hint{display:block}
+.cal-cell:hover .cell-add-hint:hover{color:var(--q-blue2)}
+
+/* ── U6: Today day-of-week column header ────────────────────────── */
+.cal-day-header.today-col{color:var(--q-blue2);background:rgba(0,168,255,0.06)}
+
+/* ── U8: Page transition fade ───────────────────────────────────── */
+.page.page-entering{animation:pageFadeIn 0.18s ease both}
+@keyframes pageFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── F7: Event type filter buttons ──────────────────────────────── */
+.type-filter-btn{flex:1;padding:5px 8px;font-size:10px;font-weight:600;font-family:var(--font-body);border:1px solid var(--q-border2);border-radius:var(--r);background:transparent;color:var(--q-muted);cursor:pointer;transition:all 0.15s}
+.type-filter-btn.active{background:var(--q-blue-dim);border-color:var(--q-blue-border);color:var(--q-blue2)}
+
+/* ── F6: Keyboard shortcuts modal ───────────────────────────────── */
+.shortcuts-grid{display:flex;flex-direction:column;gap:8px}
+.shortcut-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--q-dark3);border-radius:var(--r);font-size:13px;color:var(--q-muted)}
+kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border:1px solid var(--q-border3);border-radius:5px;padding:3px 8px;color:var(--q-text);letter-spacing:0.05em}
 </style>
 </head>
 <body>
@@ -3125,8 +3155,8 @@ body.light-mode .nav-pill-btn.active {
   <div id="cal-subbar" style="display:none;align-items:center;gap:8px;padding:8px 20px;border-bottom:1px solid var(--q-border);background:var(--q-dark);flex-shrink:0">
     <button class="topbar-nav-btn" onclick="navPrev()">‹</button>
     <button class="topbar-nav-btn" onclick="navNext()">›</button>
-    <div id="month-label" style="font-size:14px;font-weight:600;min-width:190px;color:var(--q-text)"></div>
-    <button class="topbar-nav-btn" onclick="goToday()" style="font-size:11px;padding:5px 10px;font-family:var(--font-body);white-space:nowrap">Today</button>
+    <div id="month-label" style="font-size:14px;font-weight:600;min-width:190px;color:var(--q-text);cursor:pointer" title="Double-click to go to today" ondblclick="goToday()"></div>
+    <button class="topbar-nav-btn" onclick="goToday()" style="font-size:11px;padding:5px 10px;font-family:var(--font-body);white-space:nowrap" title="Go to today (T)">Today</button>
     <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
       <div class="view-toggle">
         <button class="view-btn active" id="view-month-btn" onclick="setView('month')">Month</button>
@@ -3169,6 +3199,11 @@ body.light-mode .nav-pill-btn.active {
           <div class="btn-new-group" id="create-btns" style="display:none">
             <button class="btn-new-meeting" style="letter-spacing:.02em" onclick="openNewEvent('meeting')">Meeting</button>
             <button class="btn-new-task" onclick="openNewEvent('task')">Task</button>
+          </div>
+          <div id="cal-type-filter" style="display:none;margin-top:8px;gap:4px">
+            <button class="type-filter-btn active" id="filter-all" onclick="setCalFilter('all')">All</button>
+            <button class="type-filter-btn" id="filter-meetings" onclick="setCalFilter('meetings')">Meetings</button>
+            <button class="type-filter-btn" id="filter-tasks" onclick="setCalFilter('tasks')">Tasks</button>
           </div>
         </div>
         <div class="sidebar-section">
@@ -3621,6 +3656,7 @@ body.light-mode .nav-pill-btn.active {
     </div>
     <div class="modal-actions" id="view-actions">
       <button class="btn-danger" id="view-delete-btn" onclick="deleteViewedEvent()" style="display:none">Delete</button>
+      <button class="btn-secondary" id="view-dup-btn" onclick="duplicateViewedEvent()" style="display:none">Duplicate</button>
       <button class="btn-secondary" id="view-edit-btn" onclick="editViewedEvent()" style="display:none">Edit</button>
       <button class="complete-btn" id="view-complete-btn" onclick="markTaskComplete()" style="display:none">Mark Complete</button>
       <button class="btn-secondary" onclick="closeModal('view-modal')">Close</button>
@@ -3706,6 +3742,24 @@ body.light-mode .nav-pill-btn.active {
   </div>
 </div>
 
+<!-- SHORTCUTS MODAL -->
+<div class="modal-overlay" id="shortcuts-modal">
+  <div class="modal" style="max-width:420px">
+    <button class="modal-close" onclick="closeModal('shortcuts-modal')">✕</button>
+    <div class="modal-title">Keyboard Shortcuts</div>
+    <div class="shortcuts-grid">
+      <div class="shortcut-row"><kbd>⌘K</kbd><span>Open search</span></div>
+      <div class="shortcut-row"><kbd>←</kbd><span>Previous month / week</span></div>
+      <div class="shortcut-row"><kbd>→</kbd><span>Next month / week</span></div>
+      <div class="shortcut-row"><kbd>T</kbd><span>Jump to today</span></div>
+      <div class="shortcut-row"><kbd>?</kbd><span>Show shortcuts</span></div>
+      <div class="shortcut-row"><kbd>Esc</kbd><span>Close modal</span></div>
+      <div class="shortcut-row"><kbd>M</kbd><span>Switch to month view</span></div>
+      <div class="shortcut-row"><kbd>W</kbd><span>Switch to week view</span></div>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script type="module">
@@ -3783,6 +3837,7 @@ let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',dashDate=getNow(),dashSubTab='all';
 let declineTargetEvId=null,unexcusedTarget=null;
 let viewTab='all',currentPage='home';
+let calTypeFilter='all';
 
 const _lt=setTimeout(()=>{
   const ls=document.getElementById('loading-screen');
@@ -3972,6 +4027,9 @@ window.showPage=(page)=>{
   });
   document.getElementById('cal-subbar').style.display=page==='calendar'?'flex':'none';
   document.getElementById('share-btn').style.display=page==='calendar'?'inline-flex':'none';
+  // Page transition animation
+  const activePageEl=document.getElementById(`page-${page}`);
+  if(activePageEl){activePageEl.classList.add('page-entering');setTimeout(()=>activePageEl.classList.remove('page-entering'),250);}
   if(page==='home')renderHomePage();
   if(page==='calendar'){
     // Default to first available calendar if none set
@@ -3991,6 +4049,7 @@ function updateAdminUI(){
   const isAnyLeader=calendars.some(c=>isLeader(c.id))||sharedCalendars.some(c=>isLeader(c.id));
   document.getElementById('nav-admin').style.display=isAnyLeader?'block':'none';
   document.getElementById('create-btns').style.display=isAdm?'flex':'none';
+  document.getElementById('cal-type-filter').style.display=activeCalId?'flex':'none';
   // Also show new-cal-btn only to Captain of own cals
   document.getElementById('new-cal-btn').style.display=isCaptain(activeCalId)?'inline':'none';
   const hn=document.getElementById('cal-header-name');
@@ -4053,7 +4112,7 @@ function renderSidebar(){
 function renderCalendar(){
   const grid=document.getElementById('cal-grid');grid.innerHTML='';
   if(!activeCalId&&[...calendars,...sharedCalendars].length===0){
-    grid.innerHTML='<div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--q-muted2)"><div style="font-size:40px">📅</div><div style="font-size:15px;font-weight:600;color:var(--q-muted)">No calendar yet</div><div style="font-size:12px">Join a calendar using an invite code, or create one</div></div>';
+    grid.innerHTML='<div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;color:var(--q-muted2)"><div style="width:56px;height:56px;border-radius:50%;background:var(--q-blue-dim);border:1px solid var(--q-blue-border);display:flex;align-items:center;justify-content:center;font-size:24px">📅</div><div><div style="font-size:15px;font-weight:600;color:var(--q-muted);text-align:center;margin-bottom:4px">No calendar selected</div><div style="font-size:12px;text-align:center">Select or create a calendar to get started</div></div></div>';
     return;
   }
   const y=currentDate.getFullYear(),m=currentDate.getMonth(),today=getNow();
@@ -4073,7 +4132,7 @@ function renderCalendar(){
       if(e.calendarId===activeCalId)return true;
       if(e._invited&&e.calendarId===activeCalId)return true;
       return false;
-    }).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    }).filter(e=>calTypeFilter==='all'||(calTypeFilter==='meetings'&&e.type!=='task')||(calTypeFilter==='tasks'&&e.type==='task')).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
     const cell=document.createElement('div');
     cell.className=`cal-cell${!isCur?' other-month':''}${isToday?' today':''}`;
     cell.onclick=ev=>{if(ev.target===cell||ev.target.classList.contains('cell-num')||ev.target.classList.contains('cell-events'))openNewEventOnDate(ds);};
@@ -4091,11 +4150,20 @@ function renderCalendar(){
       pill.style.background=ev.completed?'rgba(148,163,184,0.22)':color+'28';
       pill.style.color=ev.completed?'#94a3b8':color;
       pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${ev.allDay?'':(ev.time?fmt12(ev.time)+' · ':'')}${ev.title}</span>`;
-      pill.onclick=e=>{e.stopPropagation();openViewEvent(ev);};evd.appendChild(pill);
+      pill.onclick=e=>{e.stopPropagation();openViewEvent(ev);};
+      pill.ondblclick=e=>{e.stopPropagation();closeModal('view-modal');openEventModal(ev);};
+      evd.appendChild(pill);
     });
     if(cev.length>3){const mo=document.createElement('div');mo.className='more-events';mo.textContent=`+${cev.length-3} more`;evd.appendChild(mo);}
-    cell.appendChild(evd);grid.appendChild(cell);
+    cell.appendChild(evd);
+    const hint=document.createElement('div');hint.className='cell-add-hint';hint.textContent='＋';hint.title='Add event';hint.onclick=e=>{e.stopPropagation();openNewEventOnDate(ds);};cell.appendChild(hint);
+    grid.appendChild(cell);
   }
+  // Highlight today's day-of-week column header
+  const dow=getNow().getDay();
+  document.querySelectorAll('.cal-day-header').forEach((h,i)=>{
+    h.classList.toggle('today-col', i===dow && currentDate.getFullYear()===getNow().getFullYear() && currentDate.getMonth()===getNow().getMonth());
+  });
 }
 
 function expandRec(evList,rs,re){
@@ -4187,7 +4255,10 @@ function renderWeekView(){
     wd.appendChild(col);
   });
   const scroll=document.getElementById('week-scroll');
-  if(scroll&&scroll.dataset.scrolled!=='1'){scroll.scrollTop=8*H-20;scroll.dataset.scrolled='1';}
+  if(scroll){const nowH=getNow().getHours();scroll.scrollTop=Math.max(0,nowH*H-80);scroll.dataset.scrolled='1';}
+  // Auto-update time indicator every minute
+  clearInterval(window._nowLineTimer);
+  window._nowLineTimer=setInterval(()=>{if(currentView==='week')renderWeekView();},60000);
 }
 
 function renderMiniCal(){
@@ -4212,9 +4283,15 @@ function renderMiniCal(){
 }
 
 // ── Navigation ─────────────────────────────────────────────────────────────
-window.navPrev=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();};
-window.navNext=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();};
+function animateCal(cls){const g=document.getElementById('cal-grid');if(!g)return;g.classList.remove('slide-right','slide-left');void g.offsetWidth;g.classList.add(cls);}
+window.navPrev=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();animateCal('slide-right');};
+window.navNext=()=>{if(currentView==='month')currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+1,1);else currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();animateCal('slide-left');};
 window.miniNavMonth=(d)=>{miniDate=new Date(miniDate.getFullYear(),miniDate.getMonth()+d,1);renderMiniCal();};
+window.setCalFilter=(f)=>{
+  calTypeFilter=f;
+  ['all','meetings','tasks'].forEach(x=>document.getElementById('filter-'+x)?.classList.toggle('active',x===f));
+  renderCalendar();renderMiniCal();
+};
 window.goToday=()=>{currentDate=getNow();miniDate=getNow();renderAll();};
 window.setView=(v)=>{currentView=v;document.getElementById('month-view').style.display=v==='month'?'flex':'none';document.getElementById('week-view').style.display=v==='week'?'flex':'none';document.getElementById('view-month-btn').classList.toggle('active',v==='month');document.getElementById('view-week-btn').classList.toggle('active',v==='week');renderAll();};
 
@@ -4419,6 +4496,7 @@ function openViewEvent(ev){
   const isAdm=isAdmin(ev.calendarId);
   const isMgr=ev.type==='task'&&ev.taskManagerUid===cu?.uid;
   document.getElementById('view-delete-btn').style.display=isOwn||isAdm?'block':'none';
+  document.getElementById('view-dup-btn').style.display=(isOwn||isAdm||isMgr)?'block':'none';
   document.getElementById('view-edit-btn').style.display=(isOwn||isAdm||isMgr)&&!ev.completed?'block':'none';
   // FIX #6: complete button shows for admin OR task manager, task turns gray when done
   document.getElementById('view-complete-btn').style.display=(ev.type==='task'&&(isAdm||isMgr)&&!ev.completed)?'block':'none';
@@ -4504,6 +4582,14 @@ function renderViewPeople(){
 // FIX #3: deleteViewedEvent removes from invitees list too — done via Firestore delete which triggers snapshot
 window.deleteViewedEvent=async()=>{if(!viewingEv)return;if(!confirm('Delete this event?'))return;await deleteDoc(doc(db,'events',viewingEv.id));toast('Deleted');closeModal('view-modal');viewingEv=null;};
 window.editViewedEvent=()=>{closeModal('view-modal');openEventModal(viewingEv);};
+window.duplicateViewedEvent=async()=>{
+  if(!viewingEv)return;
+  const {id,...data}=viewingEv;
+  data.title=data.title+' (copy)';
+  data.createdAt=serverTimestamp();data.updatedAt=serverTimestamp();
+  await addDoc(collection(db,'events'),data);
+  toast('Event duplicated');closeModal('view-modal');
+};
 
 // FIX #6: completed tasks go gray (handled in CSS + color logic)
 window.markTaskComplete=async()=>{
@@ -5522,21 +5608,27 @@ function showAuth(){document.getElementById('app-screen').classList.remove('visi
 window.toggleUserMenu=()=>document.getElementById('user-dropdown').classList.toggle('open');
 document.addEventListener('click',e=>{
   if(!document.getElementById('user-pill').contains(e.target))document.getElementById('user-dropdown').classList.remove('open');
-  ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal'].forEach(id=>{if(e.target===document.querySelector(`#${id}.open`))closeModal(id);});
+  ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal','shortcuts-modal'].forEach(id=>{if(e.target===document.querySelector(`#${id}.open`))closeModal(id);});
 });
 document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openSearch();return;}
-  if(e.key==='Escape'){['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal','member-modal'].forEach(closeModal);return;}
+  if(e.key==='Escape'){['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal','member-modal','shortcuts-modal'].forEach(closeModal);return;}
   const anyOpen=document.querySelector('.modal-overlay.open');
   const inInput=e.target.matches('input,textarea,select');
+  if(e.key==='?'||e.key==='/'){if(!inInput){e.preventDefault();document.getElementById('shortcuts-modal').classList.add('open');return;}}
   if(anyOpen||inInput)return;
   if(currentPage==='calendar'){
     if(e.key==='ArrowLeft'){e.preventDefault();navPrev();}
     else if(e.key==='ArrowRight'){e.preventDefault();navNext();}
     else if(e.key==='t'||e.key==='T'){e.preventDefault();goToday();}
+    else if(e.key==='m'||e.key==='M'){e.preventDefault();setView('month');}
+    else if(e.key==='w'||e.key==='W'){e.preventDefault();setView('week');}
   }
 });
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2800);}
+// ── F9: Enter key support for extra inputs ─────────────────────────────────
+document.getElementById('rename-cal-input')?.addEventListener('keydown',e=>{if(e.key==='Enter')saveRenameCalendar();});
+document.getElementById('new-subsection-input')?.addEventListener('keydown',e=>{if(e.key==='Enter')addSubsection();});
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 window.toggleTheme=()=>{const isLight=document.body.classList.toggle('light-mode');localStorage.setItem('theme',isLight?'light':'dark');};
@@ -5829,6 +5921,38 @@ window._goOB=(n)=>{_obStep=n;_renderOB(n);};
 window._nextOB=()=>{if(_obStep<ONBOARDING_STEPS.length-1){_obStep++;_renderOB(_obStep);}else{_skipOB();}};
 window._skipOB=()=>{document.getElementById('onboarding-modal').classList.remove('open');localStorage.setItem('ob_done','1');};
 function maybeShowOnboarding(){if(!localStorage.getItem('ob_done')){_obStep=0;_renderOB(0);document.getElementById('onboarding-modal').classList.add('open');}}
+
+// ── F1: Scroll wheel to navigate months ────────────────────────────────────
+let _wheelAcc=0,_wheelT=null;
+(()=>{
+  const mv=document.getElementById('month-view');
+  if(mv)mv.addEventListener('wheel',(e)=>{
+    if(currentView!=='month'||document.querySelector('.modal-overlay.open'))return;
+    e.preventDefault();
+    _wheelAcc+=e.deltaY;
+    clearTimeout(_wheelT);
+    _wheelT=setTimeout(()=>{
+      if(_wheelAcc>300)navNext();
+      else if(_wheelAcc<-300)navPrev();
+      _wheelAcc=0;
+    },250);
+  },{passive:false});
+})();
+
+// ── F2: Touch swipe to navigate months ─────────────────────────────────────
+let _touchX=null;
+(()=>{
+  const mv=document.getElementById('month-view');
+  if(mv){
+    mv.addEventListener('touchstart',e=>{_touchX=e.touches[0].clientX;},{passive:true});
+    mv.addEventListener('touchend',e=>{
+      if(_touchX===null)return;
+      const dx=e.changedTouches[0].clientX-_touchX;
+      if(Math.abs(dx)>50){dx<0?navNext():navPrev();}
+      _touchX=null;
+    },{passive:true});
+  }
+})();
 
 </script>
 </body>
