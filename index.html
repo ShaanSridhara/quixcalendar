@@ -3663,7 +3663,7 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
           <button class="topbar-nav-btn" id="dash-prev-btn" onclick="dashNav(-1)">‹</button>
           <button class="topbar-nav-btn" id="dash-today-btn" onclick="dashNavToday()" style="font-size:13px;padding:4px 9px" title="Jump to current period">↺</button>
           <button class="topbar-nav-btn" id="dash-next-btn" onclick="dashNav(1)">›</button>
-          <div class="view-toggle" id="dash-period-toggle">
+          <div class="view-toggle" id="dash-period-toggle" style="flex-shrink:0">
             <button class="view-btn" id="dash-period-today" onclick="setDashPeriod('today')">Today</button>
             <button class="view-btn active" id="dash-period-week" onclick="setDashPeriod('week')">Week</button>
             <button class="view-btn" id="dash-period-month" onclick="setDashPeriod('month')">Month</button>
@@ -4306,6 +4306,7 @@ function subscribeData(uid){
 }
 
 const _invitedUnsubs=[];
+const _sharedCalUnsubs=new Map(); // calId → [eventUnsub, calDocUnsub]
 function subscribeInvitedEvents(uid){
   _invitedUnsubs.forEach(u=>u());_invitedUnsubs.length=0;
   const unsub=onSnapshot(query(collection(db,'events'),where('inviteeUids','array-contains',uid)),snap=>{
@@ -5727,17 +5728,11 @@ async function renderDashboard(){
   }
   document.getElementById('dash-week-label').textContent=periodLabel;
 
-  // Filter tasks + meetings for the period
-  const weekTasks=events.filter(e=>{
-    if(e.type!=='task')return false;
-    if(e.calendarId!==calId&&e.sharedCalId!==calId)return false;
-    return e.date>=rsStr&&e.date<=reStr;
-  });
-  const weekMeetings=events.filter(e=>{
-    if(e.type!=='meeting')return false;
-    if(e.calendarId!==calId&&e.sharedCalId!==calId)return false;
-    return e.date>=rsStr&&e.date<=reStr;
-  });
+  // Expand recurring events for the period so counts include all occurrences
+  const rsDate=new Date(rsStr+'T00:00:00'),reDate=new Date(reStr+'T23:59:59');
+  const periodExp=expandRec(events,rsDate,reDate).filter(e=>e.calendarId===calId||e.sharedCalId===calId);
+  const weekTasks=periodExp.filter(e=>e.type==='task');
+  const weekMeetings=periodExp.filter(e=>e.type==='meeting');
   // Summary bar
   const sumEl=document.getElementById('dash-summary');
   if(sumEl){
@@ -6208,6 +6203,9 @@ async function loadJoinedCalendars(){
 }
 
 function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},subsections=[]){
+  // Tear down any existing listeners for this calendar before re-subscribing
+  if(_sharedCalUnsubs.has(calId)){_sharedCalUnsubs.get(calId).forEach(u=>u());_sharedCalUnsubs.delete(calId);}
+
   const _existingIdx=sharedCalendars.findIndex(c=>c.id===calId);
   if(_existingIdx===-1){
     sharedCalendars.push({id:calId,name:calName,color:calColor,ownerName,roles,uid:ownerUid,subsections});
@@ -6222,14 +6220,13 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
     };
   }
   const _sc=sharedCalendars.find(c=>c.id===calId);
-  onSnapshot(query(collection(db,'events'),where('calendarId','==',calId)),snap=>{
+  const _evUnsub=onSnapshot(query(collection(db,'events'),where('calendarId','==',calId)),snap=>{
     const prevSharedIds=new Set(events.filter(e=>e.isShared&&e.sharedCalId===calId).map(e=>e.id));
     const shared=snap.docs.filter(d=>d.data().uid!==cu?.uid).map(d=>({id:d.id,...d.data(),isShared:true,sharedCalId:calId,sharedCalName:calName,color:d.data().color||calColor}));
     events=events.filter(e=>!(e.isShared&&e.sharedCalId===calId));
     const existingEventIds=new Set(events.map(e=>e.id));
     const newSharedEvs=shared.filter(e=>!existingEventIds.has(e.id));
     events=[...events,...newSharedEvs];
-    // In-app notification for new events from others
     if(prevSharedIds.size>0){
       newSharedEvs.filter(e=>!prevSharedIds.has(e.id)&&e.uid!==cu?.uid).forEach(e=>{
         showInAppNotif('📅 New on '+calName+': "'+e.title+'"');
@@ -6237,8 +6234,7 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
     }
     renderAll();if(currentPage==='home')renderHomePage();
   });
-  // Also keep roles in sync
-  onSnapshot(doc(db,'calendars',calId),snap=>{
+  const _calUnsub=onSnapshot(doc(db,'calendars',calId),snap=>{
     if(!snap.exists())return;
     const idx=sharedCalendars.findIndex(c=>c.id===calId);
     if(idx>=0){
@@ -6249,17 +6245,16 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
       else if(!sharedCalendars[idx].subsections?.length)sharedCalendars[idx].subsections=d.subsections||[];
       sharedCalendars[idx].name=d.name||sharedCalendars[idx].name;
       sharedCalendars[idx].color=d.color||sharedCalendars[idx].color;
-      // Update user's local role if it's in this calendar
       const myRoleInCal=(d.roles||{})[cu?.uid]||null;
       if(myRoleInCal&&myRoleInCal!==myRole){myRole=myRoleInCal;}
     }
     updateAdminUI();
     renderSidebar();
-    // Re-render active page so subsections/roles show immediately
     if(currentPage==='admin')renderAdminPage();
     if(currentPage==='dashboard')renderDashboard();
     if(currentPage==='calendar')renderAll();
   });
+  _sharedCalUnsubs.set(calId,[_evUnsub,_calUnsub]);
 }
 
 window.leaveCalendar=async(calId)=>{
