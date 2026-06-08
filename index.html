@@ -5505,7 +5505,7 @@ window.switchType=(type)=>{
   document.getElementById('ev-people-section').style.display=hasPeople?'block':'none';
   const lbl=document.getElementById('ev-people-label');if(lbl)lbl.textContent=type==='meeting'?'Invite people':'Attendees';
   // mandatory/optional buttons only relevant for meetings
-  const bulkRow=document.getElementById('ev-bulk-att-row');if(bulkRow)bulkRow.style.display=type==='meeting'?'flex':'none';
+  const bulkRow=document.getElementById('ev-bulk-att-row');if(bulkRow)bulkRow.style.display=type!=='task'?'flex':'none';
   const attDesc=document.getElementById('ev-meeting-att-desc');if(attDesc)attDesc.style.display=type==='meeting'?'block':'none';
 };
 function updatePostNotesVisibility(evDate){
