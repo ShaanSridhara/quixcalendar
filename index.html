@@ -6181,7 +6181,15 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
   const _sc=sharedCalendars.find(c=>c.id===calId);
   onSnapshot(query(collection(db,'events'),where('calendarId','==',calId)),snap=>{
     const prevSharedIds=new Set(events.filter(e=>e.isShared&&e.sharedCalId===calId).map(e=>e.id));
-    const shared=snap.docs.map(d=>({id:d.id,...d.data(),isShared:true,sharedCalId:calId,sharedCalName:calName,color:d.data().color||calColor}));
+    const amAdmin=isAdmin(calId);
+    const shared=snap.docs
+      .map(d=>({id:d.id,...d.data(),isShared:true,sharedCalId:calId,sharedCalName:calName,color:d.data().color||calColor}))
+      .filter(ev=>{
+        if(ev.uid===cu?.uid)return false; // own events come from uid subscription
+        if(amAdmin)return true; // leaders/admins see everything
+        const uids=ev.inviteeUids||[];
+        return uids.length===0; // no specific invitees = broadcast; targeted events come via subscribeInvitedEvents
+      });
     events=events.filter(e=>!(e.isShared&&e.sharedCalId===calId));
     const existingEventIds=new Set(events.map(e=>e.id));
     const newSharedEvs=shared.filter(e=>!existingEventIds.has(e.id));
