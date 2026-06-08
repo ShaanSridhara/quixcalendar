@@ -3866,7 +3866,6 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
       <button class="type-btn active-meeting" id="type-meeting-btn" onclick="switchType('meeting')">Meeting</button>
       <button class="type-btn" id="type-task-btn" onclick="switchType('task')">Task</button>
       <button class="type-btn" id="type-event-btn" onclick="switchType('event')">Event</button>
-      <button class="type-btn" id="type-outreach-btn" onclick="switchType('outreach')" style="color:var(--q-green)">Outreach</button>
     </div>
     <div class="form-group"><label class="form-label" id="ev-title-label">Title</label><input class="form-input" id="ev-title" type="text" placeholder="Add title"/></div>
     <div class="modal-row">
@@ -3929,13 +3928,13 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
     <!-- EVENT SECTION -->
     <div id="ev-event-section" style="display:none">
       <div class="section-divider"></div>
-      <div style="font-size:11px;color:var(--q-muted2);padding:4px 0 8px">General event — concerts, competitions, outings, etc.</div>
-    </div>
-
-    <!-- OUTREACH SECTION -->
-    <div id="ev-outreach-section" style="display:none">
-      <div class="section-divider"></div>
-      <div style="font-size:11px;color:var(--q-green);padding:4px 0 8px;display:flex;align-items:center;gap:6px"><span>🌱</span><span>After the event, attendees and leaders can log how many students were reached. Shows on everyone's dashboard.</span></div>
+      <label class="outreach-toggle-wrap" id="ev-outreach-toggle-wrap" onclick="toggleEventOutreach()">
+        <input type="checkbox" id="ev-is-outreach" style="accent-color:var(--q-green);width:14px;height:14px;flex-shrink:0" onclick="event.stopPropagation()"/>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--q-text)">🌱 Outreach event</div>
+          <div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Attendees can log how many students were reached — shows on everyone's dashboard</div>
+        </div>
+      </label>
     </div>
 
     <!-- PEOPLE SECTION — shared by meeting, event, outreach -->
@@ -5487,24 +5486,25 @@ window.toggleAllDay=()=>{document.getElementById('ev-time-row').style.display=do
 
 window.switchType=(type)=>{
   currentType=type;
+  const isEvent=type==='event'||type==='outreach';
   document.getElementById('type-meeting-btn').className='type-btn'+(type==='meeting'?' active-meeting':'');
   document.getElementById('type-task-btn').className='type-btn'+(type==='task'?' active-task':'');
-  document.getElementById('type-event-btn').className='type-btn'+(type==='event'?' active-event':'');
-  document.getElementById('type-outreach-btn').className='type-btn'+(type==='outreach'?' active-outreach':'');
+  document.getElementById('type-event-btn').className='type-btn'+(isEvent?' active-event':'');
   const titleMap={meeting:'Meeting title',task:'Task title',event:'Event title',outreach:'Outreach event title'};
   document.getElementById('ev-title-label').textContent=titleMap[type]||'Title';
-  const hasTime=type==='meeting'||type==='event'||type==='outreach';
+  const hasTime=type==='meeting'||isEvent;
   document.getElementById('ev-time-row').style.display=hasTime?'grid':'none';
   document.getElementById('ev-allday-wrap').style.display=hasTime?'block':'none';
   document.getElementById('ev-meeting-section').style.display=type==='meeting'?'block':'none';
   document.getElementById('ev-task-section').style.display=type==='task'?'block':'none';
-  document.getElementById('ev-event-section').style.display=type==='event'?'block':'none';
-  document.getElementById('ev-outreach-section').style.display=type==='outreach'?'block':'none';
+  document.getElementById('ev-event-section').style.display=isEvent?'block':'none';
+  // sync the outreach checkbox with type
+  const cb=document.getElementById('ev-is-outreach');
+  if(cb){cb.checked=type==='outreach';document.getElementById('ev-outreach-toggle-wrap').classList.toggle('active',type==='outreach');}
   // people section: shown for meeting, event, outreach — hidden for task
   const hasPeople=type!=='task';
   document.getElementById('ev-people-section').style.display=hasPeople?'block':'none';
-  const peopleLabels={meeting:'Invite people',event:'Attendees',outreach:'Attendees'};
-  const lbl=document.getElementById('ev-people-label');if(lbl)lbl.textContent=peopleLabels[type]||'People';
+  const lbl=document.getElementById('ev-people-label');if(lbl)lbl.textContent=type==='meeting'?'Invite people':'Attendees';
   // mandatory/optional buttons only relevant for meetings
   const bulkRow=document.getElementById('ev-bulk-att-row');if(bulkRow)bulkRow.style.display=type==='meeting'?'flex':'none';
   const attDesc=document.getElementById('ev-meeting-att-desc');if(attDesc)attDesc.style.display=type==='meeting'?'block':'none';
@@ -6013,7 +6013,12 @@ window.toggleAsgn=(uid)=>{const m=calMembers.find(x=>x.uid===uid);if(!m)return;c
 window.toggleInvAtt=(uid)=>{const i=invitees.find(x=>x.uid===uid);if(i)i.attendance=i.attendance==='mandatory'?'optional':'mandatory';renderChecklists();};
 
 window.setBulkAttendance=(att)=>{invitees.forEach(i=>i.attendance=att);renderChecklists();};
-
+window.toggleEventOutreach=()=>{
+  const cb=document.getElementById('ev-is-outreach');if(!cb)return;
+  cb.checked=!cb.checked;
+  document.getElementById('ev-outreach-toggle-wrap').classList.toggle('active',cb.checked);
+  currentType=cb.checked?'outreach':'event';
+};
 
 // FIX #5: task saving fixed — inviteeUids includes assignee uids so subscribeInvitedEvents works
 window.saveEvent=async()=>{
