@@ -3927,8 +3927,8 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
     <!-- EVENT SECTION -->
     <div id="ev-event-section" style="display:none">
       <div class="section-divider"></div>
-      <label class="outreach-toggle-wrap" id="ev-outreach-toggle-wrap" onclick="toggleEventOutreach()">
-        <input type="checkbox" id="ev-is-outreach" style="accent-color:var(--q-green);width:14px;height:14px;flex-shrink:0" onclick="event.stopPropagation()"/>
+      <label class="outreach-toggle-wrap" id="ev-outreach-toggle-wrap">
+        <input type="checkbox" id="ev-is-outreach" style="accent-color:var(--q-green);width:14px;height:14px;flex-shrink:0" onchange="toggleEventOutreach()"/>
         <div>
           <div style="font-size:12px;font-weight:700;color:var(--q-text)">🌱 Outreach event</div>
           <div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Attendees can log how many students were reached — shows on everyone's dashboard</div>
@@ -5608,7 +5608,8 @@ function renderChecklists(){
       const isChk=!!existing;const att=existing?.attendance||'mandatory';
       const isSelf=m.uid===cu.uid;
       const row=document.createElement('div');row.className='member-check-row';
-      row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleInv('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${m.displayName}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}${m.subsection?` <span style="font-size:9px;color:var(--q-blue2);background:var(--q-blue-dim);border-radius:4px;padding:1px 5px">${m.subsection}</span>`:''}</div></div>${isChk?`<button class="member-check-att ${att}" onclick="toggleInvAtt('${m.uid}');event.stopPropagation()">${att==='mandatory'?'Mand.':'Opt.'}</button>`:''}`;
+      const sc=m.subsection?subColor(m.subsection,calId):'';
+      row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleInv('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${m.displayName}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}${m.subsection?` <span style="font-size:9px;color:${sc};background:${sc}22;border-radius:4px;padding:1px 5px">${m.subsection}</span>`:''}</div></div>${isChk?`<button class="member-check-att ${att}" onclick="toggleInvAtt('${m.uid}');event.stopPropagation()">${att==='mandatory'?'Mand.':'Opt.'}</button>`:''}`;
       row.onclick=e=>{if(e.target.tagName==='BUTTON')return;document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
       container.appendChild(row);
     });
@@ -6014,7 +6015,6 @@ window.toggleInvAtt=(uid)=>{const i=invitees.find(x=>x.uid===uid);if(i)i.attenda
 window.setBulkAttendance=(att)=>{invitees.forEach(i=>i.attendance=att);renderChecklists();};
 window.toggleEventOutreach=()=>{
   const cb=document.getElementById('ev-is-outreach');if(!cb)return;
-  cb.checked=!cb.checked;
   document.getElementById('ev-outreach-toggle-wrap').classList.toggle('active',cb.checked);
   currentType=cb.checked?'outreach':'event';
 };
