@@ -358,6 +358,8 @@ body.light-mode::after {
 }
 
 .form-input::placeholder { color: var(--q-muted2); }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.7; cursor: pointer; }
 
 textarea.form-input { resize: vertical; min-height: 72px; }
 
