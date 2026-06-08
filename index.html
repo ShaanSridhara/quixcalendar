@@ -3180,6 +3180,24 @@ body.light-mode .nav-pill-btn.active {
 .shortcuts-grid{display:flex;flex-direction:column;gap:8px}
 .shortcut-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--q-dark3);border-radius:var(--r);font-size:13px;color:var(--q-muted)}
 kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border:1px solid var(--q-border3);border-radius:5px;padding:3px 8px;color:var(--q-text);letter-spacing:0.05em}
+
+/* ── Outreach Tracker ───────────────────────────────────────────── */
+.outreach-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.04em;background:var(--q-green-dim);color:var(--q-green);border:1px solid rgba(0,232,122,.25)}
+.outreach-count-box{display:flex;align-items:center;gap:10px;background:var(--q-green-dim);border:1px solid rgba(0,232,122,.25);border-radius:10px;padding:10px 14px;margin:10px 0}
+.outreach-count-num{font-size:28px;font-weight:800;color:var(--q-green);font-family:var(--font-display);line-height:1}
+.outreach-count-label{font-size:11px;color:var(--q-green);opacity:.85;line-height:1.4}
+.outreach-prompt-card{background:linear-gradient(135deg,rgba(0,232,122,.07) 0%,var(--q-dark3) 100%);border:1px solid rgba(0,232,122,.25);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.outreach-prompt-card:hover{border-color:rgba(0,232,122,.5);box-shadow:0 4px 16px rgba(0,232,122,.08)}
+.outreach-prompt-title{font-size:13px;font-weight:700;color:var(--q-text);margin-bottom:3px}
+.outreach-prompt-meta{font-size:11px;color:var(--q-muted2)}
+.outreach-prompt-action{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:5px 12px;background:var(--q-green-dim);border:1px solid rgba(0,232,122,.3);border-radius:7px;font-size:11px;font-weight:700;color:var(--q-green)}
+.outreach-toggle-wrap{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--q-dark3);border:1px solid var(--q-border);border-radius:8px;cursor:pointer;transition:border-color .15s}
+.outreach-toggle-wrap:hover{border-color:rgba(0,232,122,.35)}
+.outreach-toggle-wrap.active{background:var(--q-green-dim);border-color:rgba(0,232,122,.3)}
+.dash-outreach-panel{background:var(--q-dark3);border:1px solid var(--q-border);border-radius:10px;padding:16px;margin-bottom:20px}
+.dash-outreach-total{font-size:36px;font-weight:800;color:var(--q-green);font-family:var(--font-display);line-height:1;margin-bottom:2px}
+.dash-outreach-event-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--q-border)}
+.dash-outreach-event-row:last-child{border-bottom:none}
 </style>
 </head>
 <body>
@@ -3286,6 +3304,10 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
       <div class="home-sub" id="home-role-row" style="margin-bottom:6px"></div>
       <div class="home-sub">Here's what's on your plate.</div>
       <div id="today-strip-wrap"></div>
+      <div class="home-card" id="home-outreach-card" style="display:none;margin-bottom:20px;border-left-color:var(--q-green)">
+        <div class="home-card-title" style="color:var(--q-green)">Outreach Reports Needed</div>
+        <div id="home-outreach-list"></div>
+      </div>
       <div class="home-grid">
         <div>
           <div class="home-card" style="margin-bottom:20px"><div class="home-card-title">Meeting Invitations</div><div id="home-invites"></div></div>
@@ -3863,6 +3885,14 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
     <!-- MEETING SECTION -->
     <div id="ev-meeting-section">
       <div class="section-divider"></div>
+      <label class="outreach-toggle-wrap" id="ev-outreach-toggle-wrap" onclick="toggleOutreachMode()">
+        <input type="checkbox" id="ev-is-outreach" style="accent-color:var(--q-green);width:14px;height:14px;flex-shrink:0" onclick="event.stopPropagation()"/>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--q-text)">Outreach event</div>
+          <div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Attendees can log how many students were reached</div>
+        </div>
+      </label>
+      <div class="section-divider"></div>
       <div class="form-group" id="ev-week-schedule-wrap">
         <label class="form-label">Quick schedule</label>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
@@ -3963,6 +3993,7 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
       </div>
       <div id="view-invitees"></div>
     </div>
+    <div id="view-outreach-section" style="display:none;margin:12px 0 4px"></div>
     <div class="modal-actions" id="view-actions">
       <button class="btn-danger" id="view-delete-btn" onclick="deleteViewedEvent()" style="display:none">Delete</button>
       <button class="btn-secondary" id="view-dup-btn" onclick="duplicateViewedEvent()" style="display:none">Duplicate</button>
@@ -4022,6 +4053,25 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
     <p style="font-size:12px;color:var(--q-muted);margin-bottom:14px" id="unexcused-modal-desc"></p>
     <div class="form-group" id="unexcused-note-wrap"><label class="form-label">Note (optional)</label><input class="form-input" id="unexcused-note" type="text" placeholder="e.g. No prior notice given"/></div>
     <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('unexcused-modal')">Cancel</button><button class="btn-danger" id="unexcused-confirm-btn" onclick="submitUnexcused()">Confirm</button></div>
+  </div>
+</div>
+
+<!-- OUTREACH COUNT MODAL -->
+<div class="modal-overlay" id="outreach-modal">
+  <div class="modal modal-sm">
+    <button class="modal-close" onclick="closeModal('outreach-modal')">✕</button>
+    <div class="modal-title">📊 Log Outreach Impact</div>
+    <p id="outreach-modal-event-name" style="font-size:13px;font-weight:600;color:var(--q-text);margin-bottom:4px"></p>
+    <p id="outreach-modal-event-date" style="font-size:11px;color:var(--q-muted2);margin-bottom:16px"></p>
+    <div class="form-group">
+      <label class="form-label">How many students were reached?</label>
+      <input class="form-input" id="outreach-count-input" type="number" min="0" max="99999" placeholder="e.g. 42" style="font-size:20px;font-weight:700;text-align:center"/>
+      <div style="font-size:10px;color:var(--q-muted2);margin-top:5px;text-align:center">Enter the number of kids / students at the event — not team members</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('outreach-modal')">Cancel</button>
+      <button class="btn-primary-sm" id="outreach-save-btn" onclick="submitOutreachCount()">Save Count</button>
+    </div>
   </div>
 </div>
 
@@ -4147,7 +4197,7 @@ let unsubEv=null,unsubCals=null;
 let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',dashDate=getNow(),dashSubTab='all';
-let declineTargetEvId=null,unexcusedTarget=null;
+let declineTargetEvId=null,unexcusedTarget=null,_outreachTargetEvId=null;
 let viewTab='all',currentPage='home';
 let calTypeFilter='all';
 let enabledCalIds=new Set();
@@ -5007,7 +5057,7 @@ function renderHomePage(){
   loadAbsenceCount();
   renderTodayStrip();
   autoDeclineStaleInvites();
-
+  renderPendingOutreachReports();
 
   // Role display
   const roleRow=document.getElementById('home-role-row');
@@ -5163,8 +5213,9 @@ function openViewEvent(ev){
   const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
   const color=ev.completed?'#6b7280':(ev.color||cal?.color||'#2979ff');
   const typeBadge=ev.type==='task'?`<span class="event-type-badge" style="background:var(--q-amber-dim);color:var(--q-amber)">TASK</span>`:ev.type==='event'?`<span class="event-type-badge" style="background:var(--q-violet-dim);color:var(--q-violet)">EVENT</span>`:`<span class="event-type-badge" style="background:var(--q-blue-dim);color:var(--q-blue2)">MEETING</span>`;
+  const outreachBadge=ev.isOutreach?`<span class="event-type-badge" style="background:var(--q-green-dim);color:var(--q-green);border:1px solid rgba(0,232,122,.2)">🌱 OUTREACH</span>`:'';
   const completedBadge=ev.completed?`<span class="event-type-badge" style="background:rgba(156,163,175,.15);color:var(--q-muted)">COMPLETED</span>`:'';
-  document.getElementById('view-title').innerHTML=`<span class="event-view-color" style="background:${color}"></span>${ev.title}${typeBadge}${completedBadge}`;
+  document.getElementById('view-title').innerHTML=`<span class="event-view-color" style="background:${color}"></span>${ev.title}${typeBadge}${outreachBadge}${completedBadge}`;
   const dateObj=new Date(ev.date+'T12:00:00');
   document.getElementById('view-date').textContent=dateObj.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   if(ev.allDay){document.getElementById('view-time').textContent='All day';document.getElementById('view-time-row').style.display='flex';}
@@ -5209,6 +5260,29 @@ function openViewEvent(ev){
   if(!postEl){postEl=document.createElement('div');postEl.id='view-post-notes';postEl.className='event-desc';postEl.style.borderLeft='3px solid var(--q-blue-border)';document.getElementById('view-desc').after(postEl);}
   if(ev.postNotes){postEl.innerHTML=`<span style="font-size:9px;font-weight:700;color:var(--q-blue2);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">Post-meeting notes</span>${ev.postNotes}`;postEl.style.display='block';}
   else postEl.style.display='none';
+  // Outreach count section
+  const outSec=document.getElementById('view-outreach-section');
+  if(outSec){
+    if(ev.isOutreach){
+      const canEdit=canEditOutreachCount(ev);
+      const isPast=daysUntil(ev.date)<0;
+      let html='<span class="outreach-badge">🌱 OUTREACH</span>';
+      if(isPast){
+        if(ev.outreachCount!=null){
+          html+=`<div class="outreach-count-box" style="margin-top:8px"><div><div class="outreach-count-num">${ev.outreachCount}</div><div class="outreach-count-label">students reached</div></div>${canEdit?`<button onclick="openOutreachModal(viewingEv)" style="margin-left:auto;padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Edit</button>`:''}</div>`;
+        } else if(canEdit){
+          html+=`<div style="margin-top:8px;padding:10px 12px;background:var(--q-dark3);border:1px dashed rgba(0,232,122,.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:var(--q-muted2)">No student count logged yet</span><button onclick="openOutreachModal(viewingEv)" style="padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Log Count</button></div>`;
+        } else {
+          html+=`<div style="margin-top:8px;font-size:12px;color:var(--q-muted2);padding:8px 0">No student count logged yet.</div>`;
+        }
+      } else {
+        html+=`<div style="margin-top:6px;font-size:11px;color:var(--q-muted2)">Count can be logged after the event.</div>`;
+      }
+      outSec.innerHTML=html;outSec.style.display='block';
+    } else {
+      outSec.style.display='none';
+    }
+  }
   const mgrRow=document.getElementById('view-manager-row');
   if(ev.type==='task'&&ev.taskManagerUid){
     const mgr=(ev.assignees||[]).find(a=>a.uid===ev.taskManagerUid);
@@ -5378,6 +5452,8 @@ function openEventModal(ev=null,defDate=null,defType='meeting'){
   document.getElementById('ev-repeat-end-wrap').style.display=(ev?.repeat&&ev.repeat!=='none')?'block':'none';
   document.getElementById('ev-delete-btn').style.display=ev?'block':'none';
   document.getElementById('ev-week-schedule-wrap').style.display=ev?'none':'block';
+  const outreachCb=document.getElementById('ev-is-outreach');
+  if(outreachCb){outreachCb.checked=ev?.isOutreach||false;document.getElementById('ev-outreach-toggle-wrap').classList.toggle('active',!!outreachCb.checked);}
   currentTaskPriority=ev?.priority||'important';
   _evColor=ev?.color||null;renderColorPicker(_evColor);
   setTaskPriority(currentTaskPriority);
@@ -5620,6 +5696,40 @@ async function renderDashboard(){
       <div class="dash-stat"><div class="dash-stat-num" style="color:${doneColor}">${doneTasks}</div><div class="dash-stat-label">Completed</div></div>
       ${critTasks>0?`<div class="dash-stat"><div class="dash-stat-num" style="color:var(--q-red)">${critTasks}</div><div class="dash-stat-label">Critical Open</div></div>`:''}
     `;
+  }
+
+  // Outreach impact panel (shown if calendar has any outreach events)
+  const outreachEvents=events.filter(e=>e.isOutreach&&e.type==='meeting'&&(e.calendarId===calId||e.sharedCalId===calId));
+  const outreachWithCount=outreachEvents.filter(e=>e.outreachCount!=null);
+  const totalStudents=outreachWithCount.reduce((s,e)=>s+(e.outreachCount||0),0);
+  const colsWrap=document.getElementById('dash-columns');
+  // Outreach panel above the column area (use dash-summary area for this)
+  let outreachPanel=document.getElementById('dash-outreach-panel');
+  if(!outreachPanel){
+    outreachPanel=document.createElement('div');outreachPanel.id='dash-outreach-panel';outreachPanel.className='dash-outreach-panel';
+    const dashSum=document.getElementById('dash-summary');
+    if(dashSum&&dashSum.parentNode)dashSum.parentNode.insertBefore(outreachPanel,dashSum.nextSibling);
+  }
+  if(outreachEvents.length>0){
+    const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const recent=outreachEvents.filter(e=>e.outreachCount!=null).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+    const pending=outreachEvents.filter(e=>e.outreachCount==null&&daysUntil(e.date)<0);
+    outreachPanel.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:16px">🌱</span>
+        <span style="font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--q-green)">Outreach Impact</span>
+        ${pending.length?`<span style="margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(255,184,48,.12);color:var(--q-amber);border:1px solid rgba(255,184,48,.25)">${pending.length} report${pending.length!==1?'s':''} pending</span>`:''}
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px">
+        <div class="dash-outreach-total">${totalStudents.toLocaleString()}</div>
+        <div style="font-size:12px;color:var(--q-muted);margin-bottom:6px;padding-left:4px">students reached total</div>
+      </div>
+      ${recent.length?`<div>${recent.map(e=>{const d=new Date(e.date+'T12:00:00');return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.title}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="font-size:13px;font-weight:800;color:var(--q-green);flex-shrink:0">${(e.outreachCount||0).toLocaleString()}</div>`;}).join('')}</div>`:''}
+      ${outreachWithCount.length===0?`<div style="font-size:12px;color:var(--q-muted2)">No student counts logged yet. Add counts from event cards after outreach events.</div>`:''}
+    `;
+    outreachPanel.style.display='block';
+  } else {
+    outreachPanel.style.display='none';
   }
 
   // Build tab bar: All + each subsection + Team
@@ -5889,6 +5999,11 @@ window.toggleAsgn=(uid)=>{const m=calMembers.find(x=>x.uid===uid);if(!m)return;c
 window.toggleInvAtt=(uid)=>{const i=invitees.find(x=>x.uid===uid);if(i)i.attendance=i.attendance==='mandatory'?'optional':'mandatory';renderChecklists();};
 
 window.setBulkAttendance=(att)=>{invitees.forEach(i=>i.attendance=att);renderChecklists();};
+window.toggleOutreachMode=()=>{
+  const cb=document.getElementById('ev-is-outreach');if(!cb)return;
+  cb.checked=!cb.checked;
+  document.getElementById('ev-outreach-toggle-wrap').classList.toggle('active',cb.checked);
+};
 
 // FIX #5: task saving fixed — inviteeUids includes assignee uids so subscribeInvitedEvents works
 window.saveEvent=async()=>{
@@ -5910,6 +6025,7 @@ window.saveEvent=async()=>{
   const hasTimed=(currentType==='meeting'||currentType==='event')&&!allDay;
   // inviteeUids for both meetings and tasks so snapshot subscriptions work
   const inviteeUids=currentType==='meeting'?invitees.map(i=>i.uid):assignees.map(a=>a.uid);
+  const isOutreach=currentType==='meeting'&&!!(document.getElementById('ev-is-outreach')?.checked);
   const data={
     uid:cu.uid,title,type:currentType,
     date:document.getElementById('ev-date').value,
@@ -5927,7 +6043,7 @@ window.saveEvent=async()=>{
     calendarId,color:_evColor||autoColor,
     description:document.getElementById('ev-desc').value.trim()||null,
     postNotes:currentType==='meeting'?(document.getElementById('ev-post-notes').value.trim()||null):null,
-    completed:false,updatedAt:serverTimestamp()
+    isOutreach,completed:false,updatedAt:serverTimestamp()
   };
   const btn=document.getElementById('ev-save-btn');
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
@@ -6349,6 +6465,7 @@ window.saveProfile=async()=>{
 window.closeModal=(id)=>{
   document.getElementById(id)?.classList.remove('open');
   if(id==='event-modal'){const btn=document.getElementById('ev-save-btn');if(btn){btn.disabled=false;btn.textContent='Save';}}
+  if(id==='outreach-modal'){const btn=document.getElementById('outreach-save-btn');if(btn){btn.disabled=false;btn.textContent='Save Count';}_outreachTargetEvId=null;}
 };
 window.switchTab=(tab)=>{document.getElementById('tab-signin').classList.toggle('active',tab==='signin');document.getElementById('tab-signup').classList.toggle('active',tab==='signup');document.getElementById('form-signin').style.display=tab==='signin'?'block':'none';document.getElementById('form-signup').style.display=tab==='signup'?'block':'none';setAuthError('');};
 function setAuthError(msg){const el=document.getElementById('auth-error');el.style.display=msg?'block':'none';el.textContent=msg;}
@@ -6357,13 +6474,13 @@ function showAuth(){document.getElementById('app-screen').classList.remove('visi
 window.toggleUserMenu=()=>document.getElementById('user-dropdown').classList.toggle('open');
 document.addEventListener('click',e=>{
   if(!document.getElementById('user-pill').contains(e.target))document.getElementById('user-dropdown').classList.remove('open');
-  ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal','shortcuts-modal'].forEach(id=>{if(e.target===document.querySelector(`#${id}.open`))closeModal(id);});
+  ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal','shortcuts-modal','outreach-modal'].forEach(id=>{if(e.target===document.querySelector(`#${id}.open`))closeModal(id);});
   if(e.target===document.getElementById('onboarding-modal'))closeModal('onboarding-modal');
 });
 document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openSearch();return;}
   if(e.key==='Escape'){
-    ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal','member-modal','shortcuts-modal','onboarding-modal'].forEach(closeModal);
+    ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal','member-modal','shortcuts-modal','onboarding-modal','outreach-modal'].forEach(closeModal);
     document.getElementById('user-dropdown')?.classList.remove('open');
     return;
   }
@@ -6490,6 +6607,79 @@ async function autoDeclineStaleInvites(){
     }catch(e){console.error('Auto-decline error:',e);}
   }
 }
+
+// ── Outreach Tracker ───────────────────────────────────────────────────────
+function canEditOutreachCount(ev){
+  if(!cu||!ev)return false;
+  const myUid=cu.uid,myEmail=cu.email;
+  // Invitees of the event
+  const isInvitee=(ev.invitees||[]).some(p=>p.uid===myUid||p.email===myEmail);
+  // Admin or leadership on the event's calendar
+  const isAdm=isAdmin(ev.calendarId||ev.sharedCalId);
+  return isInvitee||isAdm;
+}
+
+function renderPendingOutreachReports(){
+  const card=document.getElementById('home-outreach-card');
+  const listEl=document.getElementById('home-outreach-list');
+  if(!card||!listEl||!cu)return;
+  const myUid=cu.uid,myEmail=cu.email;
+  // Past outreach meetings that the current user can enter a count for, without a count yet
+  const pending=events.filter(e=>{
+    if(!e.isOutreach||e.type!=='meeting')return false;
+    if(e.outreachCount!=null)return false; // already reported
+    if(daysUntil(e.date)>0)return false; // not yet past
+    return canEditOutreachCount(e);
+  }).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  card.style.display=pending.length?'block':'none';
+  listEl.innerHTML='';
+  if(!pending.length)return;
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  pending.forEach(ev=>{
+    const d=new Date(ev.date+'T12:00:00');
+    const item=document.createElement('div');item.className='outreach-prompt-card';
+    item.innerHTML=`
+      <div class="outreach-prompt-title">${ev.title}</div>
+      <div class="outreach-prompt-meta">${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${ev.time?' · '+fmt12(ev.time):''}</div>
+      <div class="outreach-prompt-action">📊 Log student count</div>
+    `;
+    item.onclick=()=>openOutreachModal(ev);
+    listEl.appendChild(item);
+  });
+}
+
+window.openOutreachModal=(ev)=>{
+  if(!canEditOutreachCount(ev)){toast('You don\'t have permission to log this');return;}
+  _outreachTargetEvId=ev.id;
+  const d=new Date(ev.date+'T12:00:00');
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('outreach-modal-event-name').textContent=ev.title;
+  document.getElementById('outreach-modal-event-date').textContent=`${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${ev.time?' · '+fmt12(ev.time):''}`;
+  document.getElementById('outreach-count-input').value=ev.outreachCount!=null?ev.outreachCount:'';
+  const btn=document.getElementById('outreach-save-btn');
+  if(btn){btn.disabled=false;btn.textContent='Save Count';}
+  document.getElementById('outreach-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('outreach-count-input').focus(),80);
+};
+
+window.submitOutreachCount=async()=>{
+  if(!_outreachTargetEvId){toast('No event selected');return;}
+  const raw=document.getElementById('outreach-count-input').value.trim();
+  if(raw===''||isNaN(Number(raw))||Number(raw)<0){toast('Enter a valid number');return;}
+  const count=Math.round(Number(raw));
+  const btn=document.getElementById('outreach-save-btn');
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  try{
+    await updateDoc(doc(db,'events',_outreachTargetEvId),{outreachCount:count,outreachCountUpdatedBy:cu.uid,outreachCountUpdatedAt:serverTimestamp()});
+    toast(`Saved — ${count} students reached!`);
+    closeModal('outreach-modal');
+    renderHomePage();
+    if(currentPage==='dashboard')renderDashboard();
+  }catch(e){
+    toast('Error saving');console.error(e);
+    if(btn){btn.disabled=false;btn.textContent='Save Count';}
+  }
+};
 
 // ── In-app notification toast ──────────────────────────────────────────────
 function showInAppNotif(msg){
