@@ -4290,7 +4290,9 @@ function subscribeData(uid){
 
   unsubEv=onSnapshot(query(collection(db,'events'),where('uid','==',uid)),snap=>{
     const own=snap.docs.map(d=>({id:d.id,...d.data()}));
-    events=[...own,...events.filter(e=>e._invited||e.isShared)];
+    const ownIds=new Set(own.map(e=>e.id));
+    // keep _invited and isShared events but never duplicate an own event
+    events=[...own,...events.filter(e=>(e._invited||e.isShared)&&!ownIds.has(e.id))];
     renderAll();if(currentPage==='home')renderHomePage();
   },err=>console.error(err));
 
@@ -6188,7 +6190,7 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
   const _sc=sharedCalendars.find(c=>c.id===calId);
   onSnapshot(query(collection(db,'events'),where('calendarId','==',calId)),snap=>{
     const prevSharedIds=new Set(events.filter(e=>e.isShared&&e.sharedCalId===calId).map(e=>e.id));
-    const shared=snap.docs.map(d=>({id:d.id,...d.data(),isShared:true,sharedCalId:calId,sharedCalName:calName,color:d.data().color||calColor}));
+    const shared=snap.docs.filter(d=>d.data().uid!==cu?.uid).map(d=>({id:d.id,...d.data(),isShared:true,sharedCalId:calId,sharedCalName:calName,color:d.data().color||calColor}));
     events=events.filter(e=>!(e.isShared&&e.sharedCalId===calId));
     const existingEventIds=new Set(events.map(e=>e.id));
     const newSharedEvs=shared.filter(e=>!existingEventIds.has(e.id));
