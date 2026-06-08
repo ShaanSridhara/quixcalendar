@@ -3660,9 +3660,14 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
           <div class="dash-subtitle" id="dash-week-label"></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button class="topbar-nav-btn" onclick="dashNav(-1)">‹</button>
-          <button class="topbar-nav-btn" onclick="dashNavToday()" style="font-size:11px;padding:5px 10px;font-family:var(--font-body);white-space:nowrap">This week</button>
-          <button class="topbar-nav-btn" onclick="dashNav(1)">›</button>
+          <button class="topbar-nav-btn" id="dash-prev-btn" onclick="dashNav(-1)">‹</button>
+          <button class="topbar-nav-btn" id="dash-today-btn" onclick="dashNavToday()" style="font-size:11px;padding:5px 10px;font-family:var(--font-body);white-space:nowrap">Today</button>
+          <button class="topbar-nav-btn" id="dash-next-btn" onclick="dashNav(1)">›</button>
+          <div class="view-toggle" id="dash-period-toggle">
+            <button class="view-btn" id="dash-period-today" onclick="setDashPeriod('today')">Today</button>
+            <button class="view-btn active" id="dash-period-week" onclick="setDashPeriod('week')">Week</button>
+            <button class="view-btn" id="dash-period-month" onclick="setDashPeriod('month')">Month</button>
+          </div>
           <select class="form-select" id="dash-cal-select" onchange="renderDashboard()" style="max-width:160px;font-size:12px;padding:6px 10px"></select>
         </div>
       </div>
@@ -4200,7 +4205,7 @@ let editEvId=null,viewingEv=null;
 let unsubEv=null,unsubCals=null;
 let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
-let userPfpUrl=null,myRole=null,currentTaskPriority='important',dashDate=getNow(),dashSubTab='all';
+let userPfpUrl=null,myRole=null,currentTaskPriority='important',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
 let declineTargetEvId=null,unexcusedTarget=null,_outreachTargetEvId=null;
 let viewTab='all',currentPage='home';
 let calTypeFilter='all';
@@ -5655,8 +5660,14 @@ function subColor(sub,calId){
 }
 
 // ── Dashboard ───────────────────────────────────────────────────────────────
-window.dashNav=(d)=>{dashDate=new Date(dashDate);dashDate.setDate(dashDate.getDate()+d*7);renderDashboard();};
+window.dashNav=(d)=>{
+  dashDate=new Date(dashDate);
+  if(dashPeriod==='month')dashDate.setMonth(dashDate.getMonth()+d);
+  else dashDate.setDate(dashDate.getDate()+d*7);
+  renderDashboard();
+};
 window.dashNavToday=()=>{dashDate=getNow();renderDashboard();};
+window.setDashPeriod=(p)=>{dashPeriod=p;dashDate=getNow();renderDashboard();};
 
 async function renderDashboard(){
   // Populate calendar selector
@@ -5687,22 +5698,41 @@ async function renderDashboard(){
   }catch(e){console.error('Dashboard cal fetch:',e);}
   const subs=cal?.subsections||[];
 
-  // Week range
-  const ws=weekStart(dashDate),we=new Date(ws);we.setDate(we.getDate()+6);
+  // Period range
   const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  document.getElementById('dash-week-label').textContent=`Week of ${M[ws.getMonth()]} ${ws.getDate()} – ${M[we.getMonth()]} ${we.getDate()}, ${ws.getFullYear()}`;
+  let rsStr,reStr,periodLabel;
+  // update toggle button active states
+  ['today','week','month'].forEach(p=>{
+    const btn=document.getElementById(`dash-period-${p}`);
+    if(btn)btn.className='view-btn'+(dashPeriod===p?' active':'');
+  });
+  const navBtns=[document.getElementById('dash-prev-btn'),document.getElementById('dash-next-btn')];
+  navBtns.forEach(b=>{if(b)b.style.display=dashPeriod==='today'?'none':'';});
+  if(dashPeriod==='today'){
+    rsStr=reStr=dashDate.toISOString().split('T')[0];
+    periodLabel=dashDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  } else if(dashPeriod==='month'){
+    const ms=new Date(dashDate.getFullYear(),dashDate.getMonth(),1);
+    const me=new Date(dashDate.getFullYear(),dashDate.getMonth()+1,0);
+    rsStr=ms.toISOString().split('T')[0];reStr=me.toISOString().split('T')[0];
+    periodLabel=`${M[ms.getMonth()]} ${ms.getFullYear()}`;
+  } else {
+    const ws=weekStart(dashDate),we=new Date(ws);we.setDate(we.getDate()+6);
+    rsStr=ws.toISOString().split('T')[0];reStr=we.toISOString().split('T')[0];
+    periodLabel=`Week of ${M[ws.getMonth()]} ${ws.getDate()} – ${M[we.getMonth()]} ${we.getDate()}, ${ws.getFullYear()}`;
+  }
+  document.getElementById('dash-week-label').textContent=periodLabel;
 
-  // Filter tasks for this week + calendar
-  const wsStr=ws.toISOString().split('T')[0],weStr=we.toISOString().split('T')[0];
+  // Filter tasks + meetings for the period
   const weekTasks=events.filter(e=>{
     if(e.type!=='task')return false;
     if(e.calendarId!==calId&&e.sharedCalId!==calId)return false;
-    return e.date>=wsStr&&e.date<=weStr;
+    return e.date>=rsStr&&e.date<=reStr;
   });
   const weekMeetings=events.filter(e=>{
     if(e.type!=='meeting')return false;
     if(e.calendarId!==calId&&e.sharedCalId!==calId)return false;
-    return e.date>=wsStr&&e.date<=weStr;
+    return e.date>=rsStr&&e.date<=reStr;
   });
   // Summary bar
   const sumEl=document.getElementById('dash-summary');
