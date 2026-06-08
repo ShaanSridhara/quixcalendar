@@ -3869,12 +3869,12 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
     </div>
     <div class="form-group"><label class="form-label" id="ev-title-label">Title</label><input class="form-input" id="ev-title" type="text" placeholder="Add title"/></div>
     <div class="modal-row">
-      <div class="form-group"><label class="form-label">Date</label><input class="form-input" id="ev-date" type="date" onchange="updatePostNotesVisibility(this.value)"/></div>
+      <div class="form-group"><label class="form-label" id="ev-date-label">Date</label><input class="form-input" id="ev-date" type="date" onchange="updatePostNotesVisibility(this.value)"/></div>
       <div class="form-group" id="ev-allday-wrap"><label class="form-label">Options</label><div style="padding-top:7px"><label class="form-checkbox"><input type="checkbox" id="ev-allday" onchange="toggleAllDay()"/><span>All-day</span></label></div></div>
     </div>
     <div class="modal-row" id="ev-time-row">
-      <div class="form-group"><label class="form-label">Start time</label><input class="form-input" id="ev-time" type="time"/></div>
-      <div class="form-group"><label class="form-label">End time</label><input class="form-input" id="ev-time-end" type="time"/></div>
+      <div class="form-group"><label class="form-label" id="ev-time-label">Start time</label><input class="form-input" id="ev-time" type="time"/></div>
+      <div class="form-group" id="ev-time-end-wrap"><label class="form-label">End time</label><input class="form-input" id="ev-time-end" type="time"/></div>
     </div>
     <div class="form-group"><label class="form-label">Repeat</label>
       <select class="form-select" id="ev-repeat">
@@ -5161,7 +5161,7 @@ function renderHomePage(){
     const d=new Date(ev.date+'T12:00:00');
     const row=document.createElement('div');row.className='upcoming-row';
     const isOverdue=!ev.completed&&new Date(ev.date+'T23:59:59')<getNow();
-    row.innerHTML=`<div class="upcoming-dot" style="background:${isOverdue?'var(--q-red)':pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${cal?.name||'Calendar'}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:${isOverdue?'var(--q-red)':pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · due '+fmt12(ev.time):''} · ${cal?.name||'Calendar'}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
     row.onclick=()=>openViewEvent(ev);taskEl.appendChild(row);
   });
 
@@ -5465,7 +5465,7 @@ function openEventModal(ev=null,defDate=null,defType='meeting'){
   // Restore subsection after loadCalMembers populates the select
   if(ev?.taskSubsection){setTimeout(()=>{const ss=document.getElementById('ev-task-subsection');if(ss)ss.value=ev.taskSubsection||'';},120);}
   document.getElementById('ev-allday').checked=ev?.allDay||false;
-  document.getElementById('ev-time-row').style.display=((type==='meeting'||type==='event'||type==='outreach')&&!ev?.allDay)?'grid':'none';
+  document.getElementById('ev-time-row').style.display=(type==='task'||(type!=='task'&&!ev?.allDay))?'grid':'none';
   const sel=document.getElementById('ev-calendar');sel.innerHTML='';
   // Own calendars
   calendars.forEach(c=>{
@@ -5496,9 +5496,12 @@ window.switchType=(type)=>{
   document.getElementById('type-event-btn').className='type-btn'+(isEvent?' active-event':'');
   const titleMap={meeting:'Meeting title',task:'Task title',event:'Event title',outreach:'Outreach event title'};
   document.getElementById('ev-title-label').textContent=titleMap[type]||'Title';
-  const hasTime=type==='meeting'||isEvent;
+  document.getElementById('ev-date-label').textContent=type==='task'?'Due by':'Date';
+  const hasTime=type==='meeting'||isEvent||type==='task';
   document.getElementById('ev-time-row').style.display=hasTime?'grid':'none';
-  document.getElementById('ev-allday-wrap').style.display=hasTime?'block':'none';
+  document.getElementById('ev-allday-wrap').style.display=(type==='meeting'||isEvent)?'block':'none';
+  const endWrap=document.getElementById('ev-time-end-wrap');if(endWrap)endWrap.style.display=type==='task'?'none':'block';
+  const timeLbl=document.getElementById('ev-time-label');if(timeLbl)timeLbl.textContent=type==='task'?'Due time':'Start time';
   document.getElementById('ev-meeting-section').style.display=type==='meeting'?'block':'none';
   document.getElementById('ev-task-section').style.display=type==='task'?'block':'none';
   document.getElementById('ev-event-section').style.display=isEvent?'block':'none';
@@ -6047,10 +6050,11 @@ window.saveEvent=async()=>{
   const hasPeople=currentType==='meeting'||currentType==='event'||currentType==='outreach';
   const inviteeUids=hasPeople?invitees.map(i=>i.uid):assignees.map(a=>a.uid);
   const isOutreach=currentType==='outreach';
+  const taskTime=currentType==='task'?(document.getElementById('ev-time').value||null):null;
   const data={
     uid:cu.uid,title,type:currentType,
     date:document.getElementById('ev-date').value,
-    time:hasTimed?(document.getElementById('ev-time').value||null):null,
+    time:hasTimed?(document.getElementById('ev-time').value||null):taskTime,
     timeEnd:hasTimed?(document.getElementById('ev-time-end').value||null):null,
     allDay:hasTimed?allDay:false,
     location:document.getElementById('ev-location').value.trim()||null,
