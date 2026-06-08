@@ -4672,7 +4672,9 @@ function renderWeekView(){
       const blk=document.createElement('div');blk.className=`week-event-block${ev.completed?' completed':''}`;
       blk.style.top=`${(sm0/60)*H}px`;blk.style.height=`${Math.max(((em0-sm0)/60)*H,18)}px`;
       blk.style.background=color+'28';blk.style.color=color;blk.style.borderLeftColor=color;
-      blk.innerHTML=`<div class="week-event-title">${ev.title}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>`;
+      const wBlockH=Math.max(((em0-sm0)/60)*H,18);
+      const wDescHtml=ev.description&&wBlockH>54?`<div style="font-size:9px;opacity:.7;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal">${ev.description}</div>`:'';
+      blk.innerHTML=`<div class="week-event-title">${ev.title}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${wDescHtml}`;
       blk.onclick=e=>{e.stopPropagation();openViewEvent(ev);};col.appendChild(blk);
     });
     wd.appendChild(col);
@@ -4749,7 +4751,9 @@ function renderDayView(){
     const blk=document.createElement('div');blk.className=`week-event-block${ev.completed?' completed':''}`;
     blk.style.top=`${(sm0/60)*H}px`;blk.style.height=`${Math.max(((em0-sm0)/60)*H,18)}px`;
     blk.style.background=color+'28';blk.style.color=color;blk.style.borderLeftColor=color;
-    blk.innerHTML=`<div class="week-event-title">${ev.title}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>`;
+    const blockH=Math.max(((em0-sm0)/60)*H,18);
+    const descHtml=ev.description&&blockH>54?`<div style="font-size:9px;opacity:.7;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;white-space:normal">${ev.description}</div>`:'';
+    blk.innerHTML=`<div class="week-event-title" style="white-space:normal;font-weight:700">${ev.title}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${descHtml}`;
     blk.onclick=e=>{e.stopPropagation();openViewEvent(ev);};col.appendChild(blk);
   });
   cw.appendChild(col);
@@ -6181,15 +6185,7 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
   const _sc=sharedCalendars.find(c=>c.id===calId);
   onSnapshot(query(collection(db,'events'),where('calendarId','==',calId)),snap=>{
     const prevSharedIds=new Set(events.filter(e=>e.isShared&&e.sharedCalId===calId).map(e=>e.id));
-    const amAdmin=isAdmin(calId);
-    const shared=snap.docs
-      .map(d=>({id:d.id,...d.data(),isShared:true,sharedCalId:calId,sharedCalName:calName,color:d.data().color||calColor}))
-      .filter(ev=>{
-        if(ev.uid===cu?.uid)return false; // own events come from uid subscription
-        if(amAdmin)return true; // leaders/admins see everything
-        const uids=ev.inviteeUids||[];
-        return uids.length===0; // no specific invitees = broadcast; targeted events come via subscribeInvitedEvents
-      });
+    const shared=snap.docs.map(d=>({id:d.id,...d.data(),isShared:true,sharedCalId:calId,sharedCalName:calName,color:d.data().color||calColor}));
     events=events.filter(e=>!(e.isShared&&e.sharedCalId===calId));
     const existingEventIds=new Set(events.map(e=>e.id));
     const newSharedEvs=shared.filter(e=>!existingEventIds.has(e.id));
