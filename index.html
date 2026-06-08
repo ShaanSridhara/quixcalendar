@@ -3284,7 +3284,6 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
     <button class="topbar-nav-btn" onclick="navNext()">›</button>
     <div id="month-label" style="font-size:14px;font-weight:600;min-width:190px;color:var(--q-text);cursor:pointer" title="Double-click to go to today" ondblclick="goToday()"></div>
     <button class="topbar-nav-btn" onclick="goToday()" style="font-size:11px;padding:5px 10px;font-family:var(--font-body);white-space:nowrap" title="Go to today (T)">Today</button>
-    <div id="month-stats" style="display:none"></div>
     <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
       <button class="topbar-nav-btn" onclick="exportICS()" title="Export to .ics / Apple Calendar / Google Calendar" style="font-size:10px;padding:5px 10px;font-family:var(--font-body)">Export ↓</button>
       <div class="view-toggle">
@@ -4491,7 +4490,6 @@ function renderSidebar(){
     div.appendChild(dot);div.appendChild(nameEl);
     if(!isShared){
       const cnt=events.filter(e=>e.calendarId===cal.id&&!e.isShared).length;
-      if(cnt){const badge=document.createElement('div');badge.className='cal-badge';badge.textContent=cnt;div.appendChild(badge);}
       if(isCaptain(cal.id)){
         const btn=document.createElement('button');btn.className='cal-action-btn';btn.title='Delete';btn.textContent='✕';
         btn.onclick=e=>confirmDeleteCalendar(e,cal.id,cal.name);div.appendChild(btn);
@@ -4693,14 +4691,15 @@ function renderDayView(){
   const exp=expandRec(events,currentDate,currentDate);
   // Header
   const hdr=document.getElementById('day-sticky-header');
+  hdr.style.gridTemplateColumns='52px 1fr';
   hdr.innerHTML='<div class="week-time-gutter-hdr"></div>';
   const isT=currentDate.toDateString()===today.toDateString();
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const dh=document.createElement('div');dh.className='week-day-header';dh.style.flex='1';
+  const dh=document.createElement('div');dh.className='week-day-header';dh.style.flex='1';dh.style.alignItems='center';
   dh.innerHTML=`<div style="font-size:9px;color:var(--q-muted2)">${dayNames[currentDate.getDay()]}</div><div class="week-day-num${isT?' today':''}">${currentDate.getDate()}</div>`;
   hdr.appendChild(dh);
   // All-day strip
-  const als=document.getElementById('day-allday-strip');als.innerHTML='<div class="week-allday-gutter">all-day</div>';
+  const als=document.getElementById('day-allday-strip');als.style.gridTemplateColumns='52px 1fr';als.innerHTML='<div class="week-allday-gutter">all-day</div>';
   const adCell=document.createElement('div');adCell.className='week-allday-cell';adCell.style.flex='1';
   exp.filter(e=>e.date===ds&&e.allDay&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
