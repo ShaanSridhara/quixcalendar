@@ -4589,6 +4589,9 @@ function renderCalendar(container,forDate){
 }
 
 function expandRec(evList,rs,re){
+  // Deduplicate by id — own subscription and shared subscription can both carry the same event
+  const seen=new Set();
+  evList=evList.filter(e=>{if(!e.id||seen.has(e.id))return false;seen.add(e.id);return true;});
   const res=[];
   evList.forEach(ev=>{
     if(!ev.repeat||ev.repeat==='none'){res.push(ev);return;}
