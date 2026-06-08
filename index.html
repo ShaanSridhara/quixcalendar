@@ -3661,7 +3661,7 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
         </div>
         <div style="display:flex;gap:8px;align-items:center">
           <button class="topbar-nav-btn" id="dash-prev-btn" onclick="dashNav(-1)">‹</button>
-          <button class="topbar-nav-btn" id="dash-today-btn" onclick="dashNavToday()" style="font-size:11px;padding:5px 10px;font-family:var(--font-body);white-space:nowrap">Today</button>
+          <button class="topbar-nav-btn" id="dash-today-btn" onclick="dashNavToday()" style="font-size:13px;padding:4px 9px" title="Jump to current period">↺</button>
           <button class="topbar-nav-btn" id="dash-next-btn" onclick="dashNav(1)">›</button>
           <div class="view-toggle" id="dash-period-toggle">
             <button class="view-btn" id="dash-period-today" onclick="setDashPeriod('today')">Today</button>
@@ -4615,7 +4615,7 @@ function weekStart(d){const s=new Date(d);s.setDate(s.getDate()-s.getDay());s.se
 function renderWeekView(){
   const ws=weekStart(currentDate),today=getNow();
   const days=Array.from({length:7},(_,i)=>{const d=new Date(ws);d.setDate(d.getDate()+i);return d;});
-  const H=60,re=new Date(ws);re.setDate(re.getDate()+6);
+  const H=60,re=new Date(ws);re.setDate(re.getDate()+6);re.setHours(23,59,59,999);
   const exp=expandRec(events,ws,re);
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const hdr=document.getElementById('week-sticky-header');hdr.innerHTML='<div class="week-time-gutter-hdr"></div>';
@@ -4698,7 +4698,8 @@ function renderWeekView(){
 function renderDayView(){
   const today=getNow(),H=60;
   const ds=currentDate.toISOString().split('T')[0];
-  const exp=expandRec(events,currentDate,currentDate);
+  const dayEnd=new Date(currentDate);dayEnd.setHours(23,59,59,999);
+  const exp=expandRec(events,currentDate,dayEnd);
   // Header
   const hdr=document.getElementById('day-sticky-header');
   hdr.style.gridTemplateColumns='52px 1fr';
