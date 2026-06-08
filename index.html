@@ -1466,6 +1466,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .type-btn.active-meeting { background: var(--q-blue-dim); color: var(--q-blue2); }
 .type-btn.active-task { background: var(--q-amber-dim); color: var(--q-amber); }
 .type-btn.active-event { background: var(--q-violet-dim); color: var(--q-violet); }
+.type-btn.active-outreach { background: var(--q-green-dim); color: var(--q-green); }
 .type-btn + .type-btn { border-left: 1px solid var(--q-border2); }
 
 /* Member checklist */
@@ -3331,6 +3332,7 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
             <button class="btn-new-meeting" style="letter-spacing:.02em" onclick="openNewEvent('meeting')">Meeting</button>
             <button class="btn-new-task" onclick="openNewEvent('task')">Task</button>
             <button class="btn-new-task" style="border-color:var(--q-violet-border);color:var(--q-violet);background:var(--q-violet-dim)" onclick="openNewEvent('event')">Event</button>
+            <button class="btn-new-task" style="border-color:rgba(0,232,122,.3);color:var(--q-green);background:var(--q-green-dim)" onclick="openNewEvent('outreach')">Outreach</button>
           </div>
           <div id="cal-type-filter" style="display:none;margin-top:8px;gap:4px">
             <button class="type-filter-btn active" id="filter-all" onclick="setCalFilter('all')">All</button>
@@ -3864,6 +3866,7 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
       <button class="type-btn active-meeting" id="type-meeting-btn" onclick="switchType('meeting')">Meeting</button>
       <button class="type-btn" id="type-task-btn" onclick="switchType('task')">Task</button>
       <button class="type-btn" id="type-event-btn" onclick="switchType('event')">Event</button>
+      <button class="type-btn" id="type-outreach-btn" onclick="switchType('outreach')" style="color:var(--q-green)">Outreach</button>
     </div>
     <div class="form-group"><label class="form-label" id="ev-title-label">Title</label><input class="form-input" id="ev-title" type="text" placeholder="Add title"/></div>
     <div class="modal-row">
@@ -3885,14 +3888,6 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
     <!-- MEETING SECTION -->
     <div id="ev-meeting-section">
       <div class="section-divider"></div>
-      <label class="outreach-toggle-wrap" id="ev-outreach-toggle-wrap" onclick="toggleOutreachMode()">
-        <input type="checkbox" id="ev-is-outreach" style="accent-color:var(--q-green);width:14px;height:14px;flex-shrink:0" onclick="event.stopPropagation()"/>
-        <div>
-          <div style="font-size:12px;font-weight:700;color:var(--q-text)">Outreach event</div>
-          <div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Attendees can log how many students were reached</div>
-        </div>
-      </label>
-      <div class="section-divider"></div>
       <div class="form-group" id="ev-week-schedule-wrap">
         <label class="form-label">Quick schedule</label>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
@@ -3900,19 +3895,6 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
           <button class="btn-secondary" style="font-size:11px;padding:6px 12px;color:var(--q-red);border-color:rgba(239,68,68,.3)" onclick="applyWeekSchedule('crunch')" type="button">Crunch week (Mon–Fri · 3:30–6pm)</button>
         </div>
         <div style="font-size:10px;color:var(--q-muted2);margin-top:5px">Creates multiple meetings in the selected week — with current invitees &amp; settings</div>
-      </div>
-      <div class="section-divider"></div>
-      <div class="form-group">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
-          <label class="form-label" style="margin-bottom:0">Invite people</label>
-          <div style="display:flex;gap:5px">
-            <button class="bulk-att-btn" onclick="setBulkAttendance('mandatory')" style="color:var(--q-red);border-color:rgba(239,68,68,.3)">All Mandatory</button>
-            <button class="bulk-att-btn" onclick="setBulkAttendance('optional')" style="color:var(--q-green);border-color:rgba(34,197,94,.3)">All Optional</button>
-          </div>
-        </div>
-        <div style="font-size:10px;color:var(--q-muted2);margin-bottom:7px">Mandatory = red event · Optional = green event</div>
-        <div id="ev-group-filter" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px"></div>
-        <div class="member-checklist" id="ev-invite-checklist"><div class="member-check-empty">Loading…</div></div>
       </div>
     </div>
 
@@ -3944,10 +3926,33 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
       </div>
     </div>
 
-    <!-- EVENT SECTION (general events like concerts, games, etc.) -->
+    <!-- EVENT SECTION -->
     <div id="ev-event-section" style="display:none">
       <div class="section-divider"></div>
-      <div style="font-size:11px;color:var(--q-muted2);padding:4px 0 8px">General event — concerts, competitions, outings, etc. No invitees or task tracking required.</div>
+      <div style="font-size:11px;color:var(--q-muted2);padding:4px 0 8px">General event — concerts, competitions, outings, etc.</div>
+    </div>
+
+    <!-- OUTREACH SECTION -->
+    <div id="ev-outreach-section" style="display:none">
+      <div class="section-divider"></div>
+      <div style="font-size:11px;color:var(--q-green);padding:4px 0 8px;display:flex;align-items:center;gap:6px"><span>🌱</span><span>After the event, attendees and leaders can log how many students were reached. Shows on everyone's dashboard.</span></div>
+    </div>
+
+    <!-- PEOPLE SECTION — shared by meeting, event, outreach -->
+    <div id="ev-people-section">
+      <div class="section-divider"></div>
+      <div class="form-group">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+          <label class="form-label" style="margin-bottom:0" id="ev-people-label">Invite people</label>
+          <div id="ev-bulk-att-row" style="display:flex;gap:5px">
+            <button class="bulk-att-btn" onclick="setBulkAttendance('mandatory')" style="color:var(--q-red);border-color:rgba(239,68,68,.3)">All Mandatory</button>
+            <button class="bulk-att-btn" onclick="setBulkAttendance('optional')" style="color:var(--q-green);border-color:rgba(34,197,94,.3)">All Optional</button>
+          </div>
+        </div>
+        <div id="ev-meeting-att-desc" style="font-size:10px;color:var(--q-muted2);margin-bottom:7px">Mandatory = red event · Optional = green event</div>
+        <div id="ev-group-filter" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px"></div>
+        <div class="member-checklist" id="ev-invite-checklist"><div class="member-check-empty">Loading…</div></div>
+      </div>
     </div>
     <!-- COLOR PICKER (shared by all types) -->
     <div class="form-group" id="ev-color-group">
@@ -4530,7 +4535,7 @@ function renderCalendar(container,forDate){
       if(e.isShared)return enabledCalIds.has(e.sharedCalId);
       if(e._invited)return true;
       return enabledCalIds.has(e.calendarId);
-    }).filter(e=>calTypeFilter==='all'||(calTypeFilter==='meetings'&&e.type==='meeting')||(calTypeFilter==='tasks'&&e.type==='task')||(calTypeFilter==='events'&&e.type==='event')).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    }).filter(e=>calTypeFilter==='all'||(calTypeFilter==='meetings'&&e.type==='meeting')||(calTypeFilter==='tasks'&&e.type==='task')||(calTypeFilter==='events'&&(e.type==='event'||e.type==='outreach'))).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
     const todayStr=today.toISOString().split('T')[0];
     const hasOverdue=isCur&&ds<todayStr&&cev.some(e=>e.type==='task'&&!e.completed);
     const cell=document.createElement('div');
@@ -4544,7 +4549,7 @@ function renderCalendar(container,forDate){
       const isOverdue=ev.type==='task'&&!ev.completed&&ev.date<todayStr;
       if(ev.completed){color='#94a3b8';}
       else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
-      else if(ev.type==='event'){color=ev.color||'#8b5cf6';}
+      else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
       const pill=document.createElement('div');
       pill.className=`event-pill${ev.completed?' completed':''}`;
       pill.style.background=ev.completed?'rgba(148,163,184,0.22)':color+'22';
@@ -4619,7 +4624,7 @@ function renderWeekView(){
     exp.filter(e=>e.date===ds&&e.allDay&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
       const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
       let color=ev.color||cal?.color||'#2979ff';
-      if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}else if(ev.type==='event'){color=ev.color||'#8b5cf6';}
+      if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
       const p=document.createElement('div');p.className='week-allday-pill';
       p.style.background=color+'2a';p.style.color=color;p.textContent=ev.title;
       p.onclick=()=>openViewEvent(ev);cell.appendChild(p);
@@ -4661,7 +4666,7 @@ function renderWeekView(){
     exp.filter(e=>e.date===ds&&!e.allDay&&e.time&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
       const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
       let color=ev.color||cal?.color||'#2979ff';
-      if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}else if(ev.type==='event'){color=ev.color||'#8b5cf6';}
+      if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
       const[sh,sm]=ev.time.split(':').map(Number);let sm0=sh*60+sm,em0=sm0+60;
       if(ev.timeEnd){const[eh,em]=ev.timeEnd.split(':').map(Number);em0=eh*60+em;}
       const blk=document.createElement('div');blk.className=`week-event-block${ev.completed?' completed':''}`;
@@ -4699,7 +4704,7 @@ function renderDayView(){
     const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
     let color=ev.color||cal?.color||'#2979ff';
     if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
-    else if(ev.type==='event'){color=ev.color||'#8b5cf6';}
+    else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
     const p=document.createElement('div');p.className='week-allday-pill';
     p.style.background=color+'2a';p.style.color=color;p.textContent=ev.title;
     p.onclick=()=>openViewEvent(ev);adCell.appendChild(p);
@@ -4738,7 +4743,7 @@ function renderDayView(){
   exp.filter(e=>e.date===ds&&!e.allDay&&e.time&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
     let color=ev.color||cal?.color||'#2979ff';
-    if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}else if(ev.type==='event'){color=ev.color||'#8b5cf6';}
+    if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
     const[sh,sm]=ev.time.split(':').map(Number);let sm0=sh*60+sm,em0=sm0+60;
     if(ev.timeEnd){const[eh,em]=ev.timeEnd.split(':').map(Number);em0=eh*60+em;}
     const blk=document.createElement('div');blk.className=`week-event-block${ev.completed?' completed':''}`;
@@ -4774,7 +4779,7 @@ function renderSidebarAgenda(){
     const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
     let color=ev.color||cal?.color||'#2979ff';
     if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
-    else if(ev.type==='event'){color=ev.color||'#8b5cf6';}
+    else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
     const d=new Date(ev.date+'T12:00:00');
     const dateStr=ev.date===todayStr?'Today':(d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()?`${M[d.getMonth()]} ${d.getDate()}`:`${M[d.getMonth()]} ${d.getDate()}`);
     const item=document.createElement('div');item.className='agenda-item';
@@ -5212,10 +5217,9 @@ function openViewEvent(ev){
   viewingEv=ev;
   const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
   const color=ev.completed?'#6b7280':(ev.color||cal?.color||'#2979ff');
-  const typeBadge=ev.type==='task'?`<span class="event-type-badge" style="background:var(--q-amber-dim);color:var(--q-amber)">TASK</span>`:ev.type==='event'?`<span class="event-type-badge" style="background:var(--q-violet-dim);color:var(--q-violet)">EVENT</span>`:`<span class="event-type-badge" style="background:var(--q-blue-dim);color:var(--q-blue2)">MEETING</span>`;
-  const outreachBadge=ev.isOutreach?`<span class="event-type-badge" style="background:var(--q-green-dim);color:var(--q-green);border:1px solid rgba(0,232,122,.2)">🌱 OUTREACH</span>`:'';
+  const typeBadge=ev.type==='task'?`<span class="event-type-badge" style="background:var(--q-amber-dim);color:var(--q-amber)">TASK</span>`:ev.type==='event'?`<span class="event-type-badge" style="background:var(--q-violet-dim);color:var(--q-violet)">EVENT</span>`:ev.type==='outreach'?`<span class="event-type-badge" style="background:var(--q-green-dim);color:var(--q-green);border:1px solid rgba(0,232,122,.2)">🌱 OUTREACH</span>`:`<span class="event-type-badge" style="background:var(--q-blue-dim);color:var(--q-blue2)">MEETING</span>`;
   const completedBadge=ev.completed?`<span class="event-type-badge" style="background:rgba(156,163,175,.15);color:var(--q-muted)">COMPLETED</span>`:'';
-  document.getElementById('view-title').innerHTML=`<span class="event-view-color" style="background:${color}"></span>${ev.title}${typeBadge}${outreachBadge}${completedBadge}`;
+  document.getElementById('view-title').innerHTML=`<span class="event-view-color" style="background:${color}"></span>${ev.title}${typeBadge}${completedBadge}`;
   const dateObj=new Date(ev.date+'T12:00:00');
   document.getElementById('view-date').textContent=dateObj.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   if(ev.allDay){document.getElementById('view-time').textContent='All day';document.getElementById('view-time-row').style.display='flex';}
@@ -5263,7 +5267,7 @@ function openViewEvent(ev){
   // Outreach count section
   const outSec=document.getElementById('view-outreach-section');
   if(outSec){
-    if(ev.isOutreach){
+    if(ev.type==='outreach'){
       const canEdit=canEditOutreachCount(ev);
       const isPast=daysUntil(ev.date)<0;
       let html='<span class="outreach-badge">🌱 OUTREACH</span>';
@@ -5452,15 +5456,13 @@ function openEventModal(ev=null,defDate=null,defType='meeting'){
   document.getElementById('ev-repeat-end-wrap').style.display=(ev?.repeat&&ev.repeat!=='none')?'block':'none';
   document.getElementById('ev-delete-btn').style.display=ev?'block':'none';
   document.getElementById('ev-week-schedule-wrap').style.display=ev?'none':'block';
-  const outreachCb=document.getElementById('ev-is-outreach');
-  if(outreachCb){outreachCb.checked=ev?.isOutreach||false;document.getElementById('ev-outreach-toggle-wrap').classList.toggle('active',!!outreachCb.checked);}
   currentTaskPriority=ev?.priority||'important';
   _evColor=ev?.color||null;renderColorPicker(_evColor);
   setTaskPriority(currentTaskPriority);
   // Restore subsection after loadCalMembers populates the select
   if(ev?.taskSubsection){setTimeout(()=>{const ss=document.getElementById('ev-task-subsection');if(ss)ss.value=ev.taskSubsection||'';},120);}
   document.getElementById('ev-allday').checked=ev?.allDay||false;
-  document.getElementById('ev-time-row').style.display=((type==='meeting'||type==='event')&&!ev?.allDay)?'grid':'none';
+  document.getElementById('ev-time-row').style.display=((type==='meeting'||type==='event'||type==='outreach')&&!ev?.allDay)?'grid':'none';
   const sel=document.getElementById('ev-calendar');sel.innerHTML='';
   // Own calendars
   calendars.forEach(c=>{
@@ -5488,12 +5490,24 @@ window.switchType=(type)=>{
   document.getElementById('type-meeting-btn').className='type-btn'+(type==='meeting'?' active-meeting':'');
   document.getElementById('type-task-btn').className='type-btn'+(type==='task'?' active-task':'');
   document.getElementById('type-event-btn').className='type-btn'+(type==='event'?' active-event':'');
-  document.getElementById('ev-title-label').textContent=type==='meeting'?'Meeting title':type==='task'?'Task title':'Event title';
-  document.getElementById('ev-time-row').style.display=(type==='meeting'||type==='event')?'grid':'none';
-  document.getElementById('ev-allday-wrap').style.display=(type==='meeting'||type==='event')?'block':'none';
+  document.getElementById('type-outreach-btn').className='type-btn'+(type==='outreach'?' active-outreach':'');
+  const titleMap={meeting:'Meeting title',task:'Task title',event:'Event title',outreach:'Outreach event title'};
+  document.getElementById('ev-title-label').textContent=titleMap[type]||'Title';
+  const hasTime=type==='meeting'||type==='event'||type==='outreach';
+  document.getElementById('ev-time-row').style.display=hasTime?'grid':'none';
+  document.getElementById('ev-allday-wrap').style.display=hasTime?'block':'none';
   document.getElementById('ev-meeting-section').style.display=type==='meeting'?'block':'none';
   document.getElementById('ev-task-section').style.display=type==='task'?'block':'none';
   document.getElementById('ev-event-section').style.display=type==='event'?'block':'none';
+  document.getElementById('ev-outreach-section').style.display=type==='outreach'?'block':'none';
+  // people section: shown for meeting, event, outreach — hidden for task
+  const hasPeople=type!=='task';
+  document.getElementById('ev-people-section').style.display=hasPeople?'block':'none';
+  const peopleLabels={meeting:'Invite people',event:'Attendees',outreach:'Attendees'};
+  const lbl=document.getElementById('ev-people-label');if(lbl)lbl.textContent=peopleLabels[type]||'People';
+  // mandatory/optional buttons only relevant for meetings
+  const bulkRow=document.getElementById('ev-bulk-att-row');if(bulkRow)bulkRow.style.display=type==='meeting'?'flex':'none';
+  const attDesc=document.getElementById('ev-meeting-att-desc');if(attDesc)attDesc.style.display=type==='meeting'?'block':'none';
 };
 function updatePostNotesVisibility(evDate){
   const wrap=document.getElementById('ev-post-notes-wrap');if(!wrap)return;
@@ -5699,7 +5713,7 @@ async function renderDashboard(){
   }
 
   // Outreach impact panel (shown if calendar has any outreach events)
-  const outreachEvents=events.filter(e=>e.isOutreach&&e.type==='meeting'&&(e.calendarId===calId||e.sharedCalId===calId));
+  const outreachEvents=events.filter(e=>e.type==='outreach'&&(e.calendarId===calId||e.sharedCalId===calId));
   const outreachWithCount=outreachEvents.filter(e=>e.outreachCount!=null);
   const totalStudents=outreachWithCount.reduce((s,e)=>s+(e.outreachCount||0),0);
   const colsWrap=document.getElementById('dash-columns');
@@ -5999,11 +6013,7 @@ window.toggleAsgn=(uid)=>{const m=calMembers.find(x=>x.uid===uid);if(!m)return;c
 window.toggleInvAtt=(uid)=>{const i=invitees.find(x=>x.uid===uid);if(i)i.attendance=i.attendance==='mandatory'?'optional':'mandatory';renderChecklists();};
 
 window.setBulkAttendance=(att)=>{invitees.forEach(i=>i.attendance=att);renderChecklists();};
-window.toggleOutreachMode=()=>{
-  const cb=document.getElementById('ev-is-outreach');if(!cb)return;
-  cb.checked=!cb.checked;
-  document.getElementById('ev-outreach-toggle-wrap').classList.toggle('active',cb.checked);
-};
+
 
 // FIX #5: task saving fixed — inviteeUids includes assignee uids so subscribeInvitedEvents works
 window.saveEvent=async()=>{
@@ -6019,22 +6029,24 @@ window.saveEvent=async()=>{
     autoColor=invitees.length>0?(hasMandatory?'#ef4444':'#22c55e'):'#00b4ff';
   } else if(currentType==='event'){
     autoColor='#8b5cf6';
+  } else if(currentType==='outreach'){
+    autoColor='#00e87a';
   } else {
     autoColor=taskPriority==='critical'?'#ef4444':taskPriority==='important'?'#f59e0b':'#22c55e';
   }
-  const hasTimed=(currentType==='meeting'||currentType==='event')&&!allDay;
-  // inviteeUids for both meetings and tasks so snapshot subscriptions work
-  const inviteeUids=currentType==='meeting'?invitees.map(i=>i.uid):assignees.map(a=>a.uid);
-  const isOutreach=currentType==='meeting'&&!!(document.getElementById('ev-is-outreach')?.checked);
+  const hasTimed=(currentType==='meeting'||currentType==='event'||currentType==='outreach')&&!allDay;
+  const hasPeople=currentType==='meeting'||currentType==='event'||currentType==='outreach';
+  const inviteeUids=hasPeople?invitees.map(i=>i.uid):assignees.map(a=>a.uid);
+  const isOutreach=currentType==='outreach';
   const data={
     uid:cu.uid,title,type:currentType,
     date:document.getElementById('ev-date').value,
     time:hasTimed?(document.getElementById('ev-time').value||null):null,
     timeEnd:hasTimed?(document.getElementById('ev-time-end').value||null):null,
-    allDay:(currentType==='meeting'||currentType==='event')?allDay:false,
+    allDay:hasTimed?allDay:false,
     location:document.getElementById('ev-location').value.trim()||null,
     repeat,repeatEnd:repeat!=='none'?(document.getElementById('ev-repeat-end').value||null):null,
-    invitees:currentType==='meeting'?invitees:[],
+    invitees:hasPeople?invitees:[],
     assignees:currentType==='task'?assignees:[],
     inviteeUids,
     taskManagerUid:currentType==='task'?(mgr||null):null,
@@ -6626,7 +6638,7 @@ function renderPendingOutreachReports(){
   const myUid=cu.uid,myEmail=cu.email;
   // Past outreach meetings that the current user can enter a count for, without a count yet
   const pending=events.filter(e=>{
-    if(!e.isOutreach||e.type!=='meeting')return false;
+    if(e.type!=='outreach')return false;
     if(e.outreachCount!=null)return false; // already reported
     if(daysUntil(e.date)>0)return false; // not yet past
     return canEditOutreachCount(e);
