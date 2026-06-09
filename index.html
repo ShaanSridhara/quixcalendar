@@ -875,7 +875,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   display: grid; grid-template-columns: repeat(7,1fr);
   grid-template-rows: repeat(6,1fr);
 }
-#cal-scroll-viewport { position: relative; overflow: hidden; flex: 1; }
+#cal-scroll-viewport { position: relative; overflow: hidden; flex: 1; contain: paint; }
 #cal-grid, #cal-grid-ghost {
   position: absolute; inset: 0; will-change: transform;
   display: grid; grid-template-columns: repeat(7,1fr); grid-template-rows: repeat(6,1fr);
@@ -3681,6 +3681,13 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
           <div id="member-modal-content"></div>
         </div>
       </div>
+      <!-- Meetings list modal -->
+      <div class="modal-overlay" id="dash-meetings-modal">
+        <div class="modal" style="max-width:520px">
+          <button class="modal-close" onclick="closeModal('dash-meetings-modal')">✕</button>
+          <div id="dash-meetings-modal-content"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -4206,6 +4213,7 @@ let unsubEv=null,unsubCals=null;
 let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
+let _dashMeetings=[],_dashPeriodLabel='';
 let declineTargetEvId=null,unexcusedTarget=null,_outreachTargetEvId=null;
 let viewTab='all',currentPage='home';
 let calTypeFilter='all';
@@ -5742,6 +5750,8 @@ async function renderDashboard(){
   );
   const weekTasks=periodExp.filter(e=>e.type==='task'&&e.date&&e.date>=rsStr&&e.date<=reStr);
   const weekMeetings=periodExp.filter(e=>e.type==='meeting');
+  _dashMeetings=weekMeetings;
+  _dashPeriodLabel=periodLabel;
   // Summary bar
   const sumEl=document.getElementById('dash-summary');
   if(sumEl){
@@ -5753,7 +5763,7 @@ async function renderDashboard(){
     const taskColor=totalTasks>0?'var(--q-text)':'var(--q-muted2)';
     const doneColor=doneTasks>0&&totalTasks>0?'var(--q-green)':'var(--q-muted2)';
     sumEl.innerHTML=`
-      <div class="dash-stat"><div class="dash-stat-num" style="color:${meetColor}">${weekMeetings.length}</div><div class="dash-stat-label">Meetings</div></div>
+      <div class="dash-stat" style="cursor:${weekMeetings.length>0?'pointer':'default'}" onclick="showDashMeetings()"><div class="dash-stat-num" style="color:${meetColor}">${weekMeetings.length}</div><div class="dash-stat-label">Meetings</div>${weekMeetings.length>0?'<div style="font-size:9px;color:var(--q-muted2);margin-top:2px">tap to view</div>':''}</div>
       <div class="dash-stat"><div class="dash-stat-num" style="color:${taskColor}">${totalTasks}</div><div class="dash-stat-label">Tasks</div>${totalTasks>0?`<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}</div>
       <div class="dash-stat"><div class="dash-stat-num" style="color:${doneColor}">${doneTasks}</div><div class="dash-stat-label">Completed</div></div>
       ${critTasks>0?`<div class="dash-stat"><div class="dash-stat-num" style="color:var(--q-red)">${critTasks}</div><div class="dash-stat-label">Critical Open</div></div>`:''}
@@ -5881,6 +5891,24 @@ async function renderDashboard(){
   }
 }
 
+window.showDashMeetings=()=>{
+  const m=_dashMeetings;if(!m.length)return;
+  const el=document.getElementById('dash-meetings-modal-content');if(!el)return;
+  const sorted=[...m].sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  el.innerHTML=`<div style="font-size:16px;font-weight:700;margin-bottom:4px">Meetings</div><div style="font-size:11px;color:var(--q-muted2);margin-bottom:16px">${_dashPeriodLabel}</div>`;
+  sorted.forEach(ev=>{
+    const d=new Date(ev.date+'T12:00:00');
+    const dateStr=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const invCount=(ev.invitees||[]).length;
+    const row=document.createElement('div');row.className='member-ev-row';
+    row.style.cssText='border-left:3px solid '+(ev.color||'var(--q-blue2)')+';cursor:pointer';
+    row.innerHTML=`<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--q-text)">${ev.title}</div><div style="font-size:11px;color:var(--q-muted);margin-top:2px">${dateStr}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''}</div></div>`;
+    row.onclick=()=>{closeModal('dash-meetings-modal');openViewEvent(ev);};
+    el.appendChild(row);
+  });
+  document.getElementById('dash-meetings-modal').classList.add('open');
+};
+
 async function renderTeamRoster(calId){
   const colsEl=document.getElementById('dash-columns');
   colsEl.className='roster-grid';
@@ -5946,6 +5974,14 @@ async function openMemberModal(m,calId,calRoles){
     return (e.assignees||[]).some(a=>a.uid===m.uid)||e.taskManagerUid===m.uid;
   }).sort((a,b)=>a.date.localeCompare(b.date));
 
+  const todayStr=getTodayStr();
+  const myEvents=events.filter(e=>{
+    if(e.type!=='event'&&e.type!=='outreach')return false;
+    if(e.calendarId!==calId&&e.sharedCalId!==calId)return false;
+    if(e.date<todayStr)return false;
+    return (e.invitees||[]).some(p=>p.uid===m.uid)||e.uid===m.uid;
+  }).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
+
   const priColor=(pri)=>pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)';
 
   el.innerHTML=`
@@ -5966,6 +6002,7 @@ async function openMemberModal(m,calId,calRoles){
     </div>
     <div class="modal-section-label">Meetings</div>
     <div id="mm-meetings">${myMeetings.length?'':'<div style="font-size:12px;color:var(--q-muted2)">No upcoming meetings</div>'}</div>
+    ${myEvents.length?`<div class="modal-section-label">Upcoming Events</div><div id="mm-events"></div>`:''}
     <div class="modal-section-label">Tasks</div>
     <div id="mm-tasks">${myTasks.length?'':'<div style="font-size:12px;color:var(--q-muted2)">No tasks</div>'}</div>
   `;
@@ -5996,6 +6033,20 @@ async function openMemberModal(m,calId,calRoles){
     row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
     mtEl.appendChild(row);
   });
+
+  // Upcoming Events
+  const meEl=el.querySelector('#mm-events');
+  if(meEl){
+    myEvents.forEach(ev=>{
+      const d=new Date(ev.date+'T12:00:00');
+      const color=ev.type==='outreach'?'var(--q-green)':'#8b5cf6';
+      const row=document.createElement('div');row.className='member-ev-row';
+      row.style.borderLeft=`3px solid ${color}`;
+      row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${ev.title}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:5px;background:${color}22;color:${color}">${ev.type==='outreach'?'Outreach':'Event'}</span>`;
+      row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
+      meEl.appendChild(row);
+    });
+  }
 
   document.getElementById('member-modal').classList.add('open');
 }
