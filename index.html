@@ -2674,7 +2674,6 @@ body.light-mode .dash-stat {
 /* ── Upcoming row improvements ──────────────────────────────── */
 .upcoming-row:hover {
   background: rgba(0,168,255,0.05);
-  padding-left: 12px;
 }
 .upcoming-dot {
   border-radius: 50%;
@@ -2959,7 +2958,6 @@ body.light-mode .dash-stat {
 /* ── Task item improvements ────────────────────────────────── */
 .dash-task-item {
   border-radius: 6px;
-  transition: all 0.18s;
 }
 
 /* ── Section label improvements ─────────────────────────────── */
@@ -3264,6 +3262,62 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
 .dash-outreach-total{font-size:36px;font-weight:800;color:var(--q-green);font-family:var(--font-display);line-height:1;margin-bottom:2px}
 .dash-outreach-event-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--q-border)}
 .dash-outreach-event-row:last-child{border-bottom:none}
+
+/* ── Light mode animation & shine overrides ─────────────────────── */
+/* Shine sweeps are rgba(white) by default — flip to rgba(black) in light */
+body.light-mode .dash-stat::before,
+body.light-mode .dash-col::before,
+body.light-mode .member-card::before {
+  background: linear-gradient(105deg, transparent, rgba(0,0,0,0.025), transparent);
+}
+body.light-mode .home-card::after {
+  background: linear-gradient(105deg, transparent, rgba(0,0,0,0.025), transparent);
+}
+/* Ripple is white by default — make it dark in light mode */
+body.light-mode .ripple-dot {
+  background: rgba(0,20,60,0.08);
+}
+/* Enhanced card hover borders look better with subtle shadow in light */
+body.light-mode .dash-stat:hover {
+  box-shadow: 0 8px 28px rgba(10,30,80,0.12), 0 0 0 1px rgba(0,168,255,0.12) !important;
+}
+body.light-mode .member-card:hover {
+  box-shadow: 0 8px 24px rgba(10,30,80,0.10), 0 0 0 1px rgba(0,168,255,0.1) !important;
+}
+body.light-mode .home-card:hover {
+  box-shadow: 0 8px 32px rgba(10,30,80,0.12), 0 0 0 1px rgba(0,168,255,0.12) !important;
+}
+/* Stat-num gradient text: use darker gradient for light mode */
+body.light-mode .dash-stat-num {
+  background: linear-gradient(135deg, #0f1624 0%, #3a4a5c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+/* Ensure form inputs are readable in light mode */
+body.light-mode .form-input,
+body.light-mode input[type="text"],
+body.light-mode input[type="email"],
+body.light-mode input[type="password"],
+body.light-mode textarea,
+body.light-mode select.form-select {
+  background: rgba(255,255,255,0.8);
+  border-color: rgba(0,20,60,0.14);
+  color: var(--q-text);
+}
+/* Home page background for light mode */
+body.light-mode .home-page {
+  background:
+    radial-gradient(ellipse 60% 30% at 10% 0%, rgba(0,168,255,0.04) 0%, transparent 100%),
+    var(--q-black);
+}
+/* Month grid borders for light mode */
+body.light-mode .month-grid-day {
+  border-color: rgba(0,20,60,0.05) !important;
+}
+body.light-mode .month-grid-day:hover {
+  background: rgba(0,168,255,0.05) !important;
+  border-color: rgba(0,168,255,0.12) !important;
+}
 </style>
 </head>
 <body>
@@ -3381,6 +3435,7 @@ kbd{font-family:var(--font-mono);font-size:11px;background:var(--q-dark5);border
         </div>
         <div>
           <div class="home-card" style="margin-bottom:20px"><div class="home-card-title">Upcoming Meetings (14 days)</div><div id="home-upcoming"></div></div>
+          <div class="home-card" style="margin-bottom:20px"><div class="home-card-title" style="color:#a78bfa">Upcoming Events (30 days)</div><div id="home-events"></div></div>
           <div class="home-card" id="home-managed-tasks-card" style="display:none"><div class="home-card-title">Tasks I'm Managing</div><div id="home-managed-tasks"></div></div>
         </div>
       </div>
@@ -5192,6 +5247,35 @@ function renderHomePage(){
     row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div>${rsvpHtml}`;
     row.onclick=()=>openViewEvent(ev);upEl.appendChild(row);
   });
+
+  // Upcoming events (type='event' / 'outreach')
+  const homeEvEl=document.getElementById('home-events');
+  if(homeEvEl){
+    homeEvEl.innerHTML='';
+    const soon30=new Date(now);soon30.setDate(soon30.getDate()+30);
+    const todayStr=getTodayStr();
+    const upcomingEvs=events.filter(e=>{
+      if(e.type!=='event'&&e.type!=='outreach')return false;
+      if(!e.date||e.date<todayStr)return false;
+      const d=new Date(e.date+'T12:00:00');return d>=now&&d<=soon30;
+    }).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||'')).slice(0,10);
+    if(!upcomingEvs.length){
+      homeEvEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">🗓️</div><div class="empty-state-text">No upcoming events in 30 days</div></div>';
+    } else {
+      upcomingEvs.forEach(ev=>{
+        const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
+        const isOutreach=ev.type==='outreach';
+        const color=isOutreach?'var(--q-green)':'#a78bfa';
+        const d=new Date(ev.date+'T12:00:00');
+        const row=document.createElement('div');row.className='upcoming-row';
+        const badge=`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;background:${isOutreach?'rgba(0,232,122,0.12)':'rgba(167,139,250,0.12)'};color:${color};border:1px solid ${isOutreach?'rgba(0,232,122,0.25)':'rgba(167,139,250,0.25)'}">${isOutreach?'Outreach':'Event'}</span>`;
+        const invCount=(ev.invitees||[]).length;
+        row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''} · ${cal?.name||'Calendar'}</div></div>${badge}`;
+        row.onclick=()=>openViewEvent(ev);
+        homeEvEl.appendChild(row);
+      });
+    }
+  }
 
   // Meeting invitations
   const invEl=document.getElementById('home-invites');invEl.innerHTML='';
