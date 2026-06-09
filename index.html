@@ -1283,7 +1283,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .dash-columns {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr));
   gap: 16px; padding: 20px 28px;
-  overflow-y: auto; flex: 1; align-content: start;
+  overflow-y: auto; flex: 1; min-height: 0; align-content: start;
 }
 
 .dash-col {
@@ -1332,7 +1332,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .roster-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr));
   gap: 12px; padding: 20px 28px;
-  overflow-y: auto; flex: 1; align-content: start;
+  overflow-y: auto; flex: 1; min-height: 0; align-content: start;
 }
 
 .member-card {
@@ -4898,7 +4898,11 @@ function _fluidStart(dir){
   _fluid.active=true;_fluid.dir=dir;_fluid.progress=0;
   const adjDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+dir,1);
   const ghost=document.getElementById('cal-grid-ghost');
-  if(ghost){renderCalendar(ghost,adjDate);ghost.style.opacity='1';}
+  if(ghost){
+    renderCalendar(ghost,adjDate);
+    ghost.style.transform=`translateY(${dir*100}%)`;
+    ghost.style.opacity='1';
+  }
 }
 function _fluidCommit(advance){
   if(!_fluid.active)return;
@@ -4920,21 +4924,24 @@ function _fluidReset(){
   _fluid.active=false;_fluid.dir=0;_fluid.progress=0;
   clearTimeout(_fluid.timeout);cancelAnimationFrame(_fluid.raf);
   const ghost=document.getElementById('cal-grid-ghost');
-  if(ghost){ghost.style.opacity='0';ghost.innerHTML='';}
+  if(ghost){ghost.style.opacity='0';ghost.style.transform='translateY(100%)';ghost.innerHTML='';}
   const main=document.getElementById('cal-grid');
   if(main)main.style.transform='';
 }
+let _scrollAccum=0,_scrollTimer=null;
 function _fluidScroll(deltaY){
   if(currentView!=='month')return;
-  const dir=deltaY>0?1:-1;
-  if(_fluid.active&&_fluid.dir!==dir){_fluidCommit(false);return;}
-  if(!_fluid.active)_fluidStart(dir);
-  const H=document.getElementById('cal-scroll-viewport')?.offsetHeight||600;
-  _fluid.progress=Math.max(0,Math.min(1,_fluid.progress+Math.abs(deltaY)/(H*0.55)));
-  _fluidApply();
-  if(_fluid.progress>=0.50){clearTimeout(_fluid.timeout);_fluidCommit(true);return;}
-  clearTimeout(_fluid.timeout);
-  _fluid.timeout=setTimeout(()=>_fluidCommit(false),600);
+  _scrollAccum+=deltaY;
+  clearTimeout(_scrollTimer);
+  _scrollTimer=setTimeout(()=>{_scrollAccum=0;},400);
+  if(Math.abs(_scrollAccum)>=120){
+    const dir=_scrollAccum>0?1:-1;
+    _scrollAccum=0;clearTimeout(_scrollTimer);
+    if(_fluid.active)_fluidReset();
+    currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+dir,1);
+    miniDate=new Date(currentDate);
+    renderAll();
+  }
 }
 
 window.navPrev=()=>{
@@ -5730,8 +5737,10 @@ async function renderDashboard(){
 
   // Expand recurring events for the period so counts include all occurrences
   const rsDate=new Date(rsStr+'T00:00:00'),reDate=new Date(reStr+'T23:59:59');
-  const periodExp=expandRec(events,rsDate,reDate).filter(e=>e.calendarId===calId||e.sharedCalId===calId);
-  const weekTasks=periodExp.filter(e=>e.type==='task');
+  const periodExp=expandRec(events,rsDate,reDate).filter(e=>
+    (e.calendarId===calId||e.sharedCalId===calId)&&e.date&&e.date>=rsStr&&e.date<=reStr
+  );
+  const weekTasks=periodExp.filter(e=>e.type==='task'&&e.date&&e.date>=rsStr&&e.date<=reStr);
   const weekMeetings=periodExp.filter(e=>e.type==='meeting');
   // Summary bar
   const sumEl=document.getElementById('dash-summary');
