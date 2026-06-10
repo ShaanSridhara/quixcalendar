@@ -3432,6 +3432,33 @@ body.light-mode .month-grid-day:hover {
   .modal-overlay { align-items: flex-end; padding: 0; }
   .modal { border-radius: var(--r-xl) var(--r-xl) 0 0; margin: 0; max-height: 88vh; width: 100%; max-width: 100%; }
 
+  /* ── Dashboard: header controls wrap on mobile ── */
+  .dash-header-row { gap: 8px; padding: 14px 14px 10px; }
+  .dash-header-controls { flex-wrap: wrap; row-gap: 6px; width: 100%; }
+  #dash-cal-select { flex-basis: 100%; max-width: none !important; }
+
+  /* ── Dashboard: 3-equal-column stats ── */
+  .dash-summary { padding: 0 12px 12px; gap: 8px; }
+  .dash-stat { flex: 1 1 0; min-width: 70px; padding: 12px 10px; }
+  .dash-stat-num { font-size: 22px; }
+
+  /* ── Dashboard: tab bar — hide scrollbar, tighter tabs ── */
+  .dash-tab-bar { padding: 0 12px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .dash-tab-bar::-webkit-scrollbar { display: none; }
+  .dash-tab { padding: 10px 12px; font-size: 11px; }
+
+  /* ── Dashboard: columns bottom padding (clears fixed bottom nav) ── */
+  .dash-columns { padding-bottom: 80px; }
+
+  /* ── Calendar subbar: collapse to single row ── */
+  #cal-subbar { flex-wrap: nowrap; padding: 6px 10px; }
+  .cal-subbar-right { width: auto; }
+  #cal-header-hint { display: none !important; }
+
+  /* ── Event pills: tighter so more text fits in narrow cells ── */
+  .event-pill { font-size: 10px; padding: 2px 4px; gap: 2px; }
+  .event-pill-dot { width: 4px; height: 4px; }
+
 }
 </style>
 </head>
@@ -3896,7 +3923,7 @@ body.light-mode .month-grid-day:hover {
           <div class="dash-title">Team Dashboard</div>
           <div class="dash-subtitle" id="dash-week-label"></div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
+        <div class="dash-header-controls" style="display:flex;gap:8px;align-items:center">
           <button class="topbar-nav-btn" id="dash-prev-btn" onclick="dashNav(-1)">‹</button>
           <button class="topbar-nav-btn" id="dash-today-btn" onclick="dashNavToday()" style="font-size:13px;padding:4px 9px" title="Jump to current period">↺</button>
           <button class="topbar-nav-btn" id="dash-next-btn" onclick="dashNav(1)">›</button>
