@@ -399,6 +399,7 @@ textarea.form-input { resize: vertical; min-height: 72px; }
 #app-screen {
   display: none;
   height: 100vh;
+  height: 100dvh; /* dynamic viewport — excludes iOS URL bar */
   flex-direction: column;
   overflow: hidden;
 }
@@ -1870,7 +1871,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   .sidebar { display: none; }
   .cal-cell { min-height: 72px; padding: 6px 4px 4px; }
   .cell-num { font-size: 10px; width: 20px; height: 20px; }
-  .event-pill { font-size: 9px; padding: 2px 5px; }
+  .event-pill { font-size: 11px; padding: 3px 6px; }
   .home-page { padding: 16px; }
   .home-grid { grid-template-columns: 1fr; gap: 12px; }
   .home-card { padding: 16px; }
@@ -3321,58 +3322,54 @@ body.light-mode .month-grid-day:hover {
 
 /* ── Mobile Responsiveness ─────────────────────────────────────────────────── */
 
+/* cal-subbar base styles (moved out of inline so media queries can override) */
+#cal-subbar { gap: 8px; padding: 8px 20px; }
+#month-label { min-width: 190px; }
+.cal-subbar-right { margin-left: auto; }
+
 /* Hamburger button */
 .hamburger-btn { display: none; }
+.bottom-nav { display: none; }
+.mobile-fab { display: none; }
+
 @media(max-width:768px){
+
+  /* ── App shell: subtract bottom nav height so content never hides under it */
+  #app-screen { height: calc(100dvh - 60px); }
+
+  /* ── Topbar ── */
+  .nav-pill { display: none !important; }
   .hamburger-btn {
     display: flex; align-items: center; justify-content: center;
     background: transparent;
     border: 1px solid var(--q-border2);
     border-radius: var(--r);
     color: var(--q-muted); cursor: pointer;
-    width: 36px; height: 36px;
-    flex-shrink: 0;
+    width: 36px; height: 36px; flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: all 0.18s;
   }
   .hamburger-btn:hover { color: var(--q-text); border-color: var(--q-border3); }
-}
 
-/* Sidebar mobile drawer */
-@media(max-width:768px){
+  /* ── Sidebar drawer ── */
   .sidebar {
     display: flex !important;
     position: fixed;
     top: 0; left: 0; bottom: 0;
-    z-index: 200;
-    width: 280px;
+    z-index: 200; width: 280px;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.22,0.68,0,1.2);
     box-shadow: 4px 0 32px rgba(0,0,0,0.5);
   }
-  .sidebar.mobile-open {
-    transform: translateX(0);
-  }
+  .sidebar.mobile-open { transform: translateX(0); }
   #sidebar-backdrop {
-    display: none;
-    position: fixed; inset: 0; z-index: 199;
-    background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    display: none; position: fixed; inset: 0; z-index: 199;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
   }
   #sidebar-backdrop.open { display: block; }
-}
 
-/* Hide desktop nav pill on mobile */
-@media(max-width:768px){
-  .nav-pill { display: none !important; }
-}
-
-/* Bottom nav bar */
-.bottom-nav {
-  display: none;
-}
-@media(max-width:768px){
+  /* ── Bottom nav ── */
   .bottom-nav {
     display: flex;
     position: fixed; bottom: 0; left: 0; right: 0;
@@ -3390,71 +3387,51 @@ body.light-mode .month-grid-day:hover {
     color: var(--q-muted); cursor: pointer; font-size: 10px;
     font-family: var(--font-body); font-weight: 600;
     padding: 6px 4px; transition: color 0.18s;
-    -webkit-tap-highlight-color: transparent;
-    min-height: 44px;
+    -webkit-tap-highlight-color: transparent; min-height: 44px;
   }
   .bottom-nav-btn.active { color: var(--q-blue2); }
   .bottom-nav-btn svg { transition: stroke 0.18s; }
   .bottom-nav-btn.active svg { stroke: var(--q-blue2); }
-}
 
-/* FAB */
-.mobile-fab { display: none; }
-@media(max-width:768px){
+  /* ── FAB (new event, calendar page only) ── */
   .mobile-fab {
-    position: fixed;
-    right: 16px;
-    bottom: 76px;
-    width: 52px; height: 52px;
-    border-radius: 50%;
+    position: fixed; right: 16px; bottom: 76px;
+    width: 52px; height: 52px; border-radius: 50%;
     background: linear-gradient(135deg, var(--q-blue), var(--q-blue2));
     border: none; color: white;
     box-shadow: 0 4px 20px rgba(0,168,255,0.4);
     cursor: pointer; z-index: 150;
     display: flex; align-items: center; justify-content: center;
-    transition: transform 0.18s, box-shadow 0.18s;
+    transition: transform 0.18s;
     -webkit-tap-highlight-color: transparent;
   }
   .mobile-fab:active { transform: scale(0.93); }
-}
 
-/* Cal subbar wrap on mobile */
-@media(max-width:768px){
-  #cal-subbar {
-    flex-wrap: wrap;
-    padding: 6px 12px;
-    gap: 6px;
-    row-gap: 6px;
-  }
-  #cal-subbar > .topbar-nav-btn,
-  #cal-subbar > #month-label {
-    flex-shrink: 1;
-  }
-  #month-label { min-width: 0 !important; font-size:13px !important; }
-  #cal-subbar > div[style*="margin-left:auto"] {
-    margin-left: 0 !important;
-    width: 100%;
-    justify-content: space-between;
-  }
+  /* ── Cal subbar: two-row layout ── */
+  #cal-subbar { flex-wrap: wrap; padding: 6px 12px; gap: 6px; row-gap: 4px; }
+  #month-label { min-width: 0; font-size: 13px !important; flex: 1; }
+  .cal-subbar-right { margin-left: 0; width: 100%; justify-content: space-between; }
   #cal-subbar button[onclick*="exportICS"],
   #month-stats { display: none !important; }
   .view-btn { padding: 7px 14px; font-size: 12px; }
-}
 
-/* Touch targets */
-@media(max-width:768px){
+  /* ── Calendar grid ── */
+  .cal-day-header { padding: 7px 2px; font-size: 8px; text-align: center; }
+
+  /* ── Touch targets ── */
   .btn-icon { min-height: 36px; min-width: 36px; }
-  .topbar-nav-btn { min-height: 36px; }
-  .nav-pill-btn { min-height: 36px; }
-}
+  .topbar-nav-btn { min-height: 36px; padding: 7px 12px; }
 
-/* Page padding-bottom to avoid bottom nav overlap */
-@media(max-width:768px){
-  .home-page { padding-bottom: 72px; }
-  .profile-page { padding-bottom: 72px; }
-  .admin-page { padding-bottom: 72px; }
-  .help-page { padding-bottom: 72px; }
-  .cal-area { padding-bottom: 0; }
+  /* ── Page bottom padding (content clears the fixed bottom nav) ── */
+  .home-page   { padding-bottom: 72px; }
+  .profile-page{ padding-bottom: 72px; }
+  .admin-page  { padding-bottom: 72px; }
+  .help-page   { padding-bottom: 72px; }
+
+  /* ── Modals: slide up from bottom on mobile ── */
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal { border-radius: var(--r-xl) var(--r-xl) 0 0; margin: 0; max-height: 88vh; width: 100%; max-width: 100%; }
+
 }
 </style>
 </head>
@@ -3538,12 +3515,12 @@ body.light-mode .month-grid-day:hover {
   </div>
 
   <!-- CAL SUB-BAR — shown only on calendar page -->
-  <div id="cal-subbar" style="display:none;align-items:center;gap:8px;padding:8px 20px;border-bottom:1px solid var(--q-border);background:var(--q-dark);flex-shrink:0">
+  <div id="cal-subbar" style="display:none;align-items:center;border-bottom:1px solid var(--q-border);background:var(--q-dark);flex-shrink:0">
     <button class="topbar-nav-btn" onclick="navPrev()">‹</button>
     <button class="topbar-nav-btn" onclick="navNext()">›</button>
-    <div id="month-label" style="font-size:14px;font-weight:600;min-width:190px;color:var(--q-text);cursor:pointer" title="Double-click to go to today" ondblclick="goToday()"></div>
+    <div id="month-label" style="font-size:14px;font-weight:600;color:var(--q-text);cursor:pointer" title="Double-click to go to today" ondblclick="goToday()"></div>
     <button class="topbar-nav-btn" onclick="goToday()" style="font-size:11px;padding:5px 10px;font-family:var(--font-body);white-space:nowrap" title="Go to today (T)">Today</button>
-    <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+    <div class="cal-subbar-right" style="display:flex;align-items:center;gap:6px">
       <button class="topbar-nav-btn" onclick="exportICS()" title="Export to .ics / Apple Calendar / Google Calendar" style="font-size:10px;padding:5px 10px;font-family:var(--font-body)">Export ↓</button>
       <div class="view-toggle">
         <button class="view-btn active" id="view-month-btn" onclick="setView('month')">Month</button>
@@ -7420,6 +7397,25 @@ function closeSidebar(){
   document.querySelector('.sidebar').classList.remove('mobile-open');
   document.getElementById('sidebar-backdrop').classList.remove('open');
 }
+
+// ── Swipe to navigate calendar on mobile ──────────────────────────────────
+(function(){
+  let sx=0, sy=0;
+  const target = document.getElementById('page-calendar');
+  if(!target) return;
+  target.addEventListener('touchstart', e=>{
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+  }, {passive:true});
+  target.addEventListener('touchend', e=>{
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    // Only fire if mostly horizontal and moved more than 50px
+    if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5){
+      if(dx < 0) navNext(); else navPrev();
+    }
+  }, {passive:true});
+})();
 
 </script>
 </body>
