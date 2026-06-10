@@ -3457,8 +3457,12 @@ body.light-mode .month-grid-day:hover {
   #cal-subbar .topbar-nav-btn[onclick="goToday()"],
   #cal-header-dot, #cal-header-name, #cal-header-hint { display: none !important; }
 
-  /* ── Event pills: tighter so more text fits in narrow cells ── */
-  .event-pill { font-size: 10px; padding: 2px 4px; gap: 2px; }
+  /* ── Calendar cells: less padding so pills get more room ── */
+  .cal-cell { padding: 4px 2px 2px; }
+  .cell-num { font-size: 9px; width: 18px; height: 18px; margin-bottom: 2px; }
+
+  /* ── Event pills: compact; time + repeat icon hidden via JS on mobile ── */
+  .event-pill { font-size: 10px; padding: 2px 4px; gap: 2px; border-radius: 4px; }
   .event-pill-dot { width: 4px; height: 4px; }
 
 }
@@ -4874,7 +4878,10 @@ function renderCalendar(container,forDate){
       pill.style.background=ev.completed?'rgba(148,163,184,0.22)':color+'22';
       pill.style.color=ev.completed?'#94a3b8':color;
       if(isOverdue)pill.style.borderColor=color+'66';
-      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${ev.allDay?'':(ev.time?fmt12(ev.time)+' · ':'')}${ev.title}</span>${ev.repeat&&ev.repeat!=='none'?'<span style="font-size:8px;opacity:.6;flex-shrink:0">↻</span>':''}`;
+      const _mob=window.innerWidth<=768;
+      const _timePrefix=(!_mob&&!ev.allDay&&ev.time)?fmt12(ev.time)+' · ':'';
+      const _repeatSpan=(!_mob&&ev.repeat&&ev.repeat!=='none')?'<span style="font-size:8px;opacity:.6;flex-shrink:0">↻</span>':'';
+      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${_timePrefix}${ev.title}</span>${_repeatSpan}`;
       pill.onclick=e=>{e.stopPropagation();closeOverflowPopup();openViewEvent(ev);};
       pill.ondblclick=e=>{e.stopPropagation();closeModal('view-modal');closeOverflowPopup();openEventModal(ev);};
       // Hover card
