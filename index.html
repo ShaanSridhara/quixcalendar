@@ -3570,7 +3570,7 @@ body.light-mode .month-grid-day:hover {
       <div class="home-sub">Here's what's on your plate.</div>
       <div id="today-strip-wrap"></div>
       <div class="home-card" id="home-outreach-card" style="display:none;margin-bottom:20px;border-left-color:var(--q-green)">
-        <div class="home-card-title" style="color:var(--q-green)">Outreach Reports Needed</div>
+        <div class="home-card-title" style="color:var(--q-green)">Outreach Student Counts</div>
         <div id="home-outreach-list"></div>
       </div>
       <div class="home-grid">
@@ -6129,7 +6129,7 @@ async function renderDashboard(){
         <div class="dash-outreach-total">${totalStudents.toLocaleString()}</div>
         <div style="font-size:12px;color:var(--q-muted);margin-bottom:6px;padding-left:4px">students reached total</div>
       </div>
-      ${recent.length?`<div>${recent.map(e=>{const d=new Date(e.date+'T12:00:00');return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.title}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="font-size:13px;font-weight:800;color:var(--q-green);flex-shrink:0">${(e.outreachCount||0).toLocaleString()}</div>`;}).join('')}</div>`:''}
+      ${recent.length?`<div>${recent.map(e=>{const d=new Date(e.date+'T12:00:00');const editBtn=canEditOutreachCount(e)?`<button onclick="openOutreachModal('${e.id}')" style="margin-left:8px;padding:3px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit</button>`:'';return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.title}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="font-size:13px;font-weight:800;color:var(--q-green);flex-shrink:0">${(e.outreachCount||0).toLocaleString()}</div>${editBtn}</div>`;}).join('')}</div>`:''}
       ${outreachWithCount.length===0?`<div style="font-size:12px;color:var(--q-muted2)">No student counts logged yet. Add counts from event cards after outreach events.</div>`:''}
     `;
     outreachPanel.style.display='block';
@@ -7107,31 +7107,34 @@ function renderPendingOutreachReports(){
   const listEl=document.getElementById('home-outreach-list');
   if(!card||!listEl||!cu)return;
   const myUid=cu.uid,myEmail=cu.email;
-  // Past outreach meetings that the current user can enter a count for, without a count yet
-  const pending=events.filter(e=>{
+  // Past outreach events the current user can log or update a count for
+  const editable=events.filter(e=>{
     if(e.type!=='outreach')return false;
-    if(e.outreachCount!=null)return false; // already reported
     if(daysUntil(e.date)>0)return false; // not yet past
     return canEditOutreachCount(e);
-  }).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
-  card.style.display=pending.length?'block':'none';
+  }).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+  const hasAnyPending=editable.some(e=>e.outreachCount==null);
+  card.style.display=editable.length?'block':'none';
   listEl.innerHTML='';
-  if(!pending.length)return;
+  if(!editable.length)return;
   const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  pending.forEach(ev=>{
+  editable.forEach(ev=>{
     const d=new Date(ev.date+'T12:00:00');
+    const hasCount=ev.outreachCount!=null;
     const item=document.createElement('div');item.className='outreach-prompt-card';
     item.innerHTML=`
       <div class="outreach-prompt-title">${ev.title}</div>
-      <div class="outreach-prompt-meta">${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${ev.time?' · '+fmt12(ev.time):''}</div>
-      <div class="outreach-prompt-action">📊 Log student count</div>
+      <div class="outreach-prompt-meta">${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${ev.time?' · '+fmt12(ev.time):''}${hasCount?` · <span style="color:var(--q-green);font-weight:700">${ev.outreachCount.toLocaleString()} students</span>`:''}</div>
+      <div class="outreach-prompt-action">${hasCount?'✏️ Update count':'📊 Log student count'}</div>
     `;
     item.onclick=()=>openOutreachModal(ev);
     listEl.appendChild(item);
   });
 }
 
-window.openOutreachModal=(ev)=>{
+window.openOutreachModal=(evOrId)=>{
+  const ev=typeof evOrId==='string'?events.find(e=>e.id===evOrId):evOrId;
+  if(!ev){toast('Event not found');return;}
   if(!canEditOutreachCount(ev)){toast('You don\'t have permission to log this');return;}
   _outreachTargetEvId=ev.id;
   const d=new Date(ev.date+'T12:00:00');
@@ -7154,10 +7157,15 @@ window.submitOutreachCount=async()=>{
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
   try{
     await updateDoc(doc(db,'events',_outreachTargetEvId),{outreachCount:count,outreachCountUpdatedBy:cu.uid,outreachCountUpdatedAt:serverTimestamp()});
-    toast(`Saved — ${count} students reached!`);
+    // Update local cache so UI reflects the new count immediately
+    const cached=events.find(e=>e.id===_outreachTargetEvId);
+    if(cached)cached.outreachCount=count;
+    toast(`Saved — ${count.toLocaleString()} students reached!`);
     closeModal('outreach-modal');
     renderHomePage();
     if(currentPage==='dashboard')renderDashboard();
+    // Refresh view modal if it's open on this event
+    if(viewingEv&&viewingEv.id===_outreachTargetEvId&&document.getElementById('view-modal').classList.contains('open')){viewingEv.outreachCount=count;openViewEvent(viewingEv);}
   }catch(e){
     toast('Error saving');console.error(e);
     if(btn){btn.disabled=false;btn.textContent='Save Count';}
