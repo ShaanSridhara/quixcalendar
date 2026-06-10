@@ -3450,10 +3450,12 @@ body.light-mode .month-grid-day:hover {
   /* ── Dashboard: columns bottom padding (clears fixed bottom nav) ── */
   .dash-columns { padding-bottom: 80px; }
 
-  /* ── Calendar subbar: collapse to single row ── */
-  #cal-subbar { flex-wrap: nowrap; padding: 6px 10px; }
+  /* ── Calendar subbar: single compact row — ‹ [Month Year] › [Month|Week|Day] ── */
+  #cal-subbar { flex-wrap: nowrap; padding: 6px 10px; align-items: center; }
   .cal-subbar-right { width: auto; }
-  #cal-header-hint { display: none !important; }
+  /* Hide Today button, export button, calendar dot/name/hint to save space */
+  #cal-subbar .topbar-nav-btn[onclick="goToday()"],
+  #cal-header-dot, #cal-header-name, #cal-header-hint { display: none !important; }
 
   /* ── Event pills: tighter so more text fits in narrow cells ── */
   .event-pill { font-size: 10px; padding: 2px 4px; gap: 2px; }
