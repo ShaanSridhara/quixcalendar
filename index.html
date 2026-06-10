@@ -3318,6 +3318,144 @@ body.light-mode .month-grid-day:hover {
   background: rgba(0,168,255,0.05) !important;
   border-color: rgba(0,168,255,0.12) !important;
 }
+
+/* ── Mobile Responsiveness ─────────────────────────────────────────────────── */
+
+/* Hamburger button */
+.hamburger-btn { display: none; }
+@media(max-width:768px){
+  .hamburger-btn {
+    display: flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid var(--q-border2);
+    border-radius: var(--r);
+    color: var(--q-muted); cursor: pointer;
+    width: 36px; height: 36px;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.18s;
+  }
+  .hamburger-btn:hover { color: var(--q-text); border-color: var(--q-border3); }
+}
+
+/* Sidebar mobile drawer */
+@media(max-width:768px){
+  .sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 200;
+    width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.22,0.68,0,1.2);
+    box-shadow: 4px 0 32px rgba(0,0,0,0.5);
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  #sidebar-backdrop {
+    display: none;
+    position: fixed; inset: 0; z-index: 199;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  #sidebar-backdrop.open { display: block; }
+}
+
+/* Hide desktop nav pill on mobile */
+@media(max-width:768px){
+  .nav-pill { display: none !important; }
+}
+
+/* Bottom nav bar */
+.bottom-nav {
+  display: none;
+}
+@media(max-width:768px){
+  .bottom-nav {
+    display: flex;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--topbar-bg);
+    backdrop-filter: blur(24px) saturate(1.3);
+    -webkit-backdrop-filter: blur(24px) saturate(1.3);
+    border-top: 1px solid var(--q-border);
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bottom-nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; background: none; border: none;
+    color: var(--q-muted); cursor: pointer; font-size: 10px;
+    font-family: var(--font-body); font-weight: 600;
+    padding: 6px 4px; transition: color 0.18s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px;
+  }
+  .bottom-nav-btn.active { color: var(--q-blue2); }
+  .bottom-nav-btn svg { transition: stroke 0.18s; }
+  .bottom-nav-btn.active svg { stroke: var(--q-blue2); }
+}
+
+/* FAB */
+.mobile-fab { display: none; }
+@media(max-width:768px){
+  .mobile-fab {
+    position: fixed;
+    right: 16px;
+    bottom: 76px;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--q-blue), var(--q-blue2));
+    border: none; color: white;
+    box-shadow: 0 4px 20px rgba(0,168,255,0.4);
+    cursor: pointer; z-index: 150;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.18s, box-shadow 0.18s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-fab:active { transform: scale(0.93); }
+}
+
+/* Cal subbar wrap on mobile */
+@media(max-width:768px){
+  #cal-subbar {
+    flex-wrap: wrap;
+    padding: 6px 12px;
+    gap: 6px;
+    row-gap: 6px;
+  }
+  #cal-subbar > .topbar-nav-btn,
+  #cal-subbar > #month-label {
+    flex-shrink: 1;
+  }
+  #month-label { min-width: 0 !important; font-size:13px !important; }
+  #cal-subbar > div[style*="margin-left:auto"] {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: space-between;
+  }
+  #cal-subbar button[onclick*="exportICS"],
+  #month-stats { display: none !important; }
+  .view-btn { padding: 7px 14px; font-size: 12px; }
+}
+
+/* Touch targets */
+@media(max-width:768px){
+  .btn-icon { min-height: 36px; min-width: 36px; }
+  .topbar-nav-btn { min-height: 36px; }
+  .nav-pill-btn { min-height: 36px; }
+}
+
+/* Page padding-bottom to avoid bottom nav overlap */
+@media(max-width:768px){
+  .home-page { padding-bottom: 72px; }
+  .profile-page { padding-bottom: 72px; }
+  .admin-page { padding-bottom: 72px; }
+  .help-page { padding-bottom: 72px; }
+  .cal-area { padding-bottom: 0; }
+}
 </style>
 </head>
 <body>
@@ -3360,6 +3498,7 @@ body.light-mode .month-grid-day:hover {
 
 <!-- APP -->
 <div id="app-screen">
+  <div id="sidebar-backdrop" onclick="closeSidebar()"></div>
   <div class="topbar">
     <!-- LEFT: Logo — fixed width so center never shifts -->
     <div class="topbar-wordmark" onclick="showPage('home')" style="cursor:pointer">
@@ -3378,6 +3517,9 @@ body.light-mode .month-grid-day:hover {
     </div>
     <!-- RIGHT: Controls — flex:1 + justify-end to mirror left side -->
     <div class="topbar-right" style="flex:1;justify-content:flex-end">
+      <button class="hamburger-btn" id="hamburger-btn" onclick="toggleSidebar()" title="Menu" aria-label="Open menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <button class="btn-icon" onclick="openSearch()" title="Search (⌘K)" style="font-size:12px;padding:5px 10px;font-weight:600">⌘K</button>
       <button class="btn-icon" id="share-btn" onclick="openShareModal()" title="Share calendar" style="display:none;align-items:center;gap:5px">
         <svg style="display:block" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -3965,6 +4107,32 @@ body.light-mode .month-grid-day:hover {
     </div>
   </div>
 
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bottom-nav-btn active" id="bnav-home" onclick="showPage('home')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="bottom-nav-btn" id="bnav-cal" onclick="showPage('calendar')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Calendar</span>
+    </button>
+    <button class="bottom-nav-btn" id="bnav-dash" onclick="showPage('dashboard')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="bottom-nav-btn" id="bnav-profile" onclick="showPage('profile')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profile</span>
+    </button>
+    <button class="bottom-nav-btn" id="bnav-help" onclick="showPage('help')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>Help</span>
+    </button>
+    <button class="mobile-fab" id="mobile-fab" onclick="openNewEvent('meeting')" style="display:none" title="New meeting">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </nav>
+
 </div>
 
 <!-- SEARCH MODAL -->
@@ -4530,6 +4698,19 @@ window.showPage=(page)=>{
   });
   document.getElementById('cal-subbar').style.display=page==='calendar'?'flex':'none';
   document.getElementById('share-btn').style.display=page==='calendar'?'inline-flex':'none';
+  // Close sidebar drawer on mobile when navigating
+  if(window.innerWidth<=768){closeSidebar();}
+  // Update bottom nav active state
+  ['home','cal','dash','profile','help'].forEach(id=>{
+    const btn=document.getElementById(`bnav-${id}`);
+    if(btn){
+      const btnPage=id==='cal'?'calendar':id==='dash'?'dashboard':id;
+      btn.classList.toggle('active',btnPage===page);
+    }
+  });
+  // Show/hide FAB (only on mobile, only on calendar page)
+  const fab=document.getElementById('mobile-fab');
+  if(fab){fab.style.display=(window.innerWidth<=768&&page==='calendar')?'flex':'none';}
   // Page transition animation
   const activePageEl=document.getElementById(`page-${page}`);
   if(activePageEl){activePageEl.classList.add('page-entering');setTimeout(()=>activePageEl.classList.remove('page-entering'),250);}
@@ -7221,6 +7402,24 @@ let _touchX=null,_touchY=null;
     },{passive:true});
   }
 })();
+
+// ── Mobile sidebar drawer ──────────────────────────────────────────────────
+function toggleSidebar(){
+  const s=document.querySelector('.sidebar');
+  const b=document.getElementById('sidebar-backdrop');
+  const isOpen=s.classList.contains('mobile-open');
+  if(isOpen){
+    s.classList.remove('mobile-open');
+    b.classList.remove('open');
+  } else {
+    s.classList.add('mobile-open');
+    b.classList.add('open');
+  }
+}
+function closeSidebar(){
+  document.querySelector('.sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebar-backdrop').classList.remove('open');
+}
 
 </script>
 </body>
