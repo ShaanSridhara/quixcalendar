@@ -3527,6 +3527,17 @@ body.light-mode .month-grid-day:hover {
   .admin-member-row > div:nth-child(2) { flex: 1 1 calc(100% - 46px); }
   .admin-member-row > div:last-child { width: 100%; padding-left: 46px; margin-top: 2px; }
 
+  /* ── Dashboard: outreach panel — compact + scrollable so it can't
+       push the tab bar off-screen on small phones ── */
+  .dash-outreach-panel {
+    margin: 0 12px 10px;
+    padding: 12px 14px;
+    max-height: 170px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dash-outreach-total { font-size: 28px; }
+
   /* ── Calendar subbar: single compact row — ‹ [Month Year] › [Month|Week|Day] ── */
   #cal-subbar { flex-wrap: nowrap; padding: 6px 10px; align-items: center; }
   .cal-subbar-right { width: auto; }
@@ -6361,7 +6372,7 @@ async function renderDashboard(){
         </div>
         ${totalHours>0?`<div style="display:flex;align-items:flex-end;gap:4px"><div class="dash-outreach-total" style="font-size:28px">${totalHours}</div><div style="font-size:12px;color:var(--q-muted);margin-bottom:6px;padding-left:4px">hours</div></div>`:''}
       </div>
-      ${recent.length?`<div>${recent.map(e=>{const d=new Date(e.date+'T12:00:00');const editBtn=canEditOutreachCount(e)?`<button onclick="openOutreachModal(events.find(x=>x.id==='${e.id}'))" style="margin-left:8px;padding:3px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit</button>`:'';return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.title}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--q-green)">${(e.outreachCount||0).toLocaleString()}</div>${e.outreachHours!=null?`<div style="font-size:10px;color:var(--q-muted2)">${e.outreachHours}h</div>`:''}</div>${editBtn}</div>`;}).join('')}</div>`:''}
+      ${recent.length?`<div>${recent.map(e=>{const d=new Date(e.date+'T12:00:00');const editBtn=canEditOutreachCount(e)?`<button onclick="openOutreachModal('${e.id}')" style="margin-left:8px;padding:3px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit</button>`:'';return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.title}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--q-green)">${(e.outreachCount||0).toLocaleString()}</div>${e.outreachHours!=null?`<div style="font-size:10px;color:var(--q-muted2)">${e.outreachHours}h</div>`:''}</div>${editBtn}</div>`;}).join('')}</div>`:''}
       ${outreachWithCount.length===0?`<div style="font-size:12px;color:var(--q-muted2)">No data logged yet. Log from event detail after outreach events.</div>`:''}
 
     `;
