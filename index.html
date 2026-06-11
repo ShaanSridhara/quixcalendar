@@ -1895,6 +1895,9 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 
 @media(max-width:480px){
   .home-greeting { font-size: 22px; }
+  .onboarding-features { grid-template-columns: 1fr; }
+  .onboarding-body { padding: 24px 20px; }
+  .onboarding-title { font-size: 22px; }
 }
 
 /* ── Mobile: event modal as bottom sheet ───────────────────────── */
@@ -3478,6 +3481,16 @@ body.light-mode .month-grid-day:hover {
   .event-pill { font-size: 10px; padding: 2px 4px; gap: 2px; border-radius: 4px; }
   .event-pill-dot { width: 4px; height: 4px; }
 
+  /* ── Safe-area: account for home indicator on iPhone ── */
+  #app-screen { height: calc(100dvh - 60px - env(safe-area-inset-bottom, 0px)); }
+  .mobile-fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ── Profile page: single column on mobile ── */
+  .profile-columns { grid-template-columns: 1fr !important; }
+
+  /* ── Prevent iOS auto-zoom on input focus (triggers when font-size < 16px) ── */
+  .form-input, .form-select { font-size: 16px; }
+
 }
 </style>
 </head>
@@ -3704,7 +3717,7 @@ body.light-mode .month-grid-day:hover {
           <div style="font-size:10px;color:var(--q-muted2);margin-top:3px">Click avatar to change photo</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:380px 1fr;gap:20px;margin-bottom:16px;align-items:start">
+      <div class="profile-columns" style="display:grid;grid-template-columns:380px 1fr;gap:20px;margin-bottom:16px;align-items:start">
       <div><!-- LEFT COL -->
       <div style="background:var(--q-dark);border:1px solid var(--q-border);border-radius:var(--r-lg);padding:22px;margin-bottom:16px;box-shadow:var(--shadow)">
         <div style="font-size:14px;font-weight:600;margin-bottom:16px">Edit Profile</div>
@@ -4150,6 +4163,10 @@ body.light-mode .month-grid-day:hover {
     <button class="bottom-nav-btn" id="bnav-help" onclick="showPage('help')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       <span>Help</span>
+    </button>
+    <button class="bottom-nav-btn" id="bnav-admin" onclick="showPage('admin')" style="display:none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>Admin</span>
     </button>
     <button class="mobile-fab" id="mobile-fab" onclick="openNewEvent('meeting')" style="display:none" title="New meeting">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -4730,7 +4747,7 @@ window.showPage=(page)=>{
   // Close sidebar drawer on mobile when navigating
   if(window.innerWidth<=768){closeSidebar();}
   // Update bottom nav active state
-  ['home','cal','dash','profile','help'].forEach(id=>{
+  ['home','cal','dash','profile','help','admin'].forEach(id=>{
     const btn=document.getElementById(`bnav-${id}`);
     if(btn){
       const btnPage=id==='cal'?'calendar':id==='dash'?'dashboard':id;
@@ -4761,6 +4778,8 @@ function updateAdminUI(){
   const isAdm=isAdmin(activeCalId);
   const isAnyLeader=calendars.some(c=>isLeader(c.id))||sharedCalendars.some(c=>isLeader(c.id));
   document.getElementById('nav-admin').style.display=isAnyLeader?'block':'none';
+  const bnavAdmin=document.getElementById('bnav-admin');
+  if(bnavAdmin)bnavAdmin.style.display=isAnyLeader?'flex':'none';
   document.getElementById('create-btns').style.display=isAdm?'flex':'none';
   document.getElementById('cal-type-filter').style.display=activeCalId?'flex':'none';
   document.getElementById('new-cal-btn').style.display=isCaptain(activeCalId)?'inline':'none';
@@ -4903,9 +4922,11 @@ function renderCalendar(container,forDate){
       pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${_timePrefix}${ev.title}</span>${_repeatSpan}`;
       pill.onclick=e=>{e.stopPropagation();closeOverflowPopup();openViewEvent(ev);};
       pill.ondblclick=e=>{e.stopPropagation();closeModal('view-modal');closeOverflowPopup();openEventModal(ev);};
-      // Hover card
-      pill.addEventListener('mouseenter',e=>showHoverCard(ev,cal,color,e));
-      pill.addEventListener('mouseleave',hideHoverCard);
+      // Hover card (desktop only — touch devices skip to avoid stuck tooltips)
+      if(!('ontouchstart' in window)){
+        pill.addEventListener('mouseenter',e=>showHoverCard(ev,cal,color,e));
+        pill.addEventListener('mouseleave',hideHoverCard);
+      }
       return pill;
     };
     cev.slice(0,3).forEach(ev=>evd.appendChild(makePill(ev)));
