@@ -3446,7 +3446,11 @@ body.light-mode .month-grid-day:hover {
 
   /* ── Modals: slide up from bottom on mobile ── */
   .modal-overlay { align-items: flex-end; padding: 0; }
-  .modal { border-radius: var(--r-xl) var(--r-xl) 0 0; margin: 0; max-height: 88vh; width: 100%; max-width: 100%; }
+  .modal { border-radius: var(--r-xl) var(--r-xl) 0 0; margin: 0; max-height: 88vh; width: 100%; max-width: 100%; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+  /* Bigger close-button tap target on mobile */
+  .modal-close { min-width: 38px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; }
+  /* Onboarding skip link: taller hit area */
+  .onboarding-btn-skip { padding: 10px 4px; }
 
   /* ── Dashboard: header controls wrap on mobile ── */
   .dash-header-row { gap: 8px; padding: 14px 14px 10px; }
@@ -3487,9 +3491,31 @@ body.light-mode .month-grid-day:hover {
 
   /* ── Profile page: single column on mobile ── */
   .profile-columns { grid-template-columns: 1fr !important; }
+  /* Grid items default to min-width:auto, which refuses to shrink below their
+     content's intrinsic width — a long unbreakable token (the install-guide
+     URL <code>) was forcing the whole column to ~492px and overflowing the
+     page. Let the columns shrink and let long tokens wrap. */
+  .profile-columns > div { min-width: 0; }
+  .ig-text code, .ig-text { overflow-wrap: anywhere; word-break: break-word; }
+  /* Install-guide flex rows: let them shrink; cap decorative mockups to width */
+  .ig-step { gap: 10px; }
+  .ig-body { min-width: 0; }
+  .ig-mock, .ig-phone { max-width: 100%; }
+  /* Profile header: tighter padding, let long emails wrap instead of overflowing */
+  .profile-avatar-section { padding: 16px; gap: 14px; }
+  .profile-name, .profile-email-sm, #profile-email-display, #profile-name-display { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 
   /* ── Prevent iOS auto-zoom on input focus (triggers when font-size < 16px) ── */
   .form-input, .form-select { font-size: 16px; }
+
+  /* ── Bigger tap targets in the calendar subbar (‹ › Today, view toggles) ── */
+  #cal-subbar .topbar-nav-btn { min-width: 38px; min-height: 38px; padding: 8px 12px; font-size: 17px; display: inline-flex; align-items: center; justify-content: center; }
+  .view-btn { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; }
+  /* Toggle switches: enlarge the hit area without changing the visual track */
+  .theme-toggle, #notif-toggle-btn { position: relative; }
+  .theme-toggle::before, #notif-toggle-btn::before { content: ''; position: absolute; inset: -10px; }
+  /* Dashboard period nav buttons */
+  #dash-prev-btn, #dash-next-btn, #dash-today-btn { min-width: 38px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; }
 
 }
 </style>
@@ -7535,7 +7561,19 @@ function closeSidebar(){
   document.getElementById('sidebar-backdrop').classList.remove('open');
 }
 
-// ── Swipe to navigate calendar on mobile ──────────────────────────────────
+// ── Expose handlers referenced from inline HTML onclick/onchange ───────────
+// This script is an ES module, so plain `function foo(){}` declarations are
+// module-scoped and NOT visible to inline on* attributes (which run in global
+// scope). Any handler used in HTML must live on window. These five were
+// declared as plain functions, so wire them up explicitly.
+Object.assign(window,{
+  toggleSidebar, closeSidebar, renderAdminPage, renderDashboard, updatePostNotesVisibility
+});
+
+// ── Swipe to navigate calendar on mobile (week/day views only) ─────────────
+// Month view is handled by the fluid-scroll handler on #cal-scroll-viewport.
+// Guarding against month here prevents a swipe from firing BOTH handlers and
+// double-navigating.
 (function(){
   let sx=0, sy=0;
   const target = document.getElementById('page-calendar');
@@ -7545,6 +7583,7 @@ function closeSidebar(){
     sy = e.touches[0].clientY;
   }, {passive:true});
   target.addEventListener('touchend', e=>{
+    if(currentView==='month') return; // fluid handler owns month swipes
     const dx = e.changedTouches[0].clientX - sx;
     const dy = e.changedTouches[0].clientY - sy;
     // Only fire if mostly horizontal and moved more than 50px
