@@ -3461,31 +3461,43 @@ body.light-mode .month-grid-day:hover {
   /* Onboarding skip link: taller hit area */
   .onboarding-btn-skip { padding: 10px 4px; }
 
-  /* ── Dashboard: header controls wrap on mobile ── */
-  .dash-header-row { gap: 8px; padding: 14px 14px 10px; }
+  /* ── Dashboard: calmer, less cluttered on mobile ──
+     The dashboard stacked a heavy header, four loud stat cards, a big outreach
+     panel and two rows of tabs before any tasks. These rules quiet the visual
+     weight (flatter cards, no shimmer, smaller numbers, tighter spacing) so the
+     screen reads as a calm summary instead of a wall of competing boxes. */
+
+  /* Header */
+  .dash-header-row { gap: 8px; padding: 16px 14px 8px; }
+  .dash-title { font-size: 18px; }
+  .dash-subtitle { font-size: 11px; }
   .dash-header-controls { flex-wrap: wrap; row-gap: 6px; width: 100%; }
   #dash-cal-select { flex-basis: 100%; max-width: none !important; }
 
-  /* ── Dashboard: 3-equal-column stats ── */
-  .dash-summary { padding: 0 12px 12px; gap: 8px; }
-  .dash-stat { flex: 1 1 0; min-width: 70px; padding: 12px 10px; }
-  .dash-stat-num { font-size: 22px; }
+  /* Stats — flat, quiet, compact (no shadow, no shimmer sweep) */
+  .dash-summary { padding: 0 12px 10px; gap: 8px; }
+  .dash-stat { flex: 1 1 0; min-width: 64px; padding: 10px 9px; gap: 2px;
+    background: var(--q-dark3); border-radius: 12px; box-shadow: none; }
+  .dash-stat::before { display: none; }
+  .dash-stat:hover { transform: none; box-shadow: none; border-color: var(--q-border); }
+  .dash-stat-num { font-size: 19px; }
+  .dash-stat-label { font-size: 8px; }
+  .progress-bar { margin-top: 4px; }
 
-  /* ── Dashboard: tab bar — WRAP so every tab (incl. Outreach/Team) is
-     reachable. Horizontal scroll pushed the last tabs off-screen where users
-     couldn't reach them. Wrapping keeps them all visible and tappable. ── */
-  .dash-tab-bar { padding: 8px 12px 0; flex-wrap: wrap; gap: 4px 2px; overflow-x: visible; border-bottom: 1px solid var(--q-border); }
-  .dash-tab { padding: 8px 12px; font-size: 12px; border: 1px solid var(--q-border2); border-radius: 8px; margin-bottom: 0; min-height: 36px; }
+  /* Outreach panel — more compact */
+  .dash-outreach-panel { padding: 12px 14px; margin-bottom: 12px; border-radius: 12px; }
+  .dash-outreach-total { font-size: 24px; }
+  .dash-outreach-event-row { padding: 6px 0; }
+
+  /* Tabs — WRAP so every tab (incl. Outreach/Team) is reachable, kept compact */
+  .dash-tab-bar { padding: 8px 12px 2px; flex-wrap: wrap; gap: 4px; overflow-x: visible; border-bottom: 1px solid var(--q-border); }
+  .dash-tab { padding: 6px 11px; font-size: 11px; border: 1px solid var(--q-border2); border-radius: 8px; margin-bottom: 0; min-height: 32px; }
   .dash-tab.active { border-color: var(--q-blue-border); background: var(--q-blue-dim); }
 
-  /* ── Dashboard: stack columns as block flow on mobile ──
-     The desktop layout is a CSS grid. Forced into a single column on a phone,
-     the grid's auto-rows collapsed to ~17px and `.dash-col { overflow:hidden }`
-     clipped every column to that sliver, so all columns overlapped into an
-     unreadable smear. Block flow always sizes each card to its content and lets
-     the container scroll — bulletproof on mobile. */
-  .dash-columns { display: block; padding: 16px 12px 80px; overflow-y: auto; }
-  .dash-columns .dash-col { margin-bottom: 12px; }
+  /* Columns — block flow on mobile (grid auto-rows collapsed to a 17px sliver
+     and overflow:hidden clipped each column). A bit more breathing room. */
+  .dash-columns { display: block; padding: 14px 12px 80px; overflow-y: auto; }
+  .dash-columns .dash-col { margin-bottom: 10px; }
   .dash-columns .dash-col:last-child { margin-bottom: 0; }
 
   /* ── Admin member rows: consistent 2-row layout on mobile ──
