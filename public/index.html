@@ -3534,13 +3534,37 @@ body.light-mode .month-grid-day:hover {
   #cal-subbar .topbar-nav-btn[onclick="goToday()"],
   #cal-header-dot, #cal-header-name, #cal-header-hint { display: none !important; }
 
-  /* ── Calendar cells: less padding so pills get more room ── */
-  .cal-cell { padding: 4px 2px 2px; }
-  .cell-num { font-size: 9px; width: 18px; height: 18px; margin-bottom: 2px; }
+  /* ── Month grid: scroll vertically with TALLER cells instead of cramming six
+     rows into the viewport. The grid was locked to the screen height
+     (rows: repeat(6,1fr) inside overflow:hidden), so cells were squashed and
+     events truncated. Let the viewport scroll and give each week real height.
+     (The fluid swipe animation is disabled on mobile in JS; nav is horizontal
+     swipe + the ‹ › buttons.) ── */
+  #cal-scroll-viewport { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+  #cal-grid { position: relative; inset: auto; height: auto; min-height: 100%;
+    grid-template-rows: repeat(6, minmax(96px, auto)); }
+  #cal-grid-ghost { display: none !important; }
 
-  /* ── Event pills: compact; time + repeat icon hidden via JS on mobile ── */
-  .event-pill { font-size: 10px; padding: 2px 4px; gap: 2px; border-radius: 4px; }
-  .event-pill-dot { width: 4px; height: 4px; }
+  .cal-cell { padding: 5px 4px 4px; min-height: 96px; }
+  .cell-num { font-size: 11px; width: 20px; height: 20px; margin-bottom: 3px; }
+
+  /* Event pills: readable, not hairline-thin */
+  .event-pill { font-size: 11px; padding: 3px 6px; gap: 3px; border-radius: 5px; }
+  .event-pill-dot { width: 5px; height: 5px; }
+  .more-events { font-size: 10px; padding: 2px 6px; }
+
+  /* ── Week view: widen the 7 day columns and scroll horizontally instead of
+     cramming them into ~340px. The time gutter stays pinned on the left so you
+     never lose the hour labels. (Day view is single-column and untouched.) ── */
+  #week-view { overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; }
+  #week-view .week-sticky-header,
+  #week-view .week-allday-strip,
+  #week-view .week-inner { min-width: 700px; }
+  #week-view .week-time-gutter,
+  #week-view .week-time-gutter-hdr,
+  #week-view .week-allday-gutter {
+    position: sticky; left: 0; z-index: 11; background: var(--q-dark2); }
+  #week-view .week-time-label { font-size: 9px; }
 
   /* ── Safe-area: account for home indicator on iPhone ── */
   #app-screen { height: calc(100dvh - 60px - env(safe-area-inset-bottom, 0px)); }
@@ -5392,13 +5416,23 @@ function _fluidScroll(deltaY){
   }
 }
 
+// On mobile the month grid scrolls (taller cells), so the fluid translate
+// animation (which assumes an absolute, viewport-fitted grid) is skipped in
+// favour of a plain re-render.
+const _calMobile=()=>window.innerWidth<=768;
+function _monthStep(dir){
+  if(currentView==='month'&&_calMobile()){
+    currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth()+dir,1);
+    miniDate=new Date(currentDate);renderAll();
+  } else { _fluidStart(dir);_fluidCommit(true); }
+}
 window.navPrev=()=>{
-  if(currentView==='month'){_fluidStart(-1);_fluidCommit(true);}
+  if(currentView==='month'){_monthStep(-1);}
   else if(currentView==='day'){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-1);miniDate=new Date(currentDate);renderAll();}
   else{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();}
 };
 window.navNext=()=>{
-  if(currentView==='month'){_fluidStart(1);_fluidCommit(true);}
+  if(currentView==='month'){_monthStep(1);}
   else if(currentView==='day'){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+1);miniDate=new Date(currentDate);renderAll();}
   else{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();}
 };
@@ -7605,7 +7639,8 @@ let _touchX=null,_touchY=null;
   if(vp){
     vp.addEventListener('touchstart',e=>{_touchX=e.touches[0].clientX;_touchY=e.touches[0].clientY;},{passive:true});
     vp.addEventListener('touchmove',e=>{
-      if(_touchY===null||currentView!=='month')return;
+      // On mobile the grid scrolls natively, so don't hijack vertical drags.
+      if(_touchY===null||currentView!=='month'||window.innerWidth<=768)return;
       const dy=e.touches[0].clientY-_touchY;
       if(Math.abs(dy)>8)e.preventDefault();
     },{passive:false});
@@ -7613,7 +7648,10 @@ let _touchX=null,_touchY=null;
       if(_touchX===null)return;
       const dx=e.changedTouches[0].clientX-_touchX;
       const dy=e.changedTouches[0].clientY-(_touchY||0);
-      if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>40){
+      if(window.innerWidth<=768){
+        // Vertical is native scroll; only a clear horizontal swipe changes month.
+        if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.4){ dx<0?navNext():navPrev(); }
+      } else if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>40){
         _fluidStart(dy<0?1:-1);_fluidCommit(true);
       } else if(Math.abs(dx)>50){
         _fluidStart(dx<0?1:-1);_fluidCommit(true);
