@@ -3345,6 +3345,7 @@ body.light-mode .month-grid-day:hover {
 
 /* Hamburger button */
 .hamburger-btn { display: none; }
+.hamburger-btn.force-hide { display: none !important; }
 .bottom-nav { display: none; }
 .mobile-fab { display: none; }
 
@@ -3467,8 +3468,15 @@ body.light-mode .month-grid-day:hover {
   .dash-tab-bar::-webkit-scrollbar { display: none; }
   .dash-tab { padding: 10px 12px; font-size: 11px; }
 
-  /* ── Dashboard: columns bottom padding (clears fixed bottom nav) ── */
-  .dash-columns { padding-bottom: 80px; }
+  /* ── Dashboard: stack columns as block flow on mobile ──
+     The desktop layout is a CSS grid. Forced into a single column on a phone,
+     the grid's auto-rows collapsed to ~17px and `.dash-col { overflow:hidden }`
+     clipped every column to that sliver, so all columns overlapped into an
+     unreadable smear. Block flow always sizes each card to its content and lets
+     the container scroll — bulletproof on mobile. */
+  .dash-columns { display: block; padding: 16px 12px 80px; overflow-y: auto; }
+  .dash-columns .dash-col { margin-bottom: 12px; }
+  .dash-columns .dash-col:last-child { margin-bottom: 0; }
 
   /* ── Calendar subbar: single compact row — ‹ [Month Year] › [Month|Week|Day] ── */
   #cal-subbar { flex-wrap: nowrap; padding: 6px 10px; align-items: center; }
@@ -4770,6 +4778,11 @@ window.showPage=(page)=>{
   });
   document.getElementById('cal-subbar').style.display=page==='calendar'?'flex':'none';
   document.getElementById('share-btn').style.display=page==='calendar'?'inline-flex':'none';
+  // The sidebar drawer lives inside the calendar page, so the hamburger is only
+  // meaningful there. On every other page it would just show an empty backdrop,
+  // so hide the button and make sure the drawer is closed.
+  const hb=document.getElementById('hamburger-btn');
+  if(hb)hb.classList.toggle('force-hide',page!=='calendar');
   // Close sidebar drawer on mobile when navigating
   if(window.innerWidth<=768){closeSidebar();}
   // Update bottom nav active state
