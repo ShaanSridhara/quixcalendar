@@ -3467,6 +3467,12 @@ body.light-mode .month-grid-day:hover {
      weight (flatter cards, no shimmer, smaller numbers, tighter spacing) so the
      screen reads as a calm summary instead of a wall of competing boxes. */
 
+  /* Scroll the WHOLE dashboard as one column so the task list isn't boxed into a
+     tiny internal-scroll area. The header/stats/outreach scroll away and the
+     tasks get the full screen; the subsection tabs stay pinned so you can still
+     switch sections while looking at tasks. */
+  .dash-page { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
   /* Header */
   .dash-header-row { gap: 8px; padding: 16px 14px 8px; }
   .dash-title { font-size: 18px; }
@@ -3489,14 +3495,18 @@ body.light-mode .month-grid-day:hover {
   .dash-outreach-total { font-size: 24px; }
   .dash-outreach-event-row { padding: 6px 0; }
 
-  /* Tabs — WRAP so every tab (incl. Outreach/Team) is reachable, kept compact */
-  .dash-tab-bar { padding: 8px 12px 2px; flex-wrap: wrap; gap: 4px; overflow-x: visible; border-bottom: 1px solid var(--q-border); }
+  /* Tabs — WRAP so every tab (incl. Outreach/Team) is reachable; STICKY to the
+     top of the dashboard scroll so they stay reachable while viewing tasks. */
+  .dash-tab-bar { position: sticky; top: 0; z-index: 6;
+    padding: 8px 12px 6px; flex-wrap: wrap; gap: 4px; overflow-x: visible;
+    border-bottom: 1px solid var(--q-border); background: var(--q-black); }
   .dash-tab { padding: 6px 11px; font-size: 11px; border: 1px solid var(--q-border2); border-radius: 8px; margin-bottom: 0; min-height: 32px; }
   .dash-tab.active { border-color: var(--q-blue-border); background: var(--q-blue-dim); }
 
-  /* Columns — block flow on mobile (grid auto-rows collapsed to a 17px sliver
-     and overflow:hidden clipped each column). A bit more breathing room. */
-  .dash-columns { display: block; padding: 14px 12px 80px; overflow-y: auto; }
+  /* Columns — natural height (NOT a flex:1 box) so the whole page scrolls and the
+     task list owns the space. Block flow avoids the grid auto-row collapse. */
+  .dash-columns { display: block; flex: 0 0 auto; overflow: visible;
+    padding: 14px 12px 80px; }
   .dash-columns .dash-col { margin-bottom: 10px; }
   .dash-columns .dash-col:last-child { margin-bottom: 0; }
 
