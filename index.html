@@ -3510,6 +3510,15 @@ body.light-mode .month-grid-day:hover {
   .dash-columns .dash-col { margin-bottom: 10px; }
   .dash-columns .dash-col:last-child { margin-bottom: 0; }
 
+  /* Team roster (#dash-columns gets class .roster-grid in the Team view) — same
+     treatment. As a flex:1 grid its rows collapsed and the member cards, which
+     have overflow:hidden, stacked on top of each other into an unreadable pile.
+     Block flow gives each card its natural height. */
+  .roster-grid { display: block; flex: 0 0 auto; overflow: visible;
+    padding: 14px 12px 80px; }
+  .roster-grid .member-card { margin-bottom: 8px; }
+  .roster-grid .member-card:last-child { margin-bottom: 0; }
+
   /* ── Admin member rows: consistent 2-row layout on mobile ──
      With flex-wrap the role dropdown + Kick wrapped unpredictably (inline with
      the email for some members, below for others — see Ana's row). Force
