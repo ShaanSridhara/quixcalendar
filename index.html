@@ -7118,54 +7118,50 @@ async function renderAdminPage(){
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap" id="role-members-${role.replace(/\s/g,'_')}"></div>
       `;
-      // Member buttons to assign
+      // Member buttons to assign — all clickable: holders toggle off, non-holders toggle on
       const btnWrap=wrap.querySelector(`#role-members-${role.replace(/\s/g,'_')}`);
       const assignable=members.filter(m=>m.uid!==CHARLIE_UID||role==='Admin'); // Charlie excluded from manual assignment
       if(!assignable.length){btnWrap.innerHTML='<span style="font-size:11px;color:var(--q-muted2)">No available members</span>';}
       assignable.forEach(m=>{
-        const isHolder=m.uid===currentHolder;
+        const isHolder=hasRole(calRoles,m.uid,role); // check actual role, not just first holder
         const btn=document.createElement('button');
         btn.style.cssText=`padding:5px 12px;font-size:11px;font-weight:600;border-radius:7px;cursor:pointer;font-family:var(--font-body);border:1px solid ${isHolder?'var(--q-blue-border)':'var(--q-border2)'};background:${isHolder?'var(--q-blue-dim)':'transparent'};color:${isHolder?'var(--q-blue2)':'var(--q-muted)'};transition:all .15s`;
         btn.textContent=m.displayName+(isHolder?' ✓':'');
-        if(!isHolder){
-          btn.onmouseover=()=>{btn.style.background='var(--q-dark4)';btn.style.color='var(--q-text)';};
-          btn.onmouseout=()=>{btn.style.background='transparent';btn.style.color='var(--q-muted)';};
-          btn.onclick=async()=>{
+        btn.onmouseover=()=>{btn.style.background=isHolder?'rgba(239,68,68,.12)':'var(--q-dark4)';btn.style.color=isHolder?'var(--q-red)':'var(--q-text)';};
+        btn.onmouseout=()=>{btn.style.background=isHolder?'var(--q-blue-dim)':'transparent';btn.style.color=isHolder?'var(--q-blue2)':'var(--q-muted)';};
+        btn.onclick=async()=>{
+          if(role==='Admin'){toast('Admin role is reserved and cannot be manually assigned');return;}
+          let newRoles={...calRoles};
+          const alreadyHas=hasRole(newRoles,m.uid,role);
+          if(alreadyHas){
+            if(!confirm(`Remove ${role} from ${m.displayName}?`))return;
+            newRoles=removeRoleFromMap(newRoles,m.uid,role);
+            const primaryRole=getPrimaryRole(newRoles,m.uid);
+            await updateDoc(doc(db,'users',m.uid),{role:primaryRole||null});
+          } else {
             if(!confirm(`Assign ${role} to ${m.displayName}?`))return;
-            if(role==='Admin'){toast('Admin role is reserved and cannot be manually assigned');return;}
-            let newRoles={...calRoles};
-            const alreadyHas=hasRole(newRoles,m.uid,role);
-            if(alreadyHas){
-              // Clicking again removes the role
-              newRoles=removeRoleFromMap(newRoles,m.uid,role);
-              // Also remove from previous holder if unique role
-              const userRoles=getRolesForUid(newRoles,m.uid);
-              const primaryRole=getPrimaryRole(newRoles,m.uid);
-              await updateDoc(doc(db,'users',m.uid),{role:primaryRole||null});
-            } else {
-              // Add role — for unique roles, remove from previous holder first
-              if(role!=='Captain'&&role!=='Co-Captain'&&role!=='Vice Captain'&&role!=='Co-Programming Lead'){
-                Object.keys(newRoles).forEach(k=>{
-                  if(k!==m.uid&&hasRole(newRoles,k,role)){
-                    newRoles=removeRoleFromMap(newRoles,k,role);
-                    const remaining=getPrimaryRole(newRoles,k);
-                    updateDoc(doc(db,'users',k),{role:remaining||null});
-                  }
-                });
-              }
-              newRoles=addRoleToMap(newRoles,m.uid,role);
-              // Never overwrite Charlie's Admin
-              if(CHARLIE_UID in newRoles&&!getRolesForUid(newRoles,CHARLIE_UID).includes('Admin')){
-                newRoles=addRoleToMap(newRoles,CHARLIE_UID,'Admin');
-              }
-              const primaryRole=getPrimaryRole(newRoles,m.uid);
-              await updateDoc(doc(db,'users',m.uid),{role:primaryRole});
+            // For unique roles, remove from previous holder first
+            if(role!=='Captain'&&role!=='Co-Captain'&&role!=='Vice Captain'&&role!=='Co-Programming Lead'){
+              Object.keys(newRoles).forEach(k=>{
+                if(k!==m.uid&&hasRole(newRoles,k,role)){
+                  newRoles=removeRoleFromMap(newRoles,k,role);
+                  const remaining=getPrimaryRole(newRoles,k);
+                  updateDoc(doc(db,'users',k),{role:remaining||null});
+                }
+              });
             }
-            await updateDoc(doc(db,'calendars',adminCal.id),{roles:newRoles});
-            toast(alreadyHas?`Removed ${role} from ${m.displayName}`:`${m.displayName} is now ${role}`);
-            renderAdminPage();
-          };
-        }
+            newRoles=addRoleToMap(newRoles,m.uid,role);
+            // Never overwrite Charlie's Admin
+            if(CHARLIE_UID in newRoles&&!getRolesForUid(newRoles,CHARLIE_UID).includes('Admin')){
+              newRoles=addRoleToMap(newRoles,CHARLIE_UID,'Admin');
+            }
+            const primaryRole=getPrimaryRole(newRoles,m.uid);
+            await updateDoc(doc(db,'users',m.uid),{role:primaryRole});
+          }
+          await updateDoc(doc(db,'calendars',adminCal.id),{roles:newRoles});
+          toast(alreadyHas?`Removed ${role} from ${m.displayName}`:`${m.displayName} is now ${role}`);
+          renderAdminPage();
+        };
         btnWrap.appendChild(btn);
       });
       rolesEl.appendChild(wrap);
