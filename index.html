@@ -6985,7 +6985,9 @@ window.leaveCalendar=async(calId)=>{
 
 // ── Admin / Leadership page ────────────────────────────────────────────────
 async function renderAdminPage(){
-  const sel=document.getElementById('admin-cal-select');sel.innerHTML='';
+  const sel=document.getElementById('admin-cal-select');
+  const prevCalId=sel.value; // preserve selected calendar across re-renders
+  sel.innerHTML='';
 
   // Always fetch fresh role from Firestore
   try{
@@ -7021,6 +7023,7 @@ async function renderAdminPage(){
     return;
   }
   leadCals.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name+(sharedCalendars.find(sc=>sc.id===c.id)?' (shared)':'');sel.appendChild(o);});
+  if(prevCalId&&leadCals.find(c=>c.id===prevCalId))sel.value=prevCalId; // restore selection
   const adminCal=allCals.find(c=>c.id===sel.value)||leadCals[0];if(!adminCal)return;
 
   // Members
@@ -7131,36 +7134,39 @@ async function renderAdminPage(){
         btn.onmouseout=()=>{btn.style.background=isHolder?'var(--q-blue-dim)':'transparent';btn.style.color=isHolder?'var(--q-blue2)':'var(--q-muted)';};
         btn.onclick=async()=>{
           if(role==='Admin'){toast('Admin role is reserved and cannot be manually assigned');return;}
-          let newRoles={...calRoles};
-          const alreadyHas=hasRole(newRoles,m.uid,role);
-          if(alreadyHas){
-            if(!confirm(`Remove ${role} from ${m.displayName}?`))return;
-            newRoles=removeRoleFromMap(newRoles,m.uid,role);
-            const primaryRole=getPrimaryRole(newRoles,m.uid);
-            await updateDoc(doc(db,'users',m.uid),{role:primaryRole||null});
-          } else {
-            if(!confirm(`Assign ${role} to ${m.displayName}?`))return;
-            // For unique roles, remove from previous holder first
-            if(role!=='Captain'&&role!=='Co-Captain'&&role!=='Vice Captain'&&role!=='Co-Programming Lead'){
-              Object.keys(newRoles).forEach(k=>{
-                if(k!==m.uid&&hasRole(newRoles,k,role)){
-                  newRoles=removeRoleFromMap(newRoles,k,role);
-                  const remaining=getPrimaryRole(newRoles,k);
-                  updateDoc(doc(db,'users',k),{role:remaining||null});
-                }
-              });
+          try{
+            let newRoles={...calRoles};
+            const alreadyHas=hasRole(newRoles,m.uid,role);
+            if(alreadyHas){
+              if(!confirm(`Remove ${role} from ${m.displayName}?`))return;
+              newRoles=removeRoleFromMap(newRoles,m.uid,role);
+            } else {
+              if(!confirm(`Assign ${role} to ${m.displayName}?`))return;
+              // For unique roles, remove from previous holder first
+              if(role!=='Captain'&&role!=='Co-Captain'&&role!=='Vice Captain'&&role!=='Co-Programming Lead'){
+                Object.keys(newRoles).forEach(k=>{
+                  if(k!==m.uid&&hasRole(newRoles,k,role))newRoles=removeRoleFromMap(newRoles,k,role);
+                });
+              }
+              newRoles=addRoleToMap(newRoles,m.uid,role);
+              // Never overwrite Charlie's Admin
+              if(CHARLIE_UID in newRoles&&!getRolesForUid(newRoles,CHARLIE_UID).includes('Admin')){
+                newRoles=addRoleToMap(newRoles,CHARLIE_UID,'Admin');
+              }
             }
-            newRoles=addRoleToMap(newRoles,m.uid,role);
-            // Never overwrite Charlie's Admin
-            if(CHARLIE_UID in newRoles&&!getRolesForUid(newRoles,CHARLIE_UID).includes('Admin')){
-              newRoles=addRoleToMap(newRoles,CHARLIE_UID,'Admin');
-            }
-            const primaryRole=getPrimaryRole(newRoles,m.uid);
-            await updateDoc(doc(db,'users',m.uid),{role:primaryRole});
+            // Update calendar roles first (the source of truth)
+            await updateDoc(doc(db,'calendars',adminCal.id),{roles:newRoles});
+            // Best-effort: sync role cache on each affected user doc (may fail due to Firestore rules — non-blocking)
+            Object.keys(newRoles).forEach(uid=>{
+              const pr=getPrimaryRole(newRoles,uid);
+              updateDoc(doc(db,'users',uid),{role:pr||null}).catch(()=>{});
+            });
+            toast(alreadyHas?`Removed ${role} from ${m.displayName}`:`${m.displayName} is now ${role}`);
+            renderAdminPage();
+          }catch(e){
+            console.error('Role update failed:',e);
+            toast('Error updating role — check your permissions');
           }
-          await updateDoc(doc(db,'calendars',adminCal.id),{roles:newRoles});
-          toast(alreadyHas?`Removed ${role} from ${m.displayName}`:`${m.displayName} is now ${role}`);
-          renderAdminPage();
         };
         btnWrap.appendChild(btn);
       });
@@ -7171,13 +7177,16 @@ async function renderAdminPage(){
 
 window.removeRole=async(calId,uid,role)=>{
   const cal=calendars.find(c=>c.id===calId)||sharedCalendars.find(c=>c.id===calId);if(!cal)return;
-  let newRoles={...(cal.roles||{})};
-  if(role){newRoles=removeRoleFromMap(newRoles,uid,role);}
-  else{delete newRoles[uid];}// remove all roles
-  const remaining=getPrimaryRole(newRoles,uid);
-  await updateDoc(doc(db,'calendars',calId),{roles:newRoles});
-  await updateDoc(doc(db,'users',uid),{role:remaining||null});
-  toast('Role removed');renderAdminPage();
+  try{
+    let newRoles={...(cal.roles||{})};
+    if(role){newRoles=removeRoleFromMap(newRoles,uid,role);}
+    else{delete newRoles[uid];}
+    await updateDoc(doc(db,'calendars',calId),{roles:newRoles});
+    // Best-effort user doc sync
+    const remaining=getPrimaryRole(newRoles,uid);
+    updateDoc(doc(db,'users',uid),{role:remaining||null}).catch(()=>{});
+    toast('Role removed');renderAdminPage();
+  }catch(e){console.error('removeRole failed:',e);toast('Error removing role');}
 };
 
 window.addSubsection=async()=>{
