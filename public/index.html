@@ -4491,6 +4491,7 @@ body.light-mode .month-grid-day:hover {
       <button class="complete-btn" id="view-complete-btn" onclick="markTaskComplete()" style="display:none">Mark Complete</button>
       <button class="btn-secondary" id="view-optout-btn" onclick="optionalOptOut(viewingEv?.id)" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Not Attending</button>
       <button class="btn-secondary" id="view-decline-btn" onclick="rsvpEvent(viewingEv?.id,'decline')" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)">Can't Go</button>
+      <button class="btn-secondary" id="view-attendance-btn" onclick="openAttendanceModal(viewingEv)" style="display:none">Mark Attendance</button>
       <button class="btn-secondary" onclick="closeModal('view-modal')">Close</button>
     </div>
   </div>
@@ -4625,7 +4626,7 @@ body.light-mode .month-grid-day:hover {
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, updateProfile, updateEmail, updatePassword, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, serverTimestamp, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, serverTimestamp, getDocs, writeBatch, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:"AIzaSyCPbBj5WUGWduOLw1hmA761nawPxUbLRyA",authDomain:"quixcalendar-fc708.firebaseapp.com",projectId:"quixcalendar-fc708",storageBucket:"quixcalendar-fc708.firebasestorage.app",messagingSenderId:"1066637408084",appId:"1:1066637408084:web:8f0655f4a089696319fac1"};
 const app=initializeApp(firebaseConfig);
@@ -4645,6 +4646,8 @@ function getTodayStr(){
   const d=String(n.getDate()).padStart(2,'0');
   return `${y}-${m}-${d}`;
 }
+function localDateStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
 function fmt12(t){
   if(!t)return '';
   const [h,m]=t.split(':').map(Number);
@@ -5050,14 +5053,14 @@ function renderCalendar(container,forDate){
     if(i<fd){day=dip-fd+i+1;isCur=false;}else if(i>=fd+dim){day=i-fd-dim+1;isCur=false;}else{day=i-fd+1;}
     const cd=isCur?new Date(y,m,day):(i<fd?new Date(y,m-1,day):new Date(y,m+1,day));
     const isToday=today.toDateString()===cd.toDateString();
-    const ds=cd.toISOString().split('T')[0];
+    const ds=localDateStr(cd);
     const cev=exp.filter(e=>{
       if(e.date!==ds)return false;
       if(e.isShared)return enabledCalIds.has(e.sharedCalId);
       if(e._invited)return true;
       return enabledCalIds.has(e.calendarId);
     }).filter(e=>calTypeFilter==='all'||(calTypeFilter==='meetings'&&e.type==='meeting')||(calTypeFilter==='tasks'&&e.type==='task')||(calTypeFilter==='events'&&(e.type==='event'||e.type==='outreach'))).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-    const todayStr=today.toISOString().split('T')[0];
+    const todayStr=getTodayStr();
     const hasOverdue=isCur&&ds<todayStr&&cev.some(e=>e.type==='task'&&!e.completed);
     const cell=document.createElement('div');
     cell.className=`cal-cell${!isCur?' other-month':''}${isToday?' today':''}${hasOverdue?' has-overdue':''}`;
@@ -5119,6 +5122,7 @@ function expandRec(evList,rs,re){
   const res=[];
   evList.forEach(ev=>{
     if(!ev.repeat||ev.repeat==='none'){res.push(ev);return;}
+    if(!['daily','weekly','monthly'].includes(ev.repeat)){res.push(ev);return;}
     const start=new Date(ev.date+'T12:00:00');
     const origDay=start.getDate();
     const until=ev.repeatEnd?new Date(ev.repeatEnd+'T23:59:59'):new Date(re);
@@ -5129,7 +5133,7 @@ function expandRec(evList,rs,re){
     else if(ev.repeat==='monthly'){while(cur<rs){const ny=cur.getFullYear(),nm=cur.getMonth()+1;cur=new Date(ny,nm,1);cur.setDate(Math.min(origDay,new Date(ny,nm+1,0).getDate()));}}
     let cnt=0;
     while(cur<=until&&cur<=re&&cnt<500){
-      if(cur>=rs)res.push({...ev,date:cur.toISOString().split('T')[0],_occurrenceDate:cur.toISOString().split('T')[0]});
+      if(cur>=rs)res.push({...ev,date:localDateStr(cur),_occurrenceDate:localDateStr(cur)});
       if(ev.repeat==='daily')cur.setDate(cur.getDate()+1);
       else if(ev.repeat==='weekly')cur.setDate(cur.getDate()+7);
       else if(ev.repeat==='monthly'){const ny=cur.getFullYear(),nm=cur.getMonth()+1;cur=new Date(ny,nm,1);cur.setDate(Math.min(origDay,new Date(ny,nm+1,0).getDate()));}
@@ -5157,7 +5161,7 @@ function renderWeekView(){
   });
   const als=document.getElementById('week-allday-strip');als.innerHTML='<div class="week-allday-gutter">all-day</div>';
   days.forEach(d=>{
-    const ds=d.toISOString().split('T')[0];
+    const ds=localDateStr(d);
     const cell=document.createElement('div');cell.className='week-allday-cell';
     exp.filter(e=>e.date===ds&&e.allDay&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
       const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
@@ -5179,7 +5183,7 @@ function renderWeekView(){
   }
   const wd=document.getElementById('week-days');wd.innerHTML='';wd.style.gridTemplateColumns='repeat(7,1fr)';
   days.forEach(d=>{
-    const ds=d.toISOString().split('T')[0];
+    const ds=localDateStr(d);
     const col=document.createElement('div');col.className='week-body-col';
     for(let h=0;h<24;h++){
       const hl=document.createElement('div');hl.className='week-hour-line';hl.style.top=`${h*H}px`;col.appendChild(hl);
@@ -5218,7 +5222,7 @@ function renderWeekView(){
     wd.appendChild(col);
   });
   const _sc=document.getElementById('week-scroll');
-  requestAnimationFrame(()=>{if(_sc){const _n=getNow();const nowMins=_n.getHours()*60+_n.getMinutes();_sc.scrollTop=Math.max(0,(nowMins/60)*H-120);}});
+  if(!window._weekScrollSet){requestAnimationFrame(()=>{if(_sc){const _n=getNow();const nowMins=_n.getHours()*60+_n.getMinutes();_sc.scrollTop=Math.max(0,(nowMins/60)*H-120);}});window._weekScrollSet=true;}
   // Auto-update time indicator every minute
   clearInterval(window._nowLineTimer);
   window._nowLineTimer=setInterval(()=>{if(currentView==='week')renderWeekView();},60000);
@@ -5227,7 +5231,7 @@ function renderWeekView(){
 // ── Day view ───────────────────────────────────────────────────────────────
 function renderDayView(){
   const today=getNow(),H=60;
-  const ds=currentDate.toISOString().split('T')[0];
+  const ds=localDateStr(currentDate);
   const dayEnd=new Date(currentDate);dayEnd.setHours(23,59,59,999);
   const exp=expandRec(events,currentDate,dayEnd);
   // Header
@@ -5298,7 +5302,7 @@ function renderDayView(){
   });
   cw.appendChild(col);
   const sc=document.getElementById('day-scroll');
-  requestAnimationFrame(()=>{if(sc){const _n=getNow();sc.scrollTop=Math.max(0,((_n.getHours()*60+_n.getMinutes())/60)*H-120);}});
+  if(!window._dayScrollSet){requestAnimationFrame(()=>{if(sc){const _n=getNow();sc.scrollTop=Math.max(0,((_n.getHours()*60+_n.getMinutes())/60)*H-120);}});window._dayScrollSet=true;}
   clearInterval(window._dayLineTimer);
   window._dayLineTimer=setInterval(()=>{if(currentView==='day')renderDayView();},60000);
 }
@@ -5338,7 +5342,7 @@ window.exportICS=()=>{
   const now=getNow(),y=currentDate.getFullYear(),m=currentDate.getMonth();
   const rs=new Date(y,m,1),re=new Date(y,m+1,0);
   const exp=expandRec(events,rs,re);
-  const vis=exp.filter(e=>e.isShared?enabledCalIds.has(e.sharedCalId):enabledCalIds.has(e.calendarId));
+  const vis=exp.filter(e=>e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)));
   const esc=s=>(s||'').replace(/[\\;,]/g,'\\$&').replace(/\n/g,'\\n');
   const dt=(ds,t)=>{if(t){const[h,mi]=t.split(':');return`${ds.replace(/-/g,'')}T${h.padStart(2,'0')}${mi.padStart(2,'0')}00`;}return`${ds.replace(/-/g,'')}`;}
   const stamp=now.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
@@ -5391,7 +5395,7 @@ function renderMiniCal(){
     let day,isCur=true;
     if(i<fd){day=dip-fd+i+1;isCur=false;}else if(i>=fd+dim){day=i-fd-dim+1;isCur=false;}else{day=i-fd+1;}
     const cd=isCur?new Date(y,m,day):(i<fd?new Date(y,m-1,day):new Date(y,m+1,day));
-    const ds=cd.toISOString().split('T')[0];
+    const ds=localDateStr(cd);
     const isT=today.toDateString()===cd.toDateString(),isSel=currentDate.toDateString()===cd.toDateString()&&isCur;
     const dayEvs=_miniExpanded.filter(e=>e.date===ds&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId))));
     const hasEv=dayEvs.length>0;
@@ -5486,13 +5490,13 @@ function _monthStep(dir){
 }
 window.navPrev=()=>{
   if(currentView==='month'){_monthStep(-1);}
-  else if(currentView==='day'){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-1);miniDate=new Date(currentDate);renderAll();}
-  else{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();}
+  else if(currentView==='day'){window._dayScrollSet=false;currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-1);miniDate=new Date(currentDate);renderAll();}
+  else{window._weekScrollSet=false;currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();}
 };
 window.navNext=()=>{
   if(currentView==='month'){_monthStep(1);}
-  else if(currentView==='day'){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+1);miniDate=new Date(currentDate);renderAll();}
-  else{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();}
+  else if(currentView==='day'){window._dayScrollSet=false;currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+1);miniDate=new Date(currentDate);renderAll();}
+  else{window._weekScrollSet=false;currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();}
 };
 window.miniNavMonth=(d)=>{miniDate=new Date(miniDate.getFullYear(),miniDate.getMonth()+d,1);renderMiniCal();};
 window.setCalFilter=(f)=>{
@@ -5500,7 +5504,7 @@ window.setCalFilter=(f)=>{
   ['all','meetings','tasks','events'].forEach(x=>document.getElementById('filter-'+x)?.classList.toggle('active',x===f));
   renderAll();renderMiniCal();
 };
-window.goToday=()=>{currentDate=getNow();miniDate=getNow();renderAll();};
+window.goToday=()=>{window._weekScrollSet=false;window._dayScrollSet=false;currentDate=getNow();miniDate=getNow();renderAll();};
 
 // ── Show-all / hide-all calendar toggle ────────────────────────────────────
 window.toggleAllCals=()=>{
@@ -5615,7 +5619,7 @@ window.setView=(v)=>{
 };
 
 // ── Home ───────────────────────────────────────────────────────────────────
-function daysUntil(ds){return(new Date(ds+'T12:00:00')-getNow())/(864e5);}
+function daysUntil(ds){const n=getNow();const today=new Date(n.getFullYear(),n.getMonth(),n.getDate());return(new Date(ds+'T00:00:00')-today)/(864e5);}
 function hasMeetingStarted(ev){
   if(!ev||!ev.date)return false;
   const [h,m]=(ev.time||'23:59').split(':').map(Number);
@@ -5640,11 +5644,12 @@ function renderHomePage(){
   else roleRow.textContent='';
 
   const now=getNow(),soon=new Date(now);soon.setDate(soon.getDate()+14);
+  const todayStr=getTodayStr(),soonStr=`${soon.getFullYear()}-${String(soon.getMonth()+1).padStart(2,'0')}-${String(soon.getDate()).padStart(2,'0')}`;
   const myUid=cu?.uid,myEmail=(cu?.email||'').toLowerCase();
 
   // Upcoming meetings
   const upEl=document.getElementById('home-upcoming');upEl.innerHTML='';
-  const upcoming=events.filter(e=>e.type==='meeting'&&!e.completed&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).filter(e=>{const d=new Date(e.date+'T12:00:00');return d>=now&&d<=soon;}).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
+  const upcoming=events.filter(e=>e.type==='meeting'&&!e.completed&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).filter(e=>e.date>=todayStr&&e.date<=soonStr).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
   if(!upcoming.length)upEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">No upcoming meetings in 2 weeks</div></div>';
   else upcoming.forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId);
@@ -5686,11 +5691,11 @@ function renderHomePage(){
   if(homeEvEl){
     homeEvEl.innerHTML='';
     const soon30=new Date(now);soon30.setDate(soon30.getDate()+30);
-    const todayStr=getTodayStr();
+    const soon30Str=`${soon30.getFullYear()}-${String(soon30.getMonth()+1).padStart(2,'0')}-${String(soon30.getDate()).padStart(2,'0')}`;
     const upcomingEvs=events.filter(e=>{
       if(e.type!=='event'&&e.type!=='outreach')return false;
       if(!e.date||e.date<todayStr)return false;
-      const d=new Date(e.date+'T12:00:00');return d>=now&&d<=soon30;
+      return e.date<=soon30Str;
     }).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||'')).slice(0,10);
     if(!upcomingEvs.length){
       homeEvEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">🗓️</div><div class="empty-state-text">No upcoming events in 30 days</div></div>';
@@ -5857,7 +5862,7 @@ function openViewEvent(ev){
   const locEl=document.getElementById('view-location');
   if(ev.location&&locRow&&locEl){
     const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.location)}`;
-    locEl.innerHTML=`<span style="margin-right:6px">📍</span><a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--q-blue2);text-decoration:none;font-weight:600">${ev.location}</a><span id="view-drive-time" style="margin-left:8px"></span>`;
+    locEl.innerHTML=`<span style="margin-right:6px">📍</span><a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--q-blue2);text-decoration:none;font-weight:600">${escHtml(ev.location)}</a><span id="view-drive-time" style="margin-left:8px"></span>`;
     locRow.style.display='flex';
     // Try to get driving time
     if(navigator.geolocation){
@@ -5940,6 +5945,8 @@ function openViewEvent(ev){
   const _daysToEv=daysUntil(ev.date);
   const showDeclineBtn=ev.type==='meeting'&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!hasMeetingStarted(ev)&&(_daysToEv<0||_daysToEv>=3);
   document.getElementById('view-decline-btn').style.display=showDeclineBtn?'block':'none';
+  const showAttBtn=ev.type==='meeting'&&(isOwn||isAdm)&&daysUntil(ev.date)<0&&(ev.invitees||[]).length>0;
+  document.getElementById('view-attendance-btn').style.display=showAttBtn?'block':'none';
   document.getElementById('view-modal').classList.add('open');
 }
 
@@ -6011,8 +6018,8 @@ function renderViewPeople(){
     }
     const uxB=ux?`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span>`:'';
     let adminBtn='';
-    // Don't allow marking optional opt-outs as unexcused
-    if(isAdm&&!isTask&&rsvp==='declined'&&!isOptOut){
+    // Don't allow marking optional attendees or opt-outs as unexcused
+    if(isAdm&&!isTask&&rsvp==='declined'&&!isOptOut&&p.attendance!=='optional'){
       if(!ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','mark');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
       else adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','reverse');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
     }
@@ -6034,7 +6041,7 @@ window.optionalOptOut=async(evId)=>{
 };
 
 // FIX #3: deleteViewedEvent removes from invitees list too — done via Firestore delete which triggers snapshot
-window.deleteViewedEvent=async()=>{if(!viewingEv)return;if(!confirm('Delete this event?'))return;await deleteDoc(doc(db,'events',viewingEv.id));toast('Deleted');closeModal('view-modal');viewingEv=null;};
+window.deleteViewedEvent=async()=>{if(!viewingEv)return;if(viewingEv.uid!==cu?.uid&&!isAdmin(viewingEv.calendarId||viewingEv.sharedCalId)){toast('No permission');return;}if(!confirm('Delete this event?'))return;await deleteDoc(doc(db,'events',viewingEv.id));toast('Deleted');closeModal('view-modal');viewingEv=null;};
 window.editViewedEvent=()=>{closeModal('view-modal');openEventModal(viewingEv);};
 window.duplicateViewedEvent=async()=>{
   if(!viewingEv)return;
@@ -6072,13 +6079,11 @@ window.submitUnexcused=async()=>{
   const note=document.getElementById('unexcused-note').value.trim();
   if(action==='mark'){
     await updateDoc(doc(db,'events',evId),{[`unexcusedAbsences.${uid}`]:true,[`unexcusedNotes.${uid}`]:note||null});
-    const us=await getDoc(doc(db,'users',uid));
-    await updateDoc(doc(db,'users',uid),{unexcusedCount:(us.data()?.unexcusedCount||0)+1});
+    await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(1)});
     toast('Marked unexcused');
   } else {
     await updateDoc(doc(db,'events',evId),{[`unexcusedAbsences.${uid}`]:null,[`unexcusedNotes.${uid}`]:null});
-    const us=await getDoc(doc(db,'users',uid));
-    await updateDoc(doc(db,'users',uid),{unexcusedCount:Math.max(0,(us.data()?.unexcusedCount||0)-1)});
+    await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(-1)});
     toast('Absence reversed');
   }
   closeModal('unexcused-modal');renderViewPeople();if(currentPage==='admin')renderAdminPage();
@@ -6169,7 +6174,7 @@ window.switchType=(type)=>{
 };
 function updatePostNotesVisibility(evDate){
   const wrap=document.getElementById('ev-post-notes-wrap');if(!wrap)return;
-  const isPast=evDate&&new Date(evDate+'T23:59:59')<getNow();
+  const isPast=evDate&&evDate<=getTodayStr();
   wrap.style.display=(currentType==='meeting'&&isPast)?'block':'none';
 }
 
@@ -6269,7 +6274,7 @@ function renderChecklists(){
       const row=document.createElement('div');row.className='member-check-row';
       const sc=m.subsection?subColor(m.subsection,calId):'';
       row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleInv('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${m.displayName}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}${m.subsection?` <span style="font-size:9px;color:${sc};background:${sc}22;border-radius:4px;padding:1px 5px">${m.subsection}</span>`:''}</div></div>${isChk?`<button class="member-check-att ${att}" onclick="toggleInvAtt('${m.uid}');event.stopPropagation()">${att==='mandatory'?'Mand.':'Opt.'}</button>`:''}`;
-      row.onclick=e=>{if(e.target.tagName==='BUTTON')return;document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
+      row.onclick=e=>{if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT')return;document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
       container.appendChild(row);
     });
   }
@@ -6284,7 +6289,7 @@ function renderChecklists(){
       const isSelf=m.uid===cu.uid;
       const row=document.createElement('div');row.className='member-check-row';
       row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleAsgn('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${m.displayName}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}</div></div>`;
-      row.onclick=e=>{document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
+      row.onclick=e=>{if(e.target.tagName==='INPUT')return;document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
       container.appendChild(row);
     });
   }
@@ -6367,16 +6372,16 @@ async function renderDashboard(){
   const navBtns=[document.getElementById('dash-prev-btn'),document.getElementById('dash-next-btn')];
   navBtns.forEach(b=>{if(b)b.style.display=dashPeriod==='today'?'none':'';});
   if(dashPeriod==='today'){
-    rsStr=reStr=dashDate.toISOString().split('T')[0];
+    rsStr=reStr=getTodayStr();
     periodLabel=dashDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   } else if(dashPeriod==='month'){
     const ms=new Date(dashDate.getFullYear(),dashDate.getMonth(),1);
     const me=new Date(dashDate.getFullYear(),dashDate.getMonth()+1,0);
-    rsStr=ms.toISOString().split('T')[0];reStr=me.toISOString().split('T')[0];
+    rsStr=localDateStr(ms);reStr=localDateStr(me);
     periodLabel=`${M[ms.getMonth()]} ${ms.getFullYear()}`;
   } else {
     const ws=weekStart(dashDate),we=new Date(ws);we.setDate(we.getDate()+6);
-    rsStr=ws.toISOString().split('T')[0];reStr=we.toISOString().split('T')[0];
+    rsStr=localDateStr(ws);reStr=localDateStr(we);
     periodLabel=`Week of ${M[ws.getMonth()]} ${ws.getDate()} – ${M[we.getMonth()]} ${we.getDate()}, ${ws.getFullYear()}`;
   }
   document.getElementById('dash-week-label').textContent=periodLabel;
@@ -6645,8 +6650,8 @@ async function openMemberModal(m,calId,calRoles){
         </div>
       </div>
       ${isAdm?`<div style="margin-left:auto;display:flex;gap:6px">
-        <button onclick="addMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">+ Unexcused Absence</button>
-        ${unexcused>0?`<button onclick="removeMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">- Unexcused Absence</button>`:''}
+        <button onclick="addMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">+ Unexcused Absence</button>
+        ${unexcused>0?`<button onclick="removeMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">- Unexcused Absence</button>`:''}
       </div>`:''}
     </div>
     <div class="modal-section-label">Meetings</div>
@@ -6702,8 +6707,7 @@ async function openMemberModal(m,calId,calRoles){
 
 window.addMemberAbsence=async(uid,name)=>{
   if(!confirm(`Add 1 unexcused absence to ${name}?`))return;
-  const us=await getDoc(doc(db,'users',uid));
-  await updateDoc(doc(db,'users',uid),{unexcusedCount:(us.data()?.unexcusedCount||0)+1});
+  await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(1)});
   toast(`Absence added for ${name}`);
   // refresh modal
   const updatedSnap=await getDoc(doc(db,'users',uid));
@@ -6715,9 +6719,7 @@ window.addMemberAbsence=async(uid,name)=>{
 
 window.removeMemberAbsence=async(uid,name)=>{
   if(!confirm(`Remove 1 unexcused absence from ${name}?`))return;
-  const us=await getDoc(doc(db,'users',uid));
-  const cur=us.data()?.unexcusedCount||0;
-  await updateDoc(doc(db,'users',uid),{unexcusedCount:Math.max(0,cur-1)});
+  await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(-1)});
   toast(`Absence removed for ${name}`);
   const updatedSnap=await getDoc(doc(db,'users',uid));
   const calId=document.getElementById('dash-cal-select').value;
@@ -6771,6 +6773,7 @@ window.toggleEventOutreach=()=>{
 window.saveEvent=async()=>{
   const title=document.getElementById('ev-title').value.trim();if(!title){toast('Enter a title');return;}
   const calendarId=document.getElementById('ev-calendar').value;if(!calendarId){toast('Select a calendar');return;}
+  const _dateVal=document.getElementById('ev-date').value;if(!_dateVal){toast('Select a date');return;}
   const allDay=document.getElementById('ev-allday').checked;
   const repeat=document.getElementById('ev-repeat').value;
   const mgr=document.getElementById('ev-task-manager')?.value||null;
@@ -6880,7 +6883,7 @@ window.openShareModal=async()=>{
   }
   await loadJoinedCalendars();document.getElementById('share-modal').classList.add('open');
 };
-window.copyCode=()=>{const cal=calendars.find(c=>c.id===activeCalId);navigator.clipboard.writeText(cal?.inviteCode||'').then(()=>toast('Copied!')).catch(()=>{});};
+window.copyCode=()=>{const cal=calendars.find(c=>c.id===activeCalId);const code=cal?.inviteCode||'';if(!code)return;if(navigator.clipboard){navigator.clipboard.writeText(code).then(()=>toast('Copied!')).catch(()=>toast('Code: '+code));}else{toast('Code: '+code);}};
 
 window.joinCalendar=async()=>{
   const code=document.getElementById('join-code-input').value.trim().toUpperCase();if(code.length<4){toast('Enter a valid code');return;}
@@ -6889,7 +6892,7 @@ window.joinCalendar=async()=>{
   if(cData.uid===cu.uid){toast("That's your own calendar!");return;}
   const uref=doc(db,'users',cu.uid),usnap=await getDoc(uref);
   const joined=usnap.data().joinedCalendars||[];if(joined.includes(calId)){toast('Already joined');return;}
-  joined.push(calId);await updateDoc(uref,{joinedCalendars:joined});
+  await updateDoc(uref,{joinedCalendars:arrayUnion(calId)});
   const oSnap=await getDoc(doc(db,'users',cData.uid));
   const oName=oSnap.data()?.displayName||'Someone';
   subscribeSharedCal(calId,cData.uid,cData.name,oName,cData.color||'#00b4ff',cData.roles||{},cData.subsections||[]);
@@ -6974,8 +6977,9 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
 }
 
 window.leaveCalendar=async(calId)=>{
-  const uref=doc(db,'users',cu.uid),usnap=await getDoc(uref);
-  const joined=(usnap.data().joinedCalendars||[]).filter(id=>id!==calId);await updateDoc(uref,{joinedCalendars:joined});
+  if(_sharedCalUnsubs.has(calId)){_sharedCalUnsubs.get(calId).forEach(u=>u());_sharedCalUnsubs.delete(calId);}
+  const uref=doc(db,'users',cu.uid);
+  await updateDoc(uref,{joinedCalendars:arrayRemove(calId)});
   if(viewingEv&&(viewingEv.calendarId===calId||viewingEv.sharedCalId===calId)){closeModal('view-modal');viewingEv=null;}
   events=events.filter(e=>!(e.isShared&&e.sharedCalId===calId));sharedCalendars=sharedCalendars.filter(c=>c.id!==calId);
   enabledCalIds.delete(calId);
@@ -7061,7 +7065,7 @@ async function renderAdminPage(){
       if(m.uid!==cu.uid){
         const kickBtn=document.createElement('button');kickBtn.style.cssText='padding:3px 8px;font-size:10px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)';
         kickBtn.textContent='Kick';
-        kickBtn.onclick=async()=>{if(!confirm(`Remove ${m.displayName}?`))return;const us=await getDoc(doc(db,'users',m.uid));const jc=(us.data().joinedCalendars||[]).filter(id=>id!==adminCal.id);await updateDoc(doc(db,'users',m.uid),{joinedCalendars:jc});toast(`${m.displayName} removed`);renderAdminPage();};
+        kickBtn.onclick=async()=>{if(!confirm(`Remove ${m.displayName}?`))return;await updateDoc(doc(db,'users',m.uid),{joinedCalendars:arrayRemove(adminCal.id)});toast(`${m.displayName} removed`);renderAdminPage();};
         row.querySelector('div:last-child').appendChild(kickBtn);
       }
     }
@@ -7084,10 +7088,12 @@ async function renderAdminPage(){
   calEvents.forEach(ev=>{
     const ppl=ev.type==='task'?ev.assignees:ev.invitees;if(!ppl)return;
     ppl.forEach(p=>{
-      const rsvp=(ev.rsvp||{})[p.uid];if(rsvp!=='declined')return;hasAny=true;
-      const ux=(ev.unexcusedAbsences||{})[p.uid];const reason=(ev.declineReasons||{})[p.uid];
+      const rsvp=(ev.rsvp||{})[p.uid];if(rsvp!=='declined')return;
+      if(p.attendance==='optional'||(ev.optionalOptOut||{})[p.uid])return;
+      hasAny=true;
+      const ux=(ev.unexcusedAbsences||{})[p.uid];const reason=(ev.declineReasons||{})[p.uid];const uxNote=(ev.unexcusedNotes||{})[p.uid];
       const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--q-dark3);border-radius:7px;margin-bottom:5px;font-size:12px;flex-wrap:wrap';
-      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${p.name||p.displayName||''}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">declined "${ev.title}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Reason: ${reason}</div>`:''}</div>${ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
+      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${p.name||p.displayName||''}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">declined "${ev.title}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Reason: ${reason}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${uxNote}</div>`:''}</div>${ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
       al.appendChild(row);
     });
   });
@@ -7417,10 +7423,13 @@ async function autoDeclineStaleInvites(){
   });
   for(const ev of stale){
     try{
-      const newRsvp={...(ev.rsvp||{}),[myUid]:'declined'};
-      const newDeclineReasons={...(ev.declineReasons||{}),[myUid]:'Auto-declined: invitation not responded to within 3 days'};
-      await updateDoc(doc(db,'events',ev.id),{rsvp:newRsvp,declineReasons:newDeclineReasons});
-      const _ae=events.find(e=>e.id===ev.id);if(_ae){if(!_ae.rsvp)_ae.rsvp={};_ae.rsvp[myUid]='declined';}
+      const myInvEntry=(ev.invitees||[]).find(p=>p.uid===myUid||p.email===myEmail);
+      const isOptionalInv=myInvEntry?.attendance==='optional';
+      const update={[`rsvp.${myUid}`]:'declined'};
+      if(isOptionalInv){update[`optionalOptOut.${myUid}`]=true;}
+      else{update[`declineReasons.${myUid}`]='Auto-declined: invitation not responded to within 3 days';}
+      await updateDoc(doc(db,'events',ev.id),update);
+      const _ae=events.find(e=>e.id===ev.id);if(_ae){if(!_ae.rsvp)_ae.rsvp={};_ae.rsvp[myUid]='declined';if(isOptionalInv){if(!_ae.optionalOptOut)_ae.optionalOptOut={};_ae.optionalOptOut[myUid]=true;}}
     }catch(e){console.error('Auto-decline error:',e);}
   }
 }
@@ -7543,6 +7552,7 @@ window.runSearch=(q)=>{
   const meetings=allResults.filter(e=>e.type==='meeting').slice(0,6);
   const tasks=allResults.filter(e=>e.type==='task').slice(0,6);
   const evts=allResults.filter(e=>e.type==='event').slice(0,6);
+  const outreachEvts=allResults.filter(e=>e.type==='outreach').slice(0,6);
   const renderGroup=(label,items)=>{
     if(!items.length)return;
     const hdr=document.createElement('div');
@@ -7572,6 +7582,7 @@ window.runSearch=(q)=>{
   renderGroup('Meetings',meetings);
   renderGroup('Tasks',tasks);
   renderGroup('Events',evts);
+  renderGroup('Outreach',outreachEvts);
 };
 
 // ── Attendance Tracking ─────────────────────────────────────────────────────
@@ -7604,7 +7615,9 @@ window.setAtt=(uid,status)=>{
 };
 window.saveAttendance=async()=>{
   if(!attendanceState.evId)return;
-  await updateDoc(doc(db,'events',attendanceState.evId),{attendance:attendanceState.records});
+  const updates={};
+  Object.entries(attendanceState.records).forEach(([uid,status])=>{updates[`attendance.${uid}`]=status;});
+  await updateDoc(doc(db,'events',attendanceState.evId),updates);
   toast('Attendance saved');closeModal('attendance-modal');
 };
 
@@ -7646,7 +7659,7 @@ function renderLeadSection(){
   secTasks.forEach(ev=>{
     const pri=ev.priority||'optional';
     const d=new Date(ev.date+'T12:00:00');
-    const isOverdue=d<now;
+    const isOverdue=new Date(ev.date+'T23:59:59')<now;
     const row=document.createElement('div');row.className='upcoming-row';
     row.innerHTML=`<div class="upcoming-dot" style="background:${pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
     row.onclick=()=>openViewEvent(ev);el.appendChild(row);
@@ -7668,7 +7681,8 @@ window.applyWeekSchedule=async(mode)=>{
   const calendarId=document.getElementById('ev-calendar').value;
   if(!calendarId){toast('Select a calendar first');return;}
   if(!invitees.length){toast('Add invitees first — they will be copied to all created meetings');return;}
-  const baseDate=new Date(document.getElementById('ev-date').value+'T12:00:00');
+  const _bdStr=document.getElementById('ev-date').value;if(!_bdStr){toast('Select a base date first');return;}
+  const baseDate=new Date(_bdStr+'T12:00:00');
   const ws=weekStart(baseDate);
   const dayOffsets=mode==='crunch'?[1,2,3,4,5]:[2,4,5];
   const hasMandatory=invitees.some(i=>i.attendance==='mandatory');
@@ -7677,7 +7691,7 @@ window.applyWeekSchedule=async(mode)=>{
   let created=0;
   for(const offset of dayOffsets){
     const d=new Date(ws);d.setDate(d.getDate()+offset);
-    const dateStr=d.toISOString().split('T')[0];
+    const dateStr=localDateStr(d);
     await addDoc(collection(db,'events'),{
       uid:cu.uid,title,type:'meeting',date:dateStr,
       time:'15:30',timeEnd:'18:00',allDay:false,
