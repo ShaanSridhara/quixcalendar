@@ -948,7 +948,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 
 .event-pill:hover{transform:translateY(-1px) scale(1.02);box-shadow:0 5px 18px rgba(0,0,0,0.45);border-color:rgba(255,255,255,0.16)!important}
 .event-pill:active{transform:scale(0.97);}
-.event-pill.completed { opacity: 0.3; text-decoration: line-through; filter: grayscale(1); }
+.event-pill.completed { opacity: 0.3; filter: grayscale(1); }
 
 .event-pill-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 .event-pill-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
@@ -1036,7 +1036,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   box-shadow: 0 1px 6px rgba(0,0,0,0.3);
 }
 .week-event-block:hover { opacity: 0.9; transform: translateX(1px); box-shadow: 0 3px 14px rgba(0,0,0,0.4); }
-.week-event-block.completed { opacity: 0.3; text-decoration: line-through; filter: grayscale(1); }
+.week-event-block.completed { opacity: 0.3; filter: grayscale(1); }
 
 .week-event-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .week-event-time { font-family: var(--font-mono); font-size: 9px; opacity: 0.75; white-space: nowrap; }
@@ -1367,7 +1367,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
   font-family: var(--font-mono);
 }
-.dash-task-item.completed .dash-task-title { text-decoration: line-through; color: var(--q-muted); }
+.dash-task-item.completed .dash-task-title { color: var(--q-muted); }
 .dash-empty { padding: 28px 16px; font-size: 12px; color: var(--q-muted); text-align: center; line-height: 1.7; }
 .dash-subsec-tag { font-family: var(--font-mono); font-size: 8px; font-weight: 700; padding: 2px 7px; border-radius: 8px; }
 
@@ -4502,8 +4502,8 @@ body.light-mode .month-grid-day:hover {
       <button class="btn-secondary" id="view-dup-btn" onclick="duplicateViewedEvent()" style="display:none">Duplicate</button>
       <button class="btn-secondary" id="view-edit-btn" onclick="editViewedEvent()" style="display:none">Edit</button>
       <button class="complete-btn" id="view-complete-btn" onclick="markTaskComplete()" style="display:none">Mark Complete</button>
-      <button class="btn-secondary" id="view-optout-btn" onclick="optionalOptOut(viewingEv?.id)" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Not Attending</button>
-      <button class="btn-secondary" id="view-decline-btn" onclick="rsvpEvent(viewingEv?.id,'decline')" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)">Can't Go</button>
+      <button class="btn-secondary" id="view-optout-btn" onclick="optionalOptOut(viewingEv?.id,viewingEv?._occurrenceDate||null)" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Not Attending</button>
+      <button class="btn-secondary" id="view-decline-btn" onclick="rsvpEvent(viewingEv?.id,'decline',viewingEv?._occurrenceDate||null)" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)">Can't Go</button>
       <button class="btn-secondary" id="view-attendance-btn" onclick="openAttendanceModal(viewingEv)" style="display:none">Mark Attendance</button>
       <button class="btn-secondary" onclick="closeModal('view-modal')">Close</button>
     </div>
@@ -4715,7 +4715,7 @@ let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
 let _dashMeetings=[],_dashPeriodLabel='';
-let declineTargetEvId=null,unexcusedTarget=null,_outreachTargetEvId=null;
+let declineTargetEvId=null,declineTargetOccDate=null,unexcusedTarget=null,_outreachTargetEvId=null;
 let viewTab='all',currentPage='home';
 let calTypeFilter='all';
 let enabledCalIds=new Set();
@@ -4846,7 +4846,7 @@ function checkForNewInvites(invitedEvents){
     if(!ppl)return;
     const me=ppl.find(p=>p.uid===myUid);
     if(!me)return;
-    const rsvp=(ev.rsvp||{})[myUid];
+    const rsvp=getMyRsvp(ev,myUid);
     if(rsvp)return; // already responded, don't re-notify
     const seenKey=`seen_invite_${ev.id}`;
     if(localStorage.getItem(seenKey))return; // already notified
@@ -5156,6 +5156,31 @@ function expandRec(evList,rs,re){
   return res;
 }
 
+// Per-occurrence RSVP accessors — recurring events store accept/decline/
+// opt-out per occurrence date (rsvpByDate etc.) since the flat rsvp/
+// declineReasons/optionalOptOut fields apply to the whole series otherwise.
+// Non-recurring events keep using the flat fields untouched.
+function occKey(ev){ return (ev.repeat && ev.repeat!=='none') ? (ev._occurrenceDate||ev.date) : null; }
+function getMyRsvp(ev,uid){
+  if(!uid) return undefined;
+  const key=occKey(ev);
+  if(!key) return (ev.rsvp||{})[uid];
+  const perOcc=(ev.rsvpByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.rsvp||{})[uid];
+}
+function getDeclineReason(ev,uid){
+  const key=occKey(ev);
+  if(!key) return (ev.declineReasons||{})[uid];
+  const perOcc=(ev.declineReasonsByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.declineReasons||{})[uid];
+}
+function getOptOut(ev,uid){
+  const key=occKey(ev);
+  if(!key) return (ev.optionalOptOut||{})[uid];
+  const perOcc=(ev.optionalOptOutByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.optionalOptOut||{})[uid];
+}
+
 // ── Week view ──────────────────────────────────────────────────────────────
 function weekStart(d){const s=new Date(d);s.setDate(s.getDate()-s.getDay());s.setHours(0,0,0,0);return s;}
 
@@ -5176,7 +5201,7 @@ function renderWeekView(){
   days.forEach(d=>{
     const ds=localDateStr(d);
     const cell=document.createElement('div');cell.className='week-allday-cell';
-    exp.filter(e=>e.date===ds&&e.allDay&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
+    exp.filter(e=>e.date===ds&&(e.allDay||!e.time)&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
       const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
       let color=ev.color||cal?.color||'#2979ff';
       if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
@@ -5259,7 +5284,7 @@ function renderDayView(){
   // All-day strip
   const als=document.getElementById('day-allday-strip');als.style.gridTemplateColumns='52px 1fr';als.innerHTML='<div class="week-allday-gutter">all-day</div>';
   const adCell=document.createElement('div');adCell.className='week-allday-cell';adCell.style.flex='1';
-  exp.filter(e=>e.date===ds&&e.allDay&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
+  exp.filter(e=>e.date===ds&&(e.allDay||!e.time)&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
     let color=ev.color||cal?.color||'#2979ff';
     if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
@@ -5660,16 +5685,17 @@ function renderHomePage(){
   const todayStr=getTodayStr(),soonStr=`${soon.getFullYear()}-${String(soon.getMonth()+1).padStart(2,'0')}-${String(soon.getDate()).padStart(2,'0')}`;
   const myUid=cu?.uid,myEmail=(cu?.email||'').toLowerCase();
 
-  // Upcoming meetings
+  // Upcoming meetings — expand recurring meetings so each occurrence in the
+  // window is its own row with its own RSVP state (see getMyRsvp/rsvpByDate)
   const upEl=document.getElementById('home-upcoming');upEl.innerHTML='';
-  const upcoming=events.filter(e=>e.type==='meeting'&&!e.completed&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).filter(e=>e.date>=todayStr&&e.date<=soonStr).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
+  const upcoming=expandRec(events,now,soon).filter(e=>e.type==='meeting'&&!e.completed&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).filter(e=>e.date>=todayStr&&e.date<=soonStr).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
   if(!upcoming.length)upEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">No upcoming meetings in 2 weeks</div></div>';
   else upcoming.forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId);
     const color=ev.color||cal?.color||'#2979ff';
     const d=new Date(ev.date+'T12:00:00');
     const row=document.createElement('div');row.className='upcoming-row';
-    const myRsvpU=(ev.rsvp||{})[myUid];
+    const myRsvpU=getMyRsvp(ev,myUid);
     const isInvitedU=(ev.invitees||[]).some(p=>p.uid===myUid||p.email===myEmail);
     const myInvU=(ev.invitees||[]).find(p=>p.uid===myUid||p.email===myEmail);
     const isOptionalU=myInvU?.attendance==='optional';
@@ -5680,7 +5706,7 @@ function renderHomePage(){
       if(lockedU&&isOptionalU&&!hasMeetingStarted(ev)){
         // Optional + within 3 days but not started: allow opt-out
         const goingSpan=myRsvpU==='accepted'?'<span style="font-size:9px;color:var(--q-green);font-weight:700;padding:3px 6px">✓ Going</span>':'';
-        const notGoingBtn=myRsvpU!=='declined'?`<button class="btn-decline" style="font-size:9px;padding:3px 7px" onclick="event.stopPropagation();optionalOptOut('${ev.id}')">Not Going</button>`:'<span style="font-size:9px;color:var(--q-amber);padding:3px 6px">Not Attending</span>';
+        const notGoingBtn=myRsvpU!=='declined'?`<button class="btn-decline" style="font-size:9px;padding:3px 7px" onclick="event.stopPropagation();optionalOptOut('${ev.id}','${ev._occurrenceDate||''}')">Not Going</button>`:'<span style="font-size:9px;color:var(--q-amber);padding:3px 6px">Not Attending</span>';
         rsvpHtml=`<div style="display:flex;gap:4px;flex-shrink:0">${goingSpan}${notGoingBtn}</div>`;
       } else if(lockedU){
         const lockedLabel=myRsvpU==='accepted'?'✓ Going':myRsvpU==='declined'?'✗ Declined':'🔒 Locked';
@@ -5689,8 +5715,8 @@ function renderHomePage(){
         if(myRsvpU==='declined'){
           rsvpHtml=`<span style="font-size:9px;color:var(--q-red);font-weight:700;padding:3px 6px">✗ Declined</span>`;
         } else {
-          const goingBtn=myRsvpU==='accepted'?'<span style="font-size:10px;color:var(--q-green);font-weight:700;padding:3px 6px">✓ Going</span>':`<button class="btn-accept" style="font-size:9px;padding:3px 8px" onclick="event.stopPropagation();rsvpEvent('${ev.id}','accept')">Going</button>`;
-          const cantBtn=`<button class="btn-decline" style="font-size:9px;padding:3px 8px" onclick="event.stopPropagation();rsvpEvent('${ev.id}','decline')">Can't</button>`;
+          const goingBtn=myRsvpU==='accepted'?'<span style="font-size:10px;color:var(--q-green);font-weight:700;padding:3px 6px">✓ Going</span>':`<button class="btn-accept" style="font-size:9px;padding:3px 8px" onclick="event.stopPropagation();rsvpEvent('${ev.id}','accept','${ev._occurrenceDate||''}')">Going</button>`;
+          const cantBtn=`<button class="btn-decline" style="font-size:9px;padding:3px 8px" onclick="event.stopPropagation();rsvpEvent('${ev.id}','decline','${ev._occurrenceDate||''}')">Can't</button>`;
           rsvpHtml=`<div style="display:flex;gap:4px;flex-shrink:0">${goingBtn}${cantBtn}</div>`;
         }
       }
@@ -5728,22 +5754,26 @@ function renderHomePage(){
     }
   }
 
-  // Meeting invitations
+  // Meeting invitations — expand recurring meetings so each occurrence gets
+  // its own card/RSVP state, same reasoning as Upcoming Meetings above.
   const invEl=document.getElementById('home-invites');invEl.innerHTML='';
-  // Deduplicate by event ID — shared + invited snapshots can both add same event
+  // Deduplicate by event id + occurrence date — shared + invited snapshots
+  // can both add the same occurrence, but distinct occurrences of the same
+  // recurring series must each still show up.
   const _seenInvIds=new Set();
-  const myMtgInvites=events.filter(e=>{
+  const myMtgInvites=expandRec(events,now,soon).filter(e=>{
     if(e.type==='task')return false;
     if(e.completed)return false;
     if(new Date(e.date+'T23:59:59')<getNow())return false;
-    if(_seenInvIds.has(e.id))return false;
+    const seenKey=`${e.id}|${e.date}`;
+    if(_seenInvIds.has(seenKey))return false;
     const ppl=e.invitees||[];
     const isInvited=ppl.some(p=>p.uid===myUid||p.email===myEmail);
     if(!isInvited)return false;
     // Hide if already accepted or declined
-    const rsvpStatus=(e.rsvp||{})[myUid];
+    const rsvpStatus=getMyRsvp(e,myUid);
     if(rsvpStatus==='accepted'||rsvpStatus==='declined')return false;
-    _seenInvIds.add(e.id);
+    _seenInvIds.add(seenKey);
     return true;
   });
   if(!myMtgInvites.length)invEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">✉️</div><div class="empty-state-text">No pending invitations</div></div>';
@@ -5753,15 +5783,16 @@ function renderHomePage(){
     const ppl=ev.invitees||[];
     const me=ppl.find(p=>p.uid===myUid||p.email===myEmail);
     const isOptionalInv=me?.attendance==='optional';
-    const rsvp=(ev.rsvp||{})[myUid];
+    const rsvp=getMyRsvp(ev,myUid);
     const d=new Date(ev.date+'T12:00:00');
     const card=document.createElement('div');card.className='invite-card';card.style.borderLeftColor=color;
     const days3=daysUntil(ev.date)>=3;
+    const occArg=ev._occurrenceDate||'';
     let statusHtml='';
-    if(rsvp==='accepted')statusHtml=`<div class="invite-actions"><span class="invite-status accepted">Accepted</span>${days3?`<button class="btn-decline" style="font-size:10px;padding:3px 9px" onclick="rsvpEvent('${ev.id}','decline')">Change</button>`:''}</div>`;
-    else if(rsvp==='declined')statusHtml=`<div class="invite-actions"><span class="invite-status declined">Declined</span>${days3?`<button class="btn-accept" style="font-size:10px;padding:3px 9px" onclick="rsvpEvent('${ev.id}','accept')">Change</button>`:''}</div>`;
-    else if(isOptionalInv)statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept')">Accept</button><button class="btn-decline" style="color:var(--q-amber);border-color:rgba(245,158,11,.35)" onclick="rsvpEvent('${ev.id}','decline')">Not Attending</button></div>`;
-    else statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept')">Accept</button><button class="btn-decline" onclick="rsvpEvent('${ev.id}','decline')">Decline</button></div>`;
+    if(rsvp==='accepted')statusHtml=`<div class="invite-actions"><span class="invite-status accepted">Accepted</span>${days3?`<button class="btn-decline" style="font-size:10px;padding:3px 9px" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Change</button>`:''}</div>`;
+    else if(rsvp==='declined')statusHtml=`<div class="invite-actions"><span class="invite-status declined">Declined</span>${days3?`<button class="btn-accept" style="font-size:10px;padding:3px 9px" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Change</button>`:''}</div>`;
+    else if(isOptionalInv)statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Accept</button><button class="btn-decline" style="color:var(--q-amber);border-color:rgba(245,158,11,.35)" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Not Attending</button></div>`;
+    else statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Accept</button><button class="btn-decline" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Decline</button></div>`;
     card.innerHTML=`<div class="invite-card-title">${ev.title}</div><div class="invite-card-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}<br>${cal?.name||'Calendar'}${me?` · <span style="color:${me.attendance==='mandatory'?'var(--q-red)':'var(--q-green)'}">${me.attendance==='mandatory'?'Mandatory':'Optional'}</span>`:''}</div>${statusHtml}`;
     invEl.appendChild(card);
   });
@@ -5817,36 +5848,65 @@ async function loadAbsenceCount(){
 }
 
 // ── RSVP ──────────────────────────────────────────────────────────────────
-window.rsvpEvent=async(evId,action)=>{
+window.rsvpEvent=async(evId,action,occDate=null)=>{
   const ev=events.find(e=>e.id===evId);if(!ev)return;
   const myInv=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
   const isOptional=myInv?.attendance==='optional';
   // Optional invitees can always change RSVP until meeting starts; mandatory lock at 3 days
   if(!isOptional&&daysUntil(ev.date)<3&&daysUntil(ev.date)>=0){toast('RSVP locked — within 3 days of event');return;}
+  const isRec=ev.repeat&&ev.repeat!=='none';
+  const key=isRec?(occDate||ev.date):null;
   if(action==='decline'){
     if(isOptional){
       // Optional: silent opt-out, no reason needed, no unexcused absence
       if(hasMeetingStarted(ev)){toast('Meeting has already started');return;}
-      await updateDoc(doc(db,'events',evId),{[`rsvp.${cu.uid}`]:'declined',[`optionalOptOut.${cu.uid}`]:true,[`declineReasons.${cu.uid}`]:null});
-      const _oe=events.find(e=>e.id===evId);if(_oe){if(!_oe.rsvp)_oe.rsvp={};_oe.rsvp[cu.uid]='declined';if(!_oe.optionalOptOut)_oe.optionalOptOut={};_oe.optionalOptOut[cu.uid]=true;}
+      const patch=key
+        ?{[`rsvpByDate.${key}.${cu.uid}`]:'declined',[`optionalOptOutByDate.${key}.${cu.uid}`]:true,[`declineReasonsByDate.${key}.${cu.uid}`]:null}
+        :{[`rsvp.${cu.uid}`]:'declined',[`optionalOptOut.${cu.uid}`]:true,[`declineReasons.${cu.uid}`]:null};
+      await updateDoc(doc(db,'events',evId),patch);
+      const _oe=events.find(e=>e.id===evId);
+      if(_oe){
+        if(key){
+          if(!_oe.rsvpByDate)_oe.rsvpByDate={};if(!_oe.rsvpByDate[key])_oe.rsvpByDate[key]={};_oe.rsvpByDate[key][cu.uid]='declined';
+          if(!_oe.optionalOptOutByDate)_oe.optionalOptOutByDate={};if(!_oe.optionalOptOutByDate[key])_oe.optionalOptOutByDate[key]={};_oe.optionalOptOutByDate[key][cu.uid]=true;
+        } else {
+          if(!_oe.rsvp)_oe.rsvp={};_oe.rsvp[cu.uid]='declined';if(!_oe.optionalOptOut)_oe.optionalOptOut={};_oe.optionalOptOut[cu.uid]=true;
+        }
+      }
       toast('Marked as not attending — no absence recorded');renderHomePage();
     } else {
       declineTargetEvId=evId;
-      document.getElementById('decline-reason').value=(ev.declineReasons||{})[cu.uid]||'';
+      declineTargetOccDate=key;
+      document.getElementById('decline-reason').value=getDeclineReason(ev,cu.uid)||'';
       document.getElementById('decline-modal').classList.add('open');
     }
   } else {
-    await updateDoc(doc(db,'events',evId),{[`rsvp.${cu.uid}`]:'accepted',[`declineReasons.${cu.uid}`]:null,[`optionalOptOut.${cu.uid}`]:null});
-    const _ae=events.find(e=>e.id===evId);if(_ae){if(!_ae.rsvp)_ae.rsvp={};_ae.rsvp[cu.uid]='accepted';}
+    const patch=key
+      ?{[`rsvpByDate.${key}.${cu.uid}`]:'accepted',[`declineReasonsByDate.${key}.${cu.uid}`]:null,[`optionalOptOutByDate.${key}.${cu.uid}`]:null}
+      :{[`rsvp.${cu.uid}`]:'accepted',[`declineReasons.${cu.uid}`]:null,[`optionalOptOut.${cu.uid}`]:null};
+    await updateDoc(doc(db,'events',evId),patch);
+    const _ae=events.find(e=>e.id===evId);
+    if(_ae){
+      if(key){if(!_ae.rsvpByDate)_ae.rsvpByDate={};if(!_ae.rsvpByDate[key])_ae.rsvpByDate[key]={};_ae.rsvpByDate[key][cu.uid]='accepted';}
+      else{if(!_ae.rsvp)_ae.rsvp={};_ae.rsvp[cu.uid]='accepted';}
+    }
     toast('Accepted!');renderHomePage();
   }
 };
 window.submitDecline=async()=>{
   const reason=document.getElementById('decline-reason').value.trim();
   if(!reason){toast('Please provide a reason');return;}
-  await updateDoc(doc(db,'events',declineTargetEvId),{[`rsvp.${cu.uid}`]:'declined',[`declineReasons.${cu.uid}`]:reason});
-  const _de=events.find(e=>e.id===declineTargetEvId);if(_de){if(!_de.rsvp)_de.rsvp={};_de.rsvp[cu.uid]='declined';}
-  declineTargetEvId=null;
+  const key=declineTargetOccDate;
+  const patch=key
+    ?{[`rsvpByDate.${key}.${cu.uid}`]:'declined',[`declineReasonsByDate.${key}.${cu.uid}`]:reason}
+    :{[`rsvp.${cu.uid}`]:'declined',[`declineReasons.${cu.uid}`]:reason};
+  await updateDoc(doc(db,'events',declineTargetEvId),patch);
+  const _de=events.find(e=>e.id===declineTargetEvId);
+  if(_de){
+    if(key){if(!_de.rsvpByDate)_de.rsvpByDate={};if(!_de.rsvpByDate[key])_de.rsvpByDate[key]={};_de.rsvpByDate[key][cu.uid]='declined';}
+    else{if(!_de.rsvp)_de.rsvp={};_de.rsvp[cu.uid]='declined';}
+  }
+  declineTargetEvId=null;declineTargetOccDate=null;
   toast('Declined');closeModal('decline-modal');closeModal('view-modal');renderHomePage();
 };
 
@@ -5952,7 +6012,7 @@ function openViewEvent(ev){
   document.getElementById('view-complete-btn').style.display=(ev.type==='task'&&(isAdm||isMgr)&&!ev.completed)?'block':'none';
   // Optional opt-out: show for optional invitees before meeting starts, even if already accepted
   const myInvV=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
-  const myRsvpV=(ev.rsvp||{})[cu?.uid];
+  const myRsvpV=getMyRsvp(ev,cu?.uid);
   const showOptout=ev.type==='meeting'&&myInvV?.attendance==='optional'&&!hasMeetingStarted(ev)&&myRsvpV!=='declined';
   document.getElementById('view-optout-btn').style.display=showOptout?'block':'none';
   const _daysToEv=daysUntil(ev.date);
@@ -6004,12 +6064,12 @@ function renderViewPeople(){
   document.getElementById('view-modal').querySelector('.rsvp-tabs').style.display='flex';
   if(!ppl||!ppl.length){tabsCon.style.display='none';return;}
   tabsCon.style.display='block';
-  const filtered=viewTab==='all'?ppl:ppl.filter(p=>{const r=(ev.rsvp||{})[p.uid];return viewTab==='accepted'?r==='accepted':viewTab==='declined'?r==='declined':!r;});
+  const filtered=viewTab==='all'?ppl:ppl.filter(p=>{const r=getMyRsvp(ev,p.uid);return viewTab==='accepted'?r==='accepted':viewTab==='declined'?r==='declined':!r;});
   if(!filtered.length){el.innerHTML=`<div style="font-size:12px;color:var(--q-muted2);padding:7px 4px">No ${viewTab} responses</div>`;return;}
   const isAdm=isAdmin(ev.calendarId);
   filtered.forEach(p=>{
-    const rsvp=(ev.rsvp||{})[p.uid];
-    const dr=(ev.declineReasons||{})[p.uid];
+    const rsvp=getMyRsvp(ev,p.uid);
+    const dr=getDeclineReason(ev,p.uid);
     const ux=(ev.unexcusedAbsences||{})[p.uid];
     const hasDr=rsvp==='declined'&&dr;
     const row=document.createElement('div');row.className=`view-invitee-row${hasDr?' has-decline':''}`;
@@ -6021,7 +6081,7 @@ function renderViewPeople(){
       const isMand=p.attendance==='mandatory';
       attBadge=`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:${isMand?'var(--q-red-dim)':'var(--q-green-dim)'};color:${isMand?'var(--q-red)':'var(--q-green)'}">${isMand?'Mandatory':'Optional'}</span>`;
     }
-    const isOptOut=!isTask&&(ev.optionalOptOut||{})[p.uid];
+    const isOptOut=!isTask&&getOptOut(ev,p.uid);
     let rsvpB='';
     if(!isTask){
       if(rsvp==='accepted')rsvpB=`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:var(--q-green-dim);color:var(--q-green)">Accepted</span>`;
@@ -6042,13 +6102,26 @@ function renderViewPeople(){
   });
 }
 
-window.optionalOptOut=async(evId)=>{
+window.optionalOptOut=async(evId,occDate=null)=>{
   const ev=events.find(e=>e.id===evId);if(!ev)return;
   if(hasMeetingStarted(ev)){toast('Meeting has already started');return;}
   const myInv=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
   if(!myInv||myInv.attendance!=='optional'){toast('Only optional invitees can opt out this way');return;}
-  await updateDoc(doc(db,'events',evId),{[`rsvp.${cu.uid}`]:'declined',[`optionalOptOut.${cu.uid}`]:true,[`declineReasons.${cu.uid}`]:null});
-  const _ooe=events.find(e=>e.id===evId);if(_ooe){if(!_ooe.rsvp)_ooe.rsvp={};_ooe.rsvp[cu.uid]='declined';if(!_ooe.optionalOptOut)_ooe.optionalOptOut={};_ooe.optionalOptOut[cu.uid]=true;}
+  const isRec=ev.repeat&&ev.repeat!=='none';
+  const key=isRec?(occDate||ev.date):null;
+  const patch=key
+    ?{[`rsvpByDate.${key}.${cu.uid}`]:'declined',[`optionalOptOutByDate.${key}.${cu.uid}`]:true,[`declineReasonsByDate.${key}.${cu.uid}`]:null}
+    :{[`rsvp.${cu.uid}`]:'declined',[`optionalOptOut.${cu.uid}`]:true,[`declineReasons.${cu.uid}`]:null};
+  await updateDoc(doc(db,'events',evId),patch);
+  const _ooe=events.find(e=>e.id===evId);
+  if(_ooe){
+    if(key){
+      if(!_ooe.rsvpByDate)_ooe.rsvpByDate={};if(!_ooe.rsvpByDate[key])_ooe.rsvpByDate[key]={};_ooe.rsvpByDate[key][cu.uid]='declined';
+      if(!_ooe.optionalOptOutByDate)_ooe.optionalOptOutByDate={};if(!_ooe.optionalOptOutByDate[key])_ooe.optionalOptOutByDate[key]={};_ooe.optionalOptOutByDate[key][cu.uid]=true;
+    } else {
+      if(!_ooe.rsvp)_ooe.rsvp={};_ooe.rsvp[cu.uid]='declined';if(!_ooe.optionalOptOut)_ooe.optionalOptOut={};_ooe.optionalOptOut[cu.uid]=true;
+    }
+  }
   toast('Marked as not attending — no absence recorded');
   closeModal('view-modal');renderHomePage();
 };
@@ -6058,7 +6131,7 @@ window.deleteViewedEvent=async()=>{if(!viewingEv)return;if(viewingEv.uid!==cu?.u
 window.editViewedEvent=()=>{closeModal('view-modal');openEventModal(viewingEv);};
 window.duplicateViewedEvent=async()=>{
   if(!viewingEv)return;
-  const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,outreachCount,outreachHours,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
+  const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,rsvpByDate,declineReasonsByDate,optionalOptOutByDate,outreachCount,outreachHours,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
   data.title=(data.title||'')+(data.title?.endsWith(' (copy)')?'':' (copy)');
   data.completed=false;
   data.createdAt=serverTimestamp();data.updatedAt=serverTimestamp();
@@ -6684,7 +6757,7 @@ async function openMemberModal(m,calId,calRoles){
   const mmEl=el.querySelector('#mm-meetings');
   myMeetings.forEach(ev=>{
     const d=new Date(ev.date+'T12:00:00');
-    const rsvp=(ev.rsvp||{})[m.uid];
+    const rsvp=getMyRsvp(ev,m.uid);
     const rsvpColor=rsvp==='accepted'?'var(--q-green)':rsvp==='declined'?'var(--q-red)':'var(--q-muted2)';
     const rsvpLabel=rsvp==='accepted'?'✓':rsvp==='declined'?'✗':'?';
     const row=document.createElement('div');row.className='member-ev-row';
@@ -6860,7 +6933,7 @@ window.confirmDeleteCalendar=(e,calId,calName)=>{
 async function execDeleteCal(calId,calName){
   closeModal('confirm-delete-cal-modal');
   if(viewingEv&&(viewingEv.calendarId===calId||viewingEv.sharedCalId===calId)){closeModal('view-modal');viewingEv=null;}
-  if(declineTargetEvId){const dte=events.find(e=>e.id===declineTargetEvId);if(dte&&(dte.calendarId===calId||dte.sharedCalId===calId)){declineTargetEvId=null;closeModal('decline-modal');}}
+  if(declineTargetEvId){const dte=events.find(e=>e.id===declineTargetEvId);if(dte&&(dte.calendarId===calId||dte.sharedCalId===calId)){declineTargetEvId=null;declineTargetOccDate=null;closeModal('decline-modal');}}
   enabledCalIds.delete(calId);
   if(activeCalId===calId)activeCalId=calendars.filter(c=>c.id!==calId)[0]?.id||null;
   events=events.filter(e=>e.calendarId!==calId&&e.sharedCalId!==calId);
@@ -7102,15 +7175,21 @@ async function renderAdminPage(){
   document.getElementById('new-subsection-input').dataset.calId=adminCal.id;
 
   // Absences
+  // NOTE: calEvents is the raw (non-expanded) events list, so for a recurring
+  // meeting this only ever reflects one occurrence's worth of rsvp/decline
+  // state. Since per-occurrence declines now live in rsvpByDate/
+  // declineReasonsByDate (see getMyRsvp/getDeclineReason), a recurring
+  // occurrence declined via the calendar/Home page may not surface here
+  // until this panel is upgraded to work over expanded occurrences too.
   const al=document.getElementById('admin-absences-list');al.innerHTML='';
   const calEvents=events.filter(e=>e.calendarId===adminCal.id);let hasAny=false;
   calEvents.forEach(ev=>{
     const ppl=ev.type==='task'?ev.assignees:ev.invitees;if(!ppl)return;
     ppl.forEach(p=>{
-      const rsvp=(ev.rsvp||{})[p.uid];if(rsvp!=='declined')return;
-      if(p.attendance==='optional'||(ev.optionalOptOut||{})[p.uid])return;
+      const rsvp=getMyRsvp(ev,p.uid);if(rsvp!=='declined')return;
+      if(p.attendance==='optional'||getOptOut(ev,p.uid))return;
       hasAny=true;
-      const ux=(ev.unexcusedAbsences||{})[p.uid];const reason=(ev.declineReasons||{})[p.uid];const uxNote=(ev.unexcusedNotes||{})[p.uid];
+      const ux=(ev.unexcusedAbsences||{})[p.uid];const reason=getDeclineReason(ev,p.uid);const uxNote=(ev.unexcusedNotes||{})[p.uid];
       const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--q-dark3);border-radius:7px;margin-bottom:5px;font-size:12px;flex-wrap:wrap';
       row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${p.name||p.displayName||''}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">declined "${ev.title}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Reason: ${reason}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${uxNote}</div>`:''}</div>${ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
       al.appendChild(row);
@@ -7432,6 +7511,12 @@ async function autoDeclineStaleInvites(){
   if(!myUid)return;
   const stale=events.filter(e=>{
     if(e.type!=='meeting'||e.completed)return false;
+    // Recurring events: rsvp is per-occurrence (rsvpByDate) but this filter
+    // only ever inspects the base doc's anchor date, so it can't correctly
+    // detect "which occurrence went stale". Skip recurring events here
+    // rather than risk writing a flat rsvp.decline that would (pre-fix)
+    // apply to the whole series; per-occurrence auto-decline is a follow-up.
+    if(e.repeat&&e.repeat!=='none')return false;
     const ppl=e.invitees||[];
     const isInvited=ppl.some(p=>p.uid===myUid||p.email===myEmail);
     if(!isInvited)return false;
@@ -7469,25 +7554,28 @@ function renderPendingOutreachReports(){
   const listEl=document.getElementById('home-outreach-list');
   if(!card||!listEl||!cu)return;
   const myUid=cu.uid,myEmail=cu.email;
-  // Past outreach events the current user can log or update a count for
+  // Recently-past outreach events (within the last week) still awaiting a
+  // student count. Once logged, or once more than a week old, they drop off
+  // this list — it's a nudge to log promptly, not a permanent log.
   const editable=events.filter(e=>{
     if(e.type!=='outreach')return false;
-    if(daysUntil(e.date)>0)return false; // not yet past
+    const dLeft=daysUntil(e.date);
+    if(dLeft>0)return false; // not yet past
+    if(dLeft<-7)return false; // more than a week ago
+    if(e.outreachCount!=null)return false; // already logged
     return canEditOutreachCount(e);
   }).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
-  const hasAnyPending=editable.some(e=>e.outreachCount==null);
   card.style.display=editable.length?'block':'none';
   listEl.innerHTML='';
   if(!editable.length)return;
   const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   editable.forEach(ev=>{
     const d=new Date(ev.date+'T12:00:00');
-    const hasCount=ev.outreachCount!=null;
     const item=document.createElement('div');item.className='outreach-prompt-card';
     item.innerHTML=`
-      <div class="outreach-prompt-title">${ev.title}</div>
-      <div class="outreach-prompt-meta">${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${ev.time?' · '+fmt12(ev.time):''}${hasCount?` · <span style="color:var(--q-green);font-weight:700">${ev.outreachCount.toLocaleString()} students</span>`:''}</div>
-      <div class="outreach-prompt-action">${hasCount?'✏️ Update count':'📊 Log student count'}</div>
+      <div class="outreach-prompt-title">${escHtml(ev.title)}</div>
+      <div class="outreach-prompt-meta">${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${ev.time?' · '+fmt12(ev.time):''}</div>
+      <div class="outreach-prompt-action">📊 Log student count</div>
     `;
     item.onclick=()=>openOutreachModal(ev);
     listEl.appendChild(item);
