@@ -6479,9 +6479,10 @@ async function renderDashboard(){
     // Single subsection view — one column per priority
     const filter=dashSubTab;
     const filtered=weekTasks.filter(t=>(t.taskSubsection||'')===(filter===''?'':filter));
-    buckets['critical']=filtered.filter(t=>t.priority==='critical');
-    buckets['important']=filtered.filter(t=>t.priority==='important');
-    buckets['optional']=filtered.filter(t=>t.priority==='optional'||!t.priority);
+    buckets['critical']=filtered.filter(t=>t.priority==='critical'&&!t.completed);
+    buckets['important']=filtered.filter(t=>t.priority==='important'&&!t.completed);
+    buckets['optional']=filtered.filter(t=>(t.priority==='optional'||!t.priority)&&!t.completed);
+    buckets['completed']=filtered.filter(t=>t.completed);
   }
 
   // Sort each bucket by priority then date
@@ -6521,16 +6522,17 @@ async function renderDashboard(){
   } else {
     // priority columns for the selected subsection
     const priCols=[
-      {key:'critical',label:'Critical',color:'#ef4444'},
-      {key:'important',label:'Important',color:'#f59e0b'},
-      {key:'optional',label:'Optional',color:'#22c55e'},
+      {key:'critical',label:'Critical',color:'#ef4444',empty:'✓ All clear'},
+      {key:'important',label:'Important',color:'#f59e0b',empty:'✓ All clear'},
+      {key:'optional',label:'Optional',color:'#22c55e',empty:'✓ All clear'},
+      {key:'completed',label:'Completed',color:'#94a3b8',empty:'No completed tasks yet'},
     ];
     priCols.forEach(pc=>{
       const tasks=buckets[pc.key]||[];
       const div=document.createElement('div');div.className='dash-col';
       div.innerHTML=`<div class="dash-col-header"><div class="dash-col-dot" style="background:${pc.color}"></div><div class="dash-col-title">${pc.label}</div><div class="dash-col-count">${tasks.length}</div></div>`;
       const body=document.createElement('div');body.className='dash-col-body';
-      if(!tasks.length){body.innerHTML=`<div class="dash-empty">✓ All clear</div>`;}
+      if(!tasks.length){body.innerHTML=`<div class="dash-empty">${pc.empty}</div>`;}
       tasks.forEach(t=>{buildDashTaskItem(t,body,calId);});
       div.appendChild(body);
       colsEl.appendChild(div);
