@@ -1320,6 +1320,8 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   box-shadow: var(--shadow-sm);
   animation: fadeUp 0.25s cubic-bezier(0.22,0.68,0,1.2) both;
   position: relative;
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 260px);
 }
 .dash-col:nth-child(1){animation-delay:.03s}
 .dash-col:nth-child(2){animation-delay:.07s}
@@ -1332,6 +1334,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   padding: 12px 16px 10px;
   border-bottom: 1px solid var(--q-border);
   display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
 }
 .dash-col-title { font-family: var(--font-display); font-size: 13px; font-weight: 700; color: var(--q-text); }
 .dash-col-count {
@@ -1341,6 +1344,15 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   background: var(--q-dark4); color: var(--q-muted2);
 }
 .dash-col-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* Task list body — the part that actually needs to scroll when a section
+   has more tasks than fit. Previously tasks were flat children of .dash-col,
+   which only has overflow:hidden and no scroll region of its own, so extra
+   tasks were silently clipped with no way to reach them. */
+.dash-col-body {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+}
 
 .dash-task-item {
   padding: 12px 16px; border-bottom: 1px solid var(--q-border);
@@ -3512,8 +3524,9 @@ body.light-mode .month-grid-day:hover {
      task list owns the space. Block flow avoids the grid auto-row collapse. */
   .dash-columns { display: block; flex: 0 0 auto; overflow: visible;
     padding: 14px 12px 80px; }
-  .dash-columns .dash-col { margin-bottom: 10px; }
+  .dash-columns .dash-col { margin-bottom: 10px; max-height: none; }
   .dash-columns .dash-col:last-child { margin-bottom: 0; }
+  .dash-columns .dash-col-body { overflow: visible; }
 
   /* Team roster (#dash-columns gets class .roster-grid in the Team view) — same
      treatment. As a flex:1 grid its rows collapsed and the member cards, which
@@ -6499,8 +6512,10 @@ async function renderDashboard(){
       const label=s||'General';
       const div=document.createElement('div');div.className='dash-col';
       div.innerHTML=`<div class="dash-col-header"><div class="dash-col-dot" style="background:${col}"></div><div class="dash-col-title">${label}</div><div class="dash-col-count">${tasks.length}</div></div>`;
-      if(!tasks.length){div.innerHTML+=`<div class="dash-empty">✓ No tasks<br><span style="font-size:10px">this week</span></div>`;}
-      tasks.forEach(t=>{buildDashTaskItem(t,div,calId);});
+      const body=document.createElement('div');body.className='dash-col-body';
+      if(!tasks.length){body.innerHTML=`<div class="dash-empty">✓ No tasks<br><span style="font-size:10px">this week</span></div>`;}
+      tasks.forEach(t=>{buildDashTaskItem(t,body,calId);});
+      div.appendChild(body);
       colsEl.appendChild(div);
     });
   } else {
@@ -6514,8 +6529,10 @@ async function renderDashboard(){
       const tasks=buckets[pc.key]||[];
       const div=document.createElement('div');div.className='dash-col';
       div.innerHTML=`<div class="dash-col-header"><div class="dash-col-dot" style="background:${pc.color}"></div><div class="dash-col-title">${pc.label}</div><div class="dash-col-count">${tasks.length}</div></div>`;
-      if(!tasks.length){div.innerHTML+=`<div class="dash-empty">✓ All clear</div>`;}
-      tasks.forEach(t=>{buildDashTaskItem(t,div,calId);});
+      const body=document.createElement('div');body.className='dash-col-body';
+      if(!tasks.length){body.innerHTML=`<div class="dash-empty">✓ All clear</div>`;}
+      tasks.forEach(t=>{buildDashTaskItem(t,body,calId);});
+      div.appendChild(body);
       colsEl.appendChild(div);
     });
   }
