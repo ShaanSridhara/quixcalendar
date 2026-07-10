@@ -6,13 +6,12 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<title>Quixilver 8404 Calendar</title>
-<link rel="icon" type="image/png" href="https://quixilver8404.org/logo_old5.png"/>
+<title>Quix Calendar — Scheduling for FTC teams</title>
+<link rel="icon" type="image/png" href="/icon_192.png"/>
 <link rel="manifest" href="manifest.json"/>
 <meta name="theme-color" content="#0c0f18" media="(prefers-color-scheme: dark)"/>
 <meta name="theme-color" content="#f4f6fb" media="(prefers-color-scheme: light)"/>
-<meta name="description" content="Quixcalendar — team calendar and scheduling app"/>
-<meta name="apple-mobile-web-app-title" content="Quixilver"/>
+<meta name="apple-mobile-web-app-title" content="Quix Calendar"/>
 <link rel="apple-touch-icon" href="icon_180.png"/>
 <link rel="apple-touch-icon" sizes="180x180" href="icon_180.png"/>
 <link rel="apple-touch-icon" sizes="192x192" href="icon_192.png"/>
@@ -30,7 +29,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Core palette — Quixilver 8404 */
+  /* Core palette — Quix Calendar */
   --q-black:   #080a10;
   --q-dark:    #0b0d15;
   --q-dark2:   #0f1219;
@@ -372,7 +371,6 @@ body.light-mode::after {
 .form-input::placeholder { color: var(--q-muted2); }
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.7; cursor: pointer; }
-body.light-mode input[type="date"]::-webkit-calendar-picker-indicator { filter: none; }
 
 textarea.form-input { resize: vertical; min-height: 72px; }
 
@@ -495,6 +493,7 @@ textarea.form-input { resize: vertical; min-height: 72px; }
   color: var(--q-blue2);
   border-color: var(--q-blue-border);
   box-shadow: 0 2px 14px rgba(0,168,255,0.22);
+  animation: scaleIn 0.2s cubic-bezier(0.22,0.68,0,1.2) both;
 }
 
 /* Topbar right */
@@ -3596,6 +3595,7 @@ body.light-mode .month-grid-day:hover {
   #week-view .week-time-label { font-size: 9px; }
 
   /* ── Safe-area: account for home indicator on iPhone ── */
+  #app-screen { height: calc(100dvh - 60px - env(safe-area-inset-bottom, 0px)); }
   .mobile-fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 
   /* ── Profile page: single column on mobile ── */
@@ -3660,9 +3660,9 @@ body.light-mode .month-grid-day:hover {
   <div class="loader-logo-wrap">
     <div class="loader-ring"></div>
     <div class="loader-inner-ring"></div>
-    <img src="https://quixilver8404.org/logo_old5.png" alt="Quixilver" style="width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(0,168,255,0.5))"/>
+    <img src="/icon_192.png" alt="Quix Calendar" style="width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(0,168,255,0.5))"/>
   </div>
-  <div class="loader-text">Loading · Quixilver 8404</div>
+  <div class="loader-text">Loading · Quix Calendar</div>
 </div>
 
 <!-- AUTH -->
@@ -3670,10 +3670,10 @@ body.light-mode .month-grid-day:hover {
   <div class="auth-bg-grid"></div>
   <div class="auth-card">
     <div class="auth-wordmark">
-      <img src="https://quixilver8404.org/logo_old5.png" alt="Quixilver Logo" class="auth-logo-img"/>
-      <div class="auth-wordmark-text">Quixilver</div>
+      <img src="/icon_192.png" alt="Quix Calendar logo" class="auth-logo-img"/>
+      <div class="auth-wordmark-text">Quix Calendar</div>
     </div>
-    <div class="auth-team-tag">FTC Team &#35;8404</div>
+    <div class="auth-team-tag">Team scheduling, done right</div>
     <div id="auth-error" class="auth-error"></div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-signin" onclick="switchTab('signin')">Sign in</button>
@@ -3699,9 +3699,9 @@ body.light-mode .month-grid-day:hover {
   <div class="topbar">
     <!-- LEFT: Logo — fixed width so center never shifts -->
     <div class="topbar-wordmark" onclick="showPage('home')" style="cursor:pointer">
-      <img src="https://quixilver8404.org/logo_old5.png" alt="Quixilver" class="topbar-logo"/>
-      <span class="topbar-name">Quixilver</span>
-      <span class="topbar-badge">8404</span>
+      <img src="/icon_192.png" alt="Quix Calendar" class="topbar-logo"/>
+      <span class="topbar-name">Quix</span>
+      <span class="topbar-badge">Calendar</span>
     </div>
     <!-- CENTER: Nav pill — does not grow/shrink -->
     <div class="nav-pill" style="flex-shrink:0">
@@ -3821,6 +3821,9 @@ body.light-mode .month-grid-day:hover {
             <div class="agenda-title">Upcoming</div>
             <div id="sidebar-agenda"></div>
           </div>
+          <div style="margin-top:12px;text-align:center">
+            <button onclick="openBugModal()" style="background:none;border:none;color:var(--q-muted2);cursor:pointer;font-size:11px;letter-spacing:.02em" title="Report a bug or share feedback">🐞 Report a bug</button>
+          </div>
         </div>
       </div>
       <div class="cal-area">
@@ -3903,7 +3906,7 @@ body.light-mode .month-grid-day:hover {
       <!-- INSTALL GUIDE -->
       <div style="background:var(--q-dark);border:1px solid var(--q-border);border-radius:var(--r-lg);padding:26px 28px;box-shadow:var(--shadow)">
         <div style="font-size:20px;font-weight:700;margin-bottom:4px;letter-spacing:-.3px">&#128242; Install as App</div>
-        <div style="font-size:12px;color:var(--q-muted);margin-bottom:28px;line-height:1.6">Add Quixilver to your home screen or dock. No App Store needed &#8212; takes about 30 seconds.</div>
+        <div style="font-size:12px;color:var(--q-muted);margin-bottom:28px;line-height:1.6">Add Quix Calendar to your home screen or dock. No App Store needed &#8212; takes about 30 seconds.</div>
 
         <!-- iPhone -->
         <div class="ig-section">
@@ -3944,7 +3947,7 @@ body.light-mode .month-grid-day:hover {
                 </div>
               </div></div>
             </div></div>
-            <div class="ig-step"><div class="ig-num">4</div><div class="ig-body"><div class="ig-text">Tap <strong>Add</strong> in the top right &#8212; Quixilver is now on your home screen!</div></div></div>
+            <div class="ig-step"><div class="ig-num">4</div><div class="ig-body"><div class="ig-text">Tap <strong>Add</strong> in the top right &#8212; Quix Calendar is now on your home screen!</div></div></div>
           </div>
         </div>
 
@@ -3981,7 +3984,7 @@ body.light-mode .month-grid-day:hover {
                 </div>
               </div>
             </div></div>
-            <div class="ig-step"><div class="ig-num">3</div><div class="ig-body"><div class="ig-text">Click <strong>Add</strong> &#8212; Quixilver appears in your Dock like a native Mac app!</div></div></div>
+            <div class="ig-step"><div class="ig-num">3</div><div class="ig-body"><div class="ig-text">Click <strong>Add</strong> &#8212; Quix Calendar appears in your Dock like a native Mac app!</div></div></div>
           </div>
         </div>
 
@@ -4040,7 +4043,7 @@ body.light-mode .month-grid-day:hover {
                 <div style="padding:14px;font-size:11px;color:var(--q-muted2);text-align:center">App content</div>
               </div>
             </div></div>
-            <div class="ig-step"><div class="ig-num">3</div><div class="ig-body"><div class="ig-text">Click <strong>"Install"</strong> in the popup — Quixilver opens as a standalone app and appears in your Start menu and taskbar.</div><div class="ig-tip">&#128161; <strong>Edge users:</strong> Click the <strong>⋯ menu → Apps → Install this site as an app</strong> if you don't see the install icon.</div></div></div>
+            <div class="ig-step"><div class="ig-num">3</div><div class="ig-body"><div class="ig-text">Click <strong>"Install"</strong> in the popup — Quix Calendar opens as a standalone app and appears in your Start menu and taskbar.</div><div class="ig-tip">&#128161; <strong>Edge users:</strong> Click the <strong>⋯ menu → Apps → Install this site as an app</strong> if you don't see the install icon.</div></div></div>
           </div>
         </div>
 
@@ -4153,7 +4156,7 @@ body.light-mode .month-grid-day:hover {
     <div style="max-width:760px;margin:0 auto;padding:32px 24px 64px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
         <div style="font-size:28px;font-weight:700;font-family:var(--font-display);color:var(--q-text)">Help & Guide</div>
-        <div style="font-size:11px;font-family:var(--font-mono);color:var(--q-muted2);background:var(--q-dark4);padding:3px 8px;border-radius:6px;letter-spacing:.05em">QUIXILVER 8404</div>
+        <div style="font-size:11px;font-family:var(--font-mono);color:var(--q-muted2);background:var(--q-dark4);padding:3px 8px;border-radius:6px;letter-spacing:.05em">QUIX CALENDAR</div>
       </div>
 
       <!-- Keyboard Shortcuts -->
@@ -4193,7 +4196,7 @@ body.light-mode .month-grid-day:hover {
           </div>
           <div class="help-feature">
             <div class="help-feature-name">Recurring events</div>
-            <div class="help-feature-body">Set any event to repeat daily, weekly, or monthly. Add an optional end date to stop recurrence automatically.</div>
+            <div class="help-feature-body">Set any event to repeat daily, weekly, bi-weekly, monthly, or yearly. Add an optional end date to stop recurrence automatically.</div>
           </div>
           <div class="help-feature">
             <div class="help-feature-name">Event types & colors</div>
@@ -4294,10 +4297,15 @@ body.light-mode .month-grid-day:hover {
       <div class="help-section">
         <div class="help-section-title">Contact &amp; Feedback</div>
         <div class="help-feature" style="background:var(--q-blue-dim);border-color:var(--q-blue-border)">
-          <div class="help-feature-name" style="color:var(--q-blue2)">Get help or share feedback</div>
-          <div class="help-feature-body">Found a bug? Have a recommendation or feature request? Reach out — we read every message.<br><br>
-            <a href="mailto:ftc8404@gmail.com" style="color:var(--q-blue2);font-weight:700;font-size:13px;text-decoration:none">ftc8404@gmail.com</a>
-            <span style="color:var(--q-muted2);font-size:11px;margin-left:8px">— Team FTC 8404</span>
+          <div class="help-feature-name" style="color:var(--q-blue2)">Found a bug or have an idea?</div>
+          <div class="help-feature-body">Report it right here — no email needed. Your report goes straight to the Quix Calendar team, and we read every one.<br><br>
+            <button class="btn-primary-sm" onclick="openBugModal()" style="cursor:pointer">🐞 Report a bug or feedback</button>
+          </div>
+        </div>
+        <div class="help-feature" id="help-admin-inbox" style="display:none">
+          <div class="help-feature-name">Platform inbox</div>
+          <div class="help-feature-body">Review everything teams have reported.<br><br>
+            <button class="btn-secondary" onclick="openBugsAdmin()" style="cursor:pointer">📥 View all reports</button>
           </div>
         </div>
       </div>
@@ -4504,6 +4512,7 @@ body.light-mode .month-grid-day:hover {
       <button class="complete-btn" id="view-complete-btn" onclick="markTaskComplete()" style="display:none">Mark Complete</button>
       <button class="btn-secondary" id="view-optout-btn" onclick="optionalOptOut(viewingEv?.id,viewingEv?._occurrenceDate||null)" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Not Attending</button>
       <button class="btn-secondary" id="view-decline-btn" onclick="rsvpEvent(viewingEv?.id,'decline',viewingEv?._occurrenceDate||null)" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)">Can't Go</button>
+      <button class="btn-secondary" id="view-attendance-btn" onclick="openAttendanceModal(viewingEv)" style="display:none">Mark Attendance</button>
       <button class="btn-secondary" onclick="closeModal('view-modal')">Close</button>
     </div>
   </div>
@@ -4516,6 +4525,38 @@ body.light-mode .month-grid-day:hover {
     <div class="modal-title">New Calendar</div>
     <div class="form-group"><label class="form-label">Name</label><input class="form-input" id="newcal-name" type="text" placeholder="e.g. Mechanical, Competition…"/></div>
     <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('newcal-modal')">Cancel</button><button class="btn-primary-sm" onclick="saveNewCalendar()">Create</button></div>
+  </div>
+</div>
+
+<!-- REPORT A BUG / FEEDBACK -->
+<div class="modal-overlay" id="bug-modal">
+  <div class="modal modal-sm">
+    <button class="modal-close" onclick="closeModal('bug-modal')">✕</button>
+    <div class="modal-title">Report a bug or share feedback</div>
+    <div style="font-size:12px;color:var(--q-muted);margin:-6px 0 14px;line-height:1.6">Found something broken or have an idea? Tell us — reports go straight to the Quix Calendar team.</div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-input" id="bug-type">
+        <option value="bug">🐞 Something is broken</option>
+        <option value="idea">💡 Feature request / idea</option>
+        <option value="feedback">💬 General feedback</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Details</label>
+      <textarea class="form-input" id="bug-message" rows="5" placeholder="What happened? What did you expect? The more detail, the faster we can fix it."></textarea>
+    </div>
+    <div style="font-size:11px;color:var(--q-muted2);margin-bottom:12px">We'll include your name, the page you're on, and your device info so we can reproduce it.</div>
+    <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('bug-modal')">Cancel</button><button class="btn-primary-sm" id="bug-submit-btn" onclick="submitBugReport()">Send report</button></div>
+  </div>
+</div>
+
+<!-- ADMIN: BUG REPORTS INBOX (platform owner only) -->
+<div class="modal-overlay" id="bugs-admin-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('bugs-admin-modal')">✕</button>
+    <div class="modal-title">Bug reports &amp; feedback</div>
+    <div id="bugs-admin-list" style="max-height:60vh;overflow-y:auto;margin-top:8px"><div style="font-size:12px;color:var(--q-muted2)">Loading…</div></div>
   </div>
 </div>
 
@@ -4638,7 +4679,7 @@ body.light-mode .month-grid-day:hover {
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, updateProfile, updateEmail, updatePassword, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, serverTimestamp, getDocs, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs, writeBatch, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:"AIzaSyCPbBj5WUGWduOLw1hmA761nawPxUbLRyA",authDomain:"quixcalendar-fc708.firebaseapp.com",projectId:"quixcalendar-fc708",storageBucket:"quixcalendar-fc708.firebasestorage.app",messagingSenderId:"1066637408084",appId:"1:1066637408084:web:8f0655f4a089696319fac1"};
 const app=initializeApp(firebaseConfig);
@@ -4658,6 +4699,8 @@ function getTodayStr(){
   const d=String(n.getDate()).padStart(2,'0');
   return `${y}-${m}-${d}`;
 }
+function localDateStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
 function fmt12(t){
   if(!t)return '';
   const [h,m]=t.split(':').map(Number);
@@ -4671,7 +4714,7 @@ function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const LEADER_ROLES=['Captain','Co-Captain','Vice Captain','Outreach Lead','Programming Lead','Co-Programming Lead','Mechanical Lead','Admin'];
-// CHARLIE_UID removed for security — use Firestore custom claims instead.
+const CHARLIE_UID='FFCcwj3440ZXFcDZVAZzXmGuRQw2';
 // Roles helpers — roles map is {uid: ['Role1','Role2']} (supports multiple roles)
 // Backward compat: also handles old string format {uid: 'Role'}
 function getRolesForUid(rolesMap,uid){
@@ -4730,18 +4773,39 @@ onAuthStateChanged(auth,async user=>{
 });
 
 async function initUserData(user){
+  // CHARLIE_UID defined globally
   const uref=doc(db,'users',user.uid);
   const snap=await getDoc(uref);
   if(!snap.exists()){
     await setDoc(uref,{displayName:user.displayName||'User',email:user.email,joinedCalendars:[],pfpUrl:null,unexcusedCount:0,role:null});
     const code=Math.random().toString(36).substring(2,8).toUpperCase();
-    const initRoles={};
+    const initRoles=user.uid===CHARLIE_UID?{[user.uid]:'Captain'}:{};
     await addDoc(collection(db,'calendars'),{uid:user.uid,name:'General',color:'#00b4ff',inviteCode:code,roles:initRoles,subsections:[],createdAt:serverTimestamp()});
   } else {
     userPfpUrl=snap.data().pfpUrl||null;
     myRole=snap.data().role||null;
   }
-  // Superuser auto-promotion removed for security — use Firestore custom claims instead.
+  // Auto-assign Admin role to Charlie on ALL calendars, remove from Captain
+  if(user.uid===CHARLIE_UID){
+    try{
+      myRole='Admin';
+      await updateDoc(doc(db,'users',CHARLIE_UID),{role:'Admin'});
+      // Apply to all owned calendars
+      const calSnap=await getDocs(query(collection(db,'calendars'),where('uid','==',user.uid)));
+      for(const calDoc of calSnap.docs){
+        const roles={...( calDoc.data().roles||{})  };
+        // Remove Charlie from Captain if he's there
+        const charlieRoles=getRolesForUid(roles,CHARLIE_UID);
+        if(!charlieRoles.includes('Admin')){
+          // Remove Captain/Co-Captain, add Admin
+          let updatedRoles=removeRoleFromMap(roles,CHARLIE_UID,'Captain');
+          updatedRoles=removeRoleFromMap(updatedRoles,CHARLIE_UID,'Co-Captain');
+          updatedRoles=addRoleToMap(updatedRoles,CHARLIE_UID,'Admin');
+          await updateDoc(doc(db,'calendars',calDoc.id),{roles:updatedRoles});
+        }
+      }
+    }catch(e){console.error('Admin assign error:',e);}
+  }
   updateAvatarDisplay();
   // Migrate old role names in Firestore
   migrateRoles();
@@ -4759,7 +4823,7 @@ async function migrateRoles(){
         arr=arr.map(r=>r==='Captain 2'?'Co-Captain':r);
         // Remove duplicates
         arr=[...new Set(arr)];
-        newRoles[uid]=arr;
+        newRoles[uid]=arr.length===1?arr[0]:arr;
         if(JSON.stringify(roles[uid])!==JSON.stringify(newRoles[uid]))changed=true;
       }
       if(changed)await updateDoc(doc(db,'calendars',calDoc.id),{roles:newRoles});
@@ -4811,7 +4875,7 @@ function subscribeInvitedEvents(uid){
 
 function sendPushNotification(title,body){
   if('Notification' in window && Notification.permission==='granted' && localStorage.getItem('notificationsEnabled')==='true'){
-    new Notification(title,{body,icon:'https://quixilver8404.org/logo_old5.png'});
+    new Notification(title,{body,icon:'/icon_192.png'});
   }
 }
 
@@ -4946,6 +5010,9 @@ function updateAdminUI(){
     btn.textContent=allOn?'Hide all':'Show all';
     btn.style.display='inline';
   } else if(btn) btn.style.display='none';
+  // Platform-owner-only bug reports inbox
+  const inbox=document.getElementById('help-admin-inbox');
+  if(inbox)inbox.style.display=(cu?.uid===CHARLIE_UID)?'block':'none';
 }
 
 // ── Render all ─────────────────────────────────────────────────────────────
@@ -5042,14 +5109,14 @@ function renderCalendar(container,forDate){
     if(i<fd){day=dip-fd+i+1;isCur=false;}else if(i>=fd+dim){day=i-fd-dim+1;isCur=false;}else{day=i-fd+1;}
     const cd=isCur?new Date(y,m,day):(i<fd?new Date(y,m-1,day):new Date(y,m+1,day));
     const isToday=today.toDateString()===cd.toDateString();
-    const ds=cd.toISOString().split('T')[0];
+    const ds=localDateStr(cd);
     const cev=exp.filter(e=>{
       if(e.date!==ds)return false;
       if(e.isShared)return enabledCalIds.has(e.sharedCalId);
       if(e._invited)return true;
       return enabledCalIds.has(e.calendarId);
     }).filter(e=>calTypeFilter==='all'||(calTypeFilter==='meetings'&&e.type==='meeting')||(calTypeFilter==='tasks'&&e.type==='task')||(calTypeFilter==='events'&&(e.type==='event'||e.type==='outreach'))).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-    const todayStr=today.toISOString().split('T')[0];
+    const todayStr=getTodayStr();
     const hasOverdue=isCur&&ds<todayStr&&cev.some(e=>e.type==='task'&&!e.completed);
     const cell=document.createElement('div');
     cell.className=`cal-cell${!isCur?' other-month':''}${isToday?' today':''}${hasOverdue?' has-overdue':''}`;
@@ -5071,7 +5138,7 @@ function renderCalendar(container,forDate){
       const _mob=window.innerWidth<=768;
       const _timePrefix=(!_mob&&!ev.allDay&&ev.time)?fmt12(ev.time)+' · ':'';
       const _repeatSpan=(!_mob&&ev.repeat&&ev.repeat!=='none')?'<span style="font-size:8px;opacity:.6;flex-shrink:0">↻</span>':'';
-      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${_timePrefix}${escHtml(ev.title)}</span>${_repeatSpan}`;
+      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${_timePrefix}${ev.title}</span>${_repeatSpan}`;
       pill.onclick=e=>{e.stopPropagation();closeOverflowPopup();openViewEvent(ev);};
       pill.ondblclick=e=>{e.stopPropagation();closeModal('view-modal');closeOverflowPopup();openEventModal(ev);};
       // Long-press to edit on touch (replaces dblclick which doesn't fire on mobile)
@@ -5111,6 +5178,7 @@ function expandRec(evList,rs,re){
   const res=[];
   evList.forEach(ev=>{
     if(!ev.repeat||ev.repeat==='none'){res.push(ev);return;}
+    if(!['daily','weekly','monthly'].includes(ev.repeat)){res.push(ev);return;}
     const start=new Date(ev.date+'T12:00:00');
     const origDay=start.getDate();
     const until=ev.repeatEnd?new Date(ev.repeatEnd+'T23:59:59'):new Date(re);
@@ -5121,7 +5189,7 @@ function expandRec(evList,rs,re){
     else if(ev.repeat==='monthly'){while(cur<rs){const ny=cur.getFullYear(),nm=cur.getMonth()+1;cur=new Date(ny,nm,1);cur.setDate(Math.min(origDay,new Date(ny,nm+1,0).getDate()));}}
     let cnt=0;
     while(cur<=until&&cur<=re&&cnt<500){
-      if(cur>=rs)res.push({...ev,date:cur.toISOString().split('T')[0],_occurrenceDate:cur.toISOString().split('T')[0]});
+      if(cur>=rs)res.push({...ev,date:localDateStr(cur),_occurrenceDate:localDateStr(cur)});
       if(ev.repeat==='daily')cur.setDate(cur.getDate()+1);
       else if(ev.repeat==='weekly')cur.setDate(cur.getDate()+7);
       else if(ev.repeat==='monthly'){const ny=cur.getFullYear(),nm=cur.getMonth()+1;cur=new Date(ny,nm,1);cur.setDate(Math.min(origDay,new Date(ny,nm+1,0).getDate()));}
@@ -5174,7 +5242,7 @@ function renderWeekView(){
   });
   const als=document.getElementById('week-allday-strip');als.innerHTML='<div class="week-allday-gutter">all-day</div>';
   days.forEach(d=>{
-    const ds=d.toISOString().split('T')[0];
+    const ds=localDateStr(d);
     const cell=document.createElement('div');cell.className='week-allday-cell';
     exp.filter(e=>e.date===ds&&(e.allDay||!e.time)&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).forEach(ev=>{
       const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
@@ -5196,7 +5264,7 @@ function renderWeekView(){
   }
   const wd=document.getElementById('week-days');wd.innerHTML='';wd.style.gridTemplateColumns='repeat(7,1fr)';
   days.forEach(d=>{
-    const ds=d.toISOString().split('T')[0];
+    const ds=localDateStr(d);
     const col=document.createElement('div');col.className='week-body-col';
     for(let h=0;h<24;h++){
       const hl=document.createElement('div');hl.className='week-hour-line';hl.style.top=`${h*H}px`;col.appendChild(hl);
@@ -5222,21 +5290,20 @@ function renderWeekView(){
       const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
       let color=ev.color||cal?.color||'#2979ff';
       if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
-      if(!ev.time || !ev.time.includes(':')) return;
       const[sh,sm]=ev.time.split(':').map(Number);let sm0=sh*60+sm,em0=sm0+60;
       if(ev.timeEnd){const[eh,em]=ev.timeEnd.split(':').map(Number);em0=eh*60+em;}
       const blk=document.createElement('div');blk.className=`week-event-block${ev.completed?' completed':''}`;
       blk.style.top=`${(sm0/60)*H}px`;blk.style.height=`${Math.max(((em0-sm0)/60)*H,18)}px`;
       blk.style.background=color+'28';blk.style.color=color;blk.style.borderLeftColor=color;
       const wBlockH=Math.max(((em0-sm0)/60)*H,18);
-      const wDescHtml=ev.description&&wBlockH>54?`<div style="font-size:9px;opacity:.7;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal">${escHtml(ev.description||'')}</div>`:'';
-      blk.innerHTML=`<div class="week-event-title">${escHtml(ev.title)}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${wDescHtml}`;
+      const wDescHtml=ev.description&&wBlockH>54?`<div style="font-size:9px;opacity:.7;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal">${ev.description}</div>`:'';
+      blk.innerHTML=`<div class="week-event-title">${ev.title}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${wDescHtml}`;
       blk.onclick=e=>{e.stopPropagation();openViewEvent(ev);};col.appendChild(blk);
     });
     wd.appendChild(col);
   });
   const _sc=document.getElementById('week-scroll');
-  requestAnimationFrame(()=>{if(_sc){const _n=getNow();const nowMins=_n.getHours()*60+_n.getMinutes();_sc.scrollTop=Math.max(0,(nowMins/60)*H-120);}});
+  if(!window._weekScrollSet){requestAnimationFrame(()=>{if(_sc){const _n=getNow();const nowMins=_n.getHours()*60+_n.getMinutes();_sc.scrollTop=Math.max(0,(nowMins/60)*H-120);}});window._weekScrollSet=true;}
   // Auto-update time indicator every minute
   clearInterval(window._nowLineTimer);
   window._nowLineTimer=setInterval(()=>{if(currentView==='week')renderWeekView();},60000);
@@ -5245,7 +5312,7 @@ function renderWeekView(){
 // ── Day view ───────────────────────────────────────────────────────────────
 function renderDayView(){
   const today=getNow(),H=60;
-  const ds=currentDate.toISOString().split('T')[0];
+  const ds=localDateStr(currentDate);
   const dayEnd=new Date(currentDate);dayEnd.setHours(23,59,59,999);
   const exp=expandRec(events,currentDate,dayEnd);
   // Header
@@ -5304,20 +5371,19 @@ function renderDayView(){
     const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
     let color=ev.color||cal?.color||'#2979ff';
     if(ev.completed){color='#94a3b8';}else if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
-    if(!ev.time || !ev.time.includes(':')) return;
     const[sh,sm]=ev.time.split(':').map(Number);let sm0=sh*60+sm,em0=sm0+60;
     if(ev.timeEnd){const[eh,em]=ev.timeEnd.split(':').map(Number);em0=eh*60+em;}
     const blk=document.createElement('div');blk.className=`week-event-block${ev.completed?' completed':''}`;
     blk.style.top=`${(sm0/60)*H}px`;blk.style.height=`${Math.max(((em0-sm0)/60)*H,18)}px`;
     blk.style.background=color+'28';blk.style.color=color;blk.style.borderLeftColor=color;
     const blockH=Math.max(((em0-sm0)/60)*H,18);
-    const descHtml=ev.description&&blockH>54?`<div style="font-size:9px;opacity:.7;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;white-space:normal">${escHtml(ev.description||'')}</div>`:'';
-    blk.innerHTML=`<div class="week-event-title" style="white-space:normal;font-weight:700">${escHtml(ev.title)}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${descHtml}`;
+    const descHtml=ev.description&&blockH>54?`<div style="font-size:9px;opacity:.7;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;white-space:normal">${ev.description}</div>`:'';
+    blk.innerHTML=`<div class="week-event-title" style="white-space:normal;font-weight:700">${ev.title}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${descHtml}`;
     blk.onclick=e=>{e.stopPropagation();openViewEvent(ev);};col.appendChild(blk);
   });
   cw.appendChild(col);
   const sc=document.getElementById('day-scroll');
-  requestAnimationFrame(()=>{if(sc){const _n=getNow();sc.scrollTop=Math.max(0,((_n.getHours()*60+_n.getMinutes())/60)*H-120);}});
+  if(!window._dayScrollSet){requestAnimationFrame(()=>{if(sc){const _n=getNow();sc.scrollTop=Math.max(0,((_n.getHours()*60+_n.getMinutes())/60)*H-120);}});window._dayScrollSet=true;}
   clearInterval(window._dayLineTimer);
   window._dayLineTimer=setInterval(()=>{if(currentView==='day')renderDayView();},60000);
 }
@@ -5344,9 +5410,9 @@ function renderSidebarAgenda(){
     if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
     else if(ev.type==='event'){color=ev.color||'#8b5cf6';}else if(ev.type==='outreach'){color=ev.color||'#00e87a';}
     const d=new Date(ev.date+'T12:00:00');
-    const dateStr=ev.date===todayStr?'Today':(d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()?`${M[d.getMonth()]} ${d.getDate()}`:`${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`);
+    const dateStr=ev.date===todayStr?'Today':(d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()?`${M[d.getMonth()]} ${d.getDate()}`:`${M[d.getMonth()]} ${d.getDate()}`);
     const item=document.createElement('div');item.className='agenda-item';
-    item.innerHTML=`<div class="agenda-dot" style="background:${color}"></div><div class="agenda-info"><div class="agenda-date">${dateStr}${ev.time?' · '+fmt12(ev.time):''}</div><div class="agenda-name">${escHtml(ev.title)}</div></div>`;
+    item.innerHTML=`<div class="agenda-dot" style="background:${color}"></div><div class="agenda-info"><div class="agenda-date">${dateStr}${ev.time?' · '+fmt12(ev.time):''}</div><div class="agenda-name">${ev.title}</div></div>`;
     item.onclick=()=>{currentDate=new Date(ev.date+'T12:00:00');miniDate=new Date(currentDate);enabledCalIds.add(ev.calendarId||ev.sharedCalId);showPage('calendar');setTimeout(()=>openViewEvent(ev),80);};
     el.appendChild(item);
   });
@@ -5357,9 +5423,9 @@ window.exportICS=()=>{
   const now=getNow(),y=currentDate.getFullYear(),m=currentDate.getMonth();
   const rs=new Date(y,m,1),re=new Date(y,m+1,0);
   const exp=expandRec(events,rs,re);
-  const vis=exp.filter(e=>e.isShared?enabledCalIds.has(e.sharedCalId):enabledCalIds.has(e.calendarId));
+  const vis=exp.filter(e=>e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)));
   const esc=s=>(s||'').replace(/[\\;,]/g,'\\$&').replace(/\n/g,'\\n');
-  const dt=(ds,t)=>{if(t){const[h,mi]=t.split(':');const local=new Date(`${ds}T${h.padStart(2,'0')}:${mi.padStart(2,'0')}:00`);const utc=local.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');return utc;}return`${ds.replace(/-/g,'')}`;}
+  const dt=(ds,t)=>{if(t){const[h,mi]=t.split(':');return`${ds.replace(/-/g,'')}T${h.padStart(2,'0')}${mi.padStart(2,'0')}00`;}return`${ds.replace(/-/g,'')}`;}
   const stamp=now.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
   let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//QuixCalendar//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n';
   vis.forEach((ev,i)=>{
@@ -5410,7 +5476,7 @@ function renderMiniCal(){
     let day,isCur=true;
     if(i<fd){day=dip-fd+i+1;isCur=false;}else if(i>=fd+dim){day=i-fd-dim+1;isCur=false;}else{day=i-fd+1;}
     const cd=isCur?new Date(y,m,day):(i<fd?new Date(y,m-1,day):new Date(y,m+1,day));
-    const ds=cd.toISOString().split('T')[0];
+    const ds=localDateStr(cd);
     const isT=today.toDateString()===cd.toDateString(),isSel=currentDate.toDateString()===cd.toDateString()&&isCur;
     const dayEvs=_miniExpanded.filter(e=>e.date===ds&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId))));
     const hasEv=dayEvs.length>0;
@@ -5505,13 +5571,13 @@ function _monthStep(dir){
 }
 window.navPrev=()=>{
   if(currentView==='month'){_monthStep(-1);}
-  else if(currentView==='day'){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-1,12);miniDate=new Date(currentDate);renderAll();}
-  else{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7,12);miniDate=new Date(currentDate);renderAll();}
+  else if(currentView==='day'){window._dayScrollSet=false;currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-1);miniDate=new Date(currentDate);renderAll();}
+  else{window._weekScrollSet=false;currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()-7);miniDate=new Date(currentDate);renderAll();}
 };
 window.navNext=()=>{
   if(currentView==='month'){_monthStep(1);}
-  else if(currentView==='day'){currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+1,12);miniDate=new Date(currentDate);renderAll();}
-  else{currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7,12);miniDate=new Date(currentDate);renderAll();}
+  else if(currentView==='day'){window._dayScrollSet=false;currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+1);miniDate=new Date(currentDate);renderAll();}
+  else{window._weekScrollSet=false;currentDate=new Date(currentDate.getFullYear(),currentDate.getMonth(),currentDate.getDate()+7);miniDate=new Date(currentDate);renderAll();}
 };
 window.miniNavMonth=(d)=>{miniDate=new Date(miniDate.getFullYear(),miniDate.getMonth()+d,1);renderMiniCal();};
 window.setCalFilter=(f)=>{
@@ -5519,7 +5585,7 @@ window.setCalFilter=(f)=>{
   ['all','meetings','tasks','events'].forEach(x=>document.getElementById('filter-'+x)?.classList.toggle('active',x===f));
   renderAll();renderMiniCal();
 };
-window.goToday=()=>{currentDate=getNow();miniDate=getNow();renderAll();};
+window.goToday=()=>{window._weekScrollSet=false;window._dayScrollSet=false;currentDate=getNow();miniDate=getNow();renderAll();};
 
 // ── Show-all / hide-all calendar toggle ────────────────────────────────────
 window.toggleAllCals=()=>{
@@ -5607,7 +5673,7 @@ function showOverflowPopup(evs,anchor,ds){
     if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
     if(ev.completed)color='#94a3b8';
     const row=document.createElement('div');row.className='overflow-popup-pill';
-    row.innerHTML=`<div class="overflow-popup-pill-dot" style="background:${color}"></div><span class="overflow-popup-pill-text" style="color:${color}">${escHtml(ev.title)}</span>${ev.time?`<span class="overflow-popup-pill-time">${fmt12(ev.time)}</span>`:''}`;
+    row.innerHTML=`<div class="overflow-popup-pill-dot" style="background:${color}"></div><span class="overflow-popup-pill-text" style="color:${color}">${ev.title}</span>${ev.time?`<span class="overflow-popup-pill-time">${fmt12(ev.time)}</span>`:''}`;
     row.onclick=()=>{closeOverflowPopup();openViewEvent(ev);};
     popup.appendChild(row);
   });
@@ -5634,7 +5700,7 @@ window.setView=(v)=>{
 };
 
 // ── Home ───────────────────────────────────────────────────────────────────
-function daysUntil(ds){return(new Date(ds+'T12:00:00')-getNow())/(864e5);}
+function daysUntil(ds){const n=getNow();const today=new Date(n.getFullYear(),n.getMonth(),n.getDate());return(new Date(ds+'T00:00:00')-today)/(864e5);}
 function hasMeetingStarted(ev){
   if(!ev||!ev.date)return false;
   const [h,m]=(ev.time||'23:59').split(':').map(Number);
@@ -5659,12 +5725,13 @@ function renderHomePage(){
   else roleRow.textContent='';
 
   const now=getNow(),soon=new Date(now);soon.setDate(soon.getDate()+14);
+  const todayStr=getTodayStr(),soonStr=`${soon.getFullYear()}-${String(soon.getMonth()+1).padStart(2,'0')}-${String(soon.getDate()).padStart(2,'0')}`;
   const myUid=cu?.uid,myEmail=(cu?.email||'').toLowerCase();
 
   // Upcoming meetings — expand recurring meetings so each occurrence in the
   // window is its own row with its own RSVP state (see getMyRsvp/rsvpByDate)
   const upEl=document.getElementById('home-upcoming');upEl.innerHTML='';
-  const upcoming=expandRec(events,now,soon).filter(e=>e.type==='meeting'&&!e.completed&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)||enabledCalIds.has(e.sharedCalId)))).filter(e=>{const d=new Date(e.date+'T12:00:00');return d>=now&&d<=soon;}).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
+  const upcoming=expandRec(events,now,soon).filter(e=>e.type==='meeting'&&!e.completed&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).filter(e=>e.date>=todayStr&&e.date<=soonStr).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
   if(!upcoming.length)upEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">No upcoming meetings in 2 weeks</div></div>';
   else upcoming.forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId);
@@ -5697,7 +5764,7 @@ function renderHomePage(){
         }
       }
     }
-    row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div>${rsvpHtml}`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div>${rsvpHtml}`;
     row.onclick=()=>openViewEvent(ev);upEl.appendChild(row);
   });
 
@@ -5706,11 +5773,11 @@ function renderHomePage(){
   if(homeEvEl){
     homeEvEl.innerHTML='';
     const soon30=new Date(now);soon30.setDate(soon30.getDate()+30);
-    const todayStr=getTodayStr();
+    const soon30Str=`${soon30.getFullYear()}-${String(soon30.getMonth()+1).padStart(2,'0')}-${String(soon30.getDate()).padStart(2,'0')}`;
     const upcomingEvs=events.filter(e=>{
       if(e.type!=='event'&&e.type!=='outreach')return false;
       if(!e.date||e.date<todayStr)return false;
-      const d=new Date(e.date+'T12:00:00');return d>=now&&d<=soon30;
+      return e.date<=soon30Str;
     }).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||'')).slice(0,10);
     if(!upcomingEvs.length){
       homeEvEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">🗓️</div><div class="empty-state-text">No upcoming events in 30 days</div></div>';
@@ -5723,7 +5790,7 @@ function renderHomePage(){
         const row=document.createElement('div');row.className='upcoming-row';
         const badge=`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;background:${isOutreach?'rgba(0,232,122,0.12)':'rgba(167,139,250,0.12)'};color:${color};border:1px solid ${isOutreach?'rgba(0,232,122,0.25)':'rgba(167,139,250,0.25)'}">${isOutreach?'Outreach':'Event'}</span>`;
         const invCount=(ev.invitees||[]).length;
-        row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''} · ${escHtml(cal?.name||'Calendar')}</div></div>${badge}`;
+        row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''} · ${cal?.name||'Calendar'}</div></div>${badge}`;
         row.onclick=()=>openViewEvent(ev);
         homeEvEl.appendChild(row);
       });
@@ -5769,7 +5836,7 @@ function renderHomePage(){
     else if(rsvp==='declined')statusHtml=`<div class="invite-actions"><span class="invite-status declined">Declined</span>${days3?`<button class="btn-accept" style="font-size:10px;padding:3px 9px" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Change</button>`:''}</div>`;
     else if(isOptionalInv)statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Accept</button><button class="btn-decline" style="color:var(--q-amber);border-color:rgba(245,158,11,.35)" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Not Attending</button></div>`;
     else statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Accept</button><button class="btn-decline" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Decline</button></div>`;
-    card.innerHTML=`<div class="invite-card-title">${escHtml(ev.title)}</div><div class="invite-card-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}<br>${escHtml(cal?.name||'Calendar')}${me?` · <span style="color:${me.attendance==='mandatory'?'var(--q-red)':'var(--q-green)'}">${me.attendance==='mandatory'?'Mandatory':'Optional'}</span>`:''}</div>${statusHtml}`;
+    card.innerHTML=`<div class="invite-card-title">${ev.title}</div><div class="invite-card-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}<br>${cal?.name||'Calendar'}${me?` · <span style="color:${me.attendance==='mandatory'?'var(--q-red)':'var(--q-green)'}">${me.attendance==='mandatory'?'Mandatory':'Optional'}</span>`:''}</div>${statusHtml}`;
     invEl.appendChild(card);
   });
 
@@ -5795,7 +5862,7 @@ function renderHomePage(){
     const d=new Date(ev.date+'T12:00:00');
     const row=document.createElement('div');row.className='upcoming-row';
     const isOverdue=!ev.completed&&new Date(ev.date+'T23:59:59')<getNow();
-    row.innerHTML=`<div class="upcoming-dot" style="background:${isOverdue?'var(--q-red)':pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · due '+fmt12(ev.time):''} · ${escHtml(cal?.name||'Calendar')}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:${isOverdue?'var(--q-red)':pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · due '+fmt12(ev.time):''} · ${cal?.name||'Calendar'}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
     row.onclick=()=>openViewEvent(ev);taskEl.appendChild(row);
   });
 
@@ -5809,7 +5876,7 @@ function renderHomePage(){
     const d=new Date(ev.date+'T12:00:00');
     const asgn=ev.assignees||[];
     const row=document.createElement('div');row.className='upcoming-row';
-    row.innerHTML=`<div class="upcoming-dot" style="background:var(--q-amber)"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${asgn.length} assignee${asgn.length!==1?'s':''}: ${asgn.map(a=>escHtml(a.name||a.displayName||a.email)).join(', ')}</div></div>`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:var(--q-amber)"></div><div style="flex:1"><div class="upcoming-title">${ev.title}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${asgn.length} assignee${asgn.length!==1?'s':''}: ${asgn.map(a=>a.name||a.displayName||a.email).join(', ')}</div></div>`;
     row.onclick=()=>openViewEvent(ev);mgrEl.appendChild(row);
   });
 }
@@ -5911,7 +5978,7 @@ function openViewEvent(ev){
   const locEl=document.getElementById('view-location');
   if(ev.location&&locRow&&locEl){
     const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.location)}`;
-    locEl.innerHTML=`<span style="margin-right:6px">📍</span><a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--q-blue2);text-decoration:none;font-weight:600">${escHtml(ev.location||'')}</a><span id="view-drive-time" style="margin-left:8px"></span>`;
+    locEl.innerHTML=`<span style="margin-right:6px">📍</span><a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--q-blue2);text-decoration:none;font-weight:600">${escHtml(ev.location)}</a><span id="view-drive-time" style="margin-left:8px"></span>`;
     locRow.style.display='flex';
     // Try to get driving time
     if(navigator.geolocation){
@@ -5994,6 +6061,8 @@ function openViewEvent(ev){
   const _daysToEv=daysUntil(ev.date);
   const showDeclineBtn=ev.type==='meeting'&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!hasMeetingStarted(ev)&&(_daysToEv<0||_daysToEv>=3);
   document.getElementById('view-decline-btn').style.display=showDeclineBtn?'block':'none';
+  const showAttBtn=ev.type==='meeting'&&(isOwn||isAdm)&&daysUntil(ev.date)<0&&(ev.invitees||[]).length>0;
+  document.getElementById('view-attendance-btn').style.display=showAttBtn?'block':'none';
   document.getElementById('view-modal').classList.add('open');
 }
 
@@ -6065,8 +6134,8 @@ function renderViewPeople(){
     }
     const uxB=ux?`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span>`:'';
     let adminBtn='';
-    // Don't allow marking optional opt-outs as unexcused
-    if(isAdm&&!isTask&&rsvp==='declined'&&!isOptOut){
+    // Don't allow marking optional attendees or opt-outs as unexcused
+    if(isAdm&&!isTask&&rsvp==='declined'&&!isOptOut&&p.attendance!=='optional'){
       if(!ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','mark');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
       else adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','reverse');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
     }
@@ -6101,13 +6170,14 @@ window.optionalOptOut=async(evId,occDate=null)=>{
 };
 
 // FIX #3: deleteViewedEvent removes from invitees list too — done via Firestore delete which triggers snapshot
-window.deleteViewedEvent=async()=>{if(!viewingEv)return;if(!confirm('Delete this event?'))return;await deleteDoc(doc(db,'events',viewingEv.id));toast('Deleted');closeModal('view-modal');viewingEv=null;};
+window.deleteViewedEvent=async()=>{if(!viewingEv)return;if(viewingEv.uid!==cu?.uid&&!isAdmin(viewingEv.calendarId||viewingEv.sharedCalId)){toast('No permission');return;}if(!confirm('Delete this event?'))return;await deleteDoc(doc(db,'events',viewingEv.id));toast('Deleted');closeModal('view-modal');viewingEv=null;};
 window.editViewedEvent=()=>{closeModal('view-modal');openEventModal(viewingEv);};
 window.duplicateViewedEvent=async()=>{
   if(!viewingEv)return;
   const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,rsvpByDate,declineReasonsByDate,optionalOptOutByDate,outreachCount,outreachHours,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
   data.title=(data.title||'')+(data.title?.endsWith(' (copy)')?'':' (copy)');
   data.completed=false;
+  data.uid=cu.uid; // the duplicate is owned by whoever makes it
   data.createdAt=serverTimestamp();data.updatedAt=serverTimestamp();
   await addDoc(collection(db,'events'),data);
   toast('Event duplicated');closeModal('view-modal');
@@ -6139,13 +6209,11 @@ window.submitUnexcused=async()=>{
   const note=document.getElementById('unexcused-note').value.trim();
   if(action==='mark'){
     await updateDoc(doc(db,'events',evId),{[`unexcusedAbsences.${uid}`]:true,[`unexcusedNotes.${uid}`]:note||null});
-    const us=await getDoc(doc(db,'users',uid));
-    await updateDoc(doc(db,'users',uid),{unexcusedCount:(us.data()?.unexcusedCount||0)+1});
+    await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(1)});
     toast('Marked unexcused');
   } else {
     await updateDoc(doc(db,'events',evId),{[`unexcusedAbsences.${uid}`]:null,[`unexcusedNotes.${uid}`]:null});
-    const us=await getDoc(doc(db,'users',uid));
-    await updateDoc(doc(db,'users',uid),{unexcusedCount:Math.max(0,(us.data()?.unexcusedCount||0)-1)});
+    await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(-1)});
     toast('Absence reversed');
   }
   closeModal('unexcused-modal');renderViewPeople();if(currentPage==='admin')renderAdminPage();
@@ -6236,7 +6304,7 @@ window.switchType=(type)=>{
 };
 function updatePostNotesVisibility(evDate){
   const wrap=document.getElementById('ev-post-notes-wrap');if(!wrap)return;
-  const isPast=evDate&&new Date(evDate+'T23:59:59')<getNow();
+  const isPast=evDate&&evDate<=getTodayStr();
   wrap.style.display=(currentType==='meeting'&&isPast)?'block':'none';
 }
 
@@ -6336,7 +6404,7 @@ function renderChecklists(){
       const row=document.createElement('div');row.className='member-check-row';
       const sc=m.subsection?subColor(m.subsection,calId):'';
       row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleInv('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${m.displayName}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}${m.subsection?` <span style="font-size:9px;color:${sc};background:${sc}22;border-radius:4px;padding:1px 5px">${m.subsection}</span>`:''}</div></div>${isChk?`<button class="member-check-att ${att}" onclick="toggleInvAtt('${m.uid}');event.stopPropagation()">${att==='mandatory'?'Mand.':'Opt.'}</button>`:''}`;
-      row.onclick=e=>{if(e.target.tagName==='BUTTON')return;document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
+      row.onclick=e=>{if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT')return;document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
       container.appendChild(row);
     });
   }
@@ -6351,7 +6419,7 @@ function renderChecklists(){
       const isSelf=m.uid===cu.uid;
       const row=document.createElement('div');row.className='member-check-row';
       row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleAsgn('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${m.displayName}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}</div></div>`;
-      row.onclick=e=>{document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
+      row.onclick=e=>{if(e.target.tagName==='INPUT')return;document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
       container.appendChild(row);
     });
   }
@@ -6434,16 +6502,16 @@ async function renderDashboard(){
   const navBtns=[document.getElementById('dash-prev-btn'),document.getElementById('dash-next-btn')];
   navBtns.forEach(b=>{if(b)b.style.display=dashPeriod==='today'?'none':'';});
   if(dashPeriod==='today'){
-    rsStr=reStr=dashDate.toISOString().split('T')[0];
+    rsStr=reStr=getTodayStr();
     periodLabel=dashDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   } else if(dashPeriod==='month'){
     const ms=new Date(dashDate.getFullYear(),dashDate.getMonth(),1);
     const me=new Date(dashDate.getFullYear(),dashDate.getMonth()+1,0);
-    rsStr=ms.toISOString().split('T')[0];reStr=me.toISOString().split('T')[0];
+    rsStr=localDateStr(ms);reStr=localDateStr(me);
     periodLabel=`${M[ms.getMonth()]} ${ms.getFullYear()}`;
   } else {
     const ws=weekStart(dashDate),we=new Date(ws);we.setDate(we.getDate()+6);
-    rsStr=ws.toISOString().split('T')[0];reStr=we.toISOString().split('T')[0];
+    rsStr=localDateStr(ws);reStr=localDateStr(we);
     periodLabel=`Week of ${M[ws.getMonth()]} ${ws.getDate()} – ${M[we.getMonth()]} ${we.getDate()}, ${ws.getFullYear()}`;
   }
   document.getElementById('dash-week-label').textContent=periodLabel;
@@ -6624,7 +6692,7 @@ window.showDashMeetings=()=>{
     const invCount=(ev.invitees||[]).length;
     const row=document.createElement('div');row.className='member-ev-row';
     row.style.cssText='border-left:3px solid '+(ev.color||'var(--q-blue2)')+';cursor:pointer';
-    row.innerHTML=`<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:11px;color:var(--q-muted);margin-top:2px">${dateStr}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''}</div></div>`;
+    row.innerHTML=`<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--q-text)">${ev.title}</div><div style="font-size:11px;color:var(--q-muted);margin-top:2px">${dateStr}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''}</div></div>`;
     row.onclick=()=>{closeModal('dash-meetings-modal');openViewEvent(ev);};
     el.appendChild(row);
   });
@@ -6718,8 +6786,8 @@ async function openMemberModal(m,calId,calRoles){
         </div>
       </div>
       ${isAdm?`<div style="margin-left:auto;display:flex;gap:6px">
-        <button onclick="addMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">+ Unexcused Absence</button>
-        ${unexcused>0?`<button onclick="removeMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">- Unexcused Absence</button>`:''}
+        <button onclick="addMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">+ Unexcused Absence</button>
+        ${unexcused>0?`<button onclick="removeMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">- Unexcused Absence</button>`:''}
       </div>`:''}
     </div>
     <div class="modal-section-label">Meetings</div>
@@ -6738,7 +6806,7 @@ async function openMemberModal(m,calId,calRoles){
     const rsvpLabel=rsvp==='accepted'?'✓':rsvp==='declined'?'✗':'?';
     const row=document.createElement('div');row.className='member-ev-row';
     row.style.borderLeft=`3px solid ${ev.color||'var(--q-blue2)'}`;
-    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+ev.time:''}</div></div><span style="font-size:11px;font-weight:700;color:${rsvpColor}">${rsvpLabel}</span>`;
+    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${ev.title}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+ev.time:''}</div></div><span style="font-size:11px;font-weight:700;color:${rsvpColor}">${rsvpLabel}</span>`;
     row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
     mmEl.appendChild(row);
   });
@@ -6751,7 +6819,7 @@ async function openMemberModal(m,calId,calRoles){
     const isMgr=ev.taskManagerUid===m.uid;
     const row=document.createElement('div');row.className='member-ev-row';
     row.style.borderLeft=`3px solid ${priColor(pri)}`;
-    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}${isMgr?' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--q-blue-dim);color:var(--q-blue2)">MGR</span>':''}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.taskSubsection?' · '+ev.taskSubsection:''}</div></div><span class="priority-badge priority-${pri}" style="font-size:8px">${pri.charAt(0).toUpperCase()+pri.slice(1)}</span>`;
+    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${ev.title}${isMgr?' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--q-blue-dim);color:var(--q-blue2)">MGR</span>':''}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.taskSubsection?' · '+ev.taskSubsection:''}</div></div><span class="priority-badge priority-${pri}" style="font-size:8px">${pri.charAt(0).toUpperCase()+pri.slice(1)}</span>`;
     row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
     mtEl.appendChild(row);
   });
@@ -6764,7 +6832,7 @@ async function openMemberModal(m,calId,calRoles){
       const color=ev.type==='outreach'?'var(--q-green)':'#8b5cf6';
       const row=document.createElement('div');row.className='member-ev-row';
       row.style.borderLeft=`3px solid ${color}`;
-      row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:5px;background:${color}22;color:${color}">${ev.type==='outreach'?'Outreach':'Event'}</span>`;
+      row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${ev.title}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:5px;background:${color}22;color:${color}">${ev.type==='outreach'?'Outreach':'Event'}</span>`;
       row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
       meEl.appendChild(row);
     });
@@ -6775,8 +6843,7 @@ async function openMemberModal(m,calId,calRoles){
 
 window.addMemberAbsence=async(uid,name)=>{
   if(!confirm(`Add 1 unexcused absence to ${name}?`))return;
-  const us=await getDoc(doc(db,'users',uid));
-  await updateDoc(doc(db,'users',uid),{unexcusedCount:(us.data()?.unexcusedCount||0)+1});
+  await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(1)});
   toast(`Absence added for ${name}`);
   // refresh modal
   const updatedSnap=await getDoc(doc(db,'users',uid));
@@ -6788,9 +6855,7 @@ window.addMemberAbsence=async(uid,name)=>{
 
 window.removeMemberAbsence=async(uid,name)=>{
   if(!confirm(`Remove 1 unexcused absence from ${name}?`))return;
-  const us=await getDoc(doc(db,'users',uid));
-  const cur=us.data()?.unexcusedCount||0;
-  await updateDoc(doc(db,'users',uid),{unexcusedCount:Math.max(0,cur-1)});
+  await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(-1)});
   toast(`Absence removed for ${name}`);
   const updatedSnap=await getDoc(doc(db,'users',uid));
   const calId=document.getElementById('dash-cal-select').value;
@@ -6844,6 +6909,7 @@ window.toggleEventOutreach=()=>{
 window.saveEvent=async()=>{
   const title=document.getElementById('ev-title').value.trim();if(!title){toast('Enter a title');return;}
   const calendarId=document.getElementById('ev-calendar').value;if(!calendarId){toast('Select a calendar');return;}
+  const _dateVal=document.getElementById('ev-date').value;if(!_dateVal){toast('Select a date');return;}
   const allDay=document.getElementById('ev-allday').checked;
   const repeat=document.getElementById('ev-repeat').value;
   const mgr=document.getElementById('ev-task-manager')?.value||null;
@@ -6942,6 +7008,71 @@ window.saveNewCalendar=async()=>{
   }catch(e){toast('Error');}
 };
 
+// ── Bug reports & feedback ───────────────────────────────────────────────────
+window.openBugModal=()=>{
+  const t=document.getElementById('bug-message');if(t)t.value='';
+  const sel=document.getElementById('bug-type');if(sel)sel.value='bug';
+  document.getElementById('bug-modal').classList.add('open');
+  setTimeout(()=>t&&t.focus(),50);
+};
+window.submitBugReport=async()=>{
+  const type=document.getElementById('bug-type').value;
+  const message=document.getElementById('bug-message').value.trim();
+  if(!message){toast('Please describe the issue');return;}
+  if(!cu){toast('Please sign in first');return;}
+  const btn=document.getElementById('bug-submit-btn');
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  try{
+    await addDoc(collection(db,'bugReports'),{
+      uid:cu.uid,
+      name:cu.displayName||'User',
+      email:cu.email||null,
+      type,
+      message:message.slice(0,4000),
+      page:currentPage||null,
+      calendarId:activeCalId||null,
+      userAgent:navigator.userAgent||null,
+      appVersion:'web',
+      status:'open',
+      createdAt:serverTimestamp()
+    });
+    toast('Thanks! Your report was sent 🙌');
+    closeModal('bug-modal');
+  }catch(e){
+    console.error('Bug report error:',e);
+    toast('Could not send — check your connection');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Send report';}
+  }
+};
+// Platform-owner inbox for reviewing reports
+window.openBugsAdmin=async()=>{
+  if(cu?.uid!==CHARLIE_UID){toast('Not available');return;}
+  document.getElementById('bugs-admin-modal').classList.add('open');
+  const list=document.getElementById('bugs-admin-list');
+  list.innerHTML='<div style="font-size:12px;color:var(--q-muted2)">Loading…</div>';
+  try{
+    const snap=await getDocs(query(collection(db,'bugReports'),orderBy('createdAt','desc')));
+    if(snap.empty){list.innerHTML='<div style="font-size:12px;color:var(--q-muted2)">No reports yet.</div>';return;}
+    const icon={bug:'🐞',idea:'💡',feedback:'💬'};
+    list.innerHTML=snap.docs.map(d=>{
+      const r=d.data();
+      const when=r.createdAt?.toDate?r.createdAt.toDate().toLocaleString():'';
+      return `<div style="border:1px solid var(--q-border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--q-dark3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-weight:700;font-size:13px">${icon[r.type]||'📩'} ${escHtml(r.name||'User')}</span>
+          <span style="font-size:10px;color:var(--q-muted2)">${escHtml(when)}</span>
+        </div>
+        <div style="font-size:13px;color:var(--q-text);white-space:pre-wrap;line-height:1.5;margin-bottom:6px">${escHtml(r.message||'')}</div>
+        <div style="font-size:10px;color:var(--q-muted2)">${escHtml(r.email||'')} · page: ${escHtml(r.page||'—')}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.error(e);
+    list.innerHTML='<div style="font-size:12px;color:var(--q-red)">Could not load reports.</div>';
+  }
+};
+
 // ── Share & Join ───────────────────────────────────────────────────────────
 window.openShareModal=async()=>{
   const cal=calendars.find(c=>c.id===activeCalId);
@@ -6953,7 +7084,7 @@ window.openShareModal=async()=>{
   }
   await loadJoinedCalendars();document.getElementById('share-modal').classList.add('open');
 };
-window.copyCode=()=>{const cal=calendars.find(c=>c.id===activeCalId);navigator.clipboard.writeText(cal?.inviteCode||'').then(()=>toast('Copied!')).catch(()=>{});};
+window.copyCode=()=>{const cal=calendars.find(c=>c.id===activeCalId);const code=cal?.inviteCode||'';if(!code)return;if(navigator.clipboard){navigator.clipboard.writeText(code).then(()=>toast('Copied!')).catch(()=>toast('Code: '+code));}else{toast('Code: '+code);}};
 
 window.joinCalendar=async()=>{
   const code=document.getElementById('join-code-input').value.trim().toUpperCase();if(code.length<4){toast('Enter a valid code');return;}
@@ -6962,7 +7093,7 @@ window.joinCalendar=async()=>{
   if(cData.uid===cu.uid){toast("That's your own calendar!");return;}
   const uref=doc(db,'users',cu.uid),usnap=await getDoc(uref);
   const joined=usnap.data().joinedCalendars||[];if(joined.includes(calId)){toast('Already joined');return;}
-  joined.push(calId);await updateDoc(uref,{joinedCalendars:joined});
+  await updateDoc(uref,{joinedCalendars:arrayUnion(calId)});
   const oSnap=await getDoc(doc(db,'users',cData.uid));
   const oName=oSnap.data()?.displayName||'Someone';
   subscribeSharedCal(calId,cData.uid,cData.name,oName,cData.color||'#00b4ff',cData.roles||{},cData.subsections||[]);
@@ -7047,8 +7178,9 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
 }
 
 window.leaveCalendar=async(calId)=>{
-  const uref=doc(db,'users',cu.uid),usnap=await getDoc(uref);
-  const joined=(usnap.data().joinedCalendars||[]).filter(id=>id!==calId);await updateDoc(uref,{joinedCalendars:joined});
+  if(_sharedCalUnsubs.has(calId)){_sharedCalUnsubs.get(calId).forEach(u=>u());_sharedCalUnsubs.delete(calId);}
+  const uref=doc(db,'users',cu.uid);
+  await updateDoc(uref,{joinedCalendars:arrayRemove(calId)});
   if(viewingEv&&(viewingEv.calendarId===calId||viewingEv.sharedCalId===calId)){closeModal('view-modal');viewingEv=null;}
   events=events.filter(e=>!(e.isShared&&e.sharedCalId===calId));sharedCalendars=sharedCalendars.filter(c=>c.id!==calId);
   enabledCalIds.delete(calId);
@@ -7134,7 +7266,7 @@ async function renderAdminPage(){
       if(m.uid!==cu.uid){
         const kickBtn=document.createElement('button');kickBtn.style.cssText='padding:3px 8px;font-size:10px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)';
         kickBtn.textContent='Kick';
-        kickBtn.onclick=async()=>{if(!confirm(`Remove ${m.displayName}?`))return;const us=await getDoc(doc(db,'users',m.uid));const jc=(us.data().joinedCalendars||[]).filter(id=>id!==adminCal.id);await updateDoc(doc(db,'users',m.uid),{joinedCalendars:jc});toast(`${m.displayName} removed`);renderAdminPage();};
+        kickBtn.onclick=async()=>{if(!confirm(`Remove ${m.displayName}?`))return;await updateDoc(doc(db,'users',m.uid),{joinedCalendars:arrayRemove(adminCal.id)});toast(`${m.displayName} removed`);renderAdminPage();};
         row.querySelector('div:last-child').appendChild(kickBtn);
       }
     }
@@ -7163,10 +7295,12 @@ async function renderAdminPage(){
   calEvents.forEach(ev=>{
     const ppl=ev.type==='task'?ev.assignees:ev.invitees;if(!ppl)return;
     ppl.forEach(p=>{
-      const rsvp=getMyRsvp(ev,p.uid);if(rsvp!=='declined')return;hasAny=true;
-      const ux=(ev.unexcusedAbsences||{})[p.uid];const reason=getDeclineReason(ev,p.uid);
+      const rsvp=getMyRsvp(ev,p.uid);if(rsvp!=='declined')return;
+      if(p.attendance==='optional'||getOptOut(ev,p.uid))return;
+      hasAny=true;
+      const ux=(ev.unexcusedAbsences||{})[p.uid];const reason=getDeclineReason(ev,p.uid);const uxNote=(ev.unexcusedNotes||{})[p.uid];
       const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--q-dark3);border-radius:7px;margin-bottom:5px;font-size:12px;flex-wrap:wrap';
-      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||'')}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">declined "${escHtml(ev.title)}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Reason: ${escHtml(reason)}</div>`:''}</div>${ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
+      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${p.name||p.displayName||''}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">declined "${ev.title}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Reason: ${reason}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${uxNote}</div>`:''}</div>${ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
       al.appendChild(row);
     });
   });
@@ -7202,7 +7336,7 @@ async function renderAdminPage(){
       `;
       // Member buttons to assign — all clickable: holders toggle off, non-holders toggle on
       const btnWrap=wrap.querySelector(`#role-members-${role.replace(/\s/g,'_')}`);
-      const assignable=members;
+      const assignable=members.filter(m=>m.uid!==CHARLIE_UID||role==='Admin'); // Charlie excluded from manual assignment
       if(!assignable.length){btnWrap.innerHTML='<span style="font-size:11px;color:var(--q-muted2)">No available members</span>';}
       assignable.forEach(m=>{
         const isHolder=hasRole(calRoles,m.uid,role); // check actual role, not just first holder
@@ -7228,6 +7362,10 @@ async function renderAdminPage(){
                 });
               }
               newRoles=addRoleToMap(newRoles,m.uid,role);
+              // Never overwrite Charlie's Admin
+              if(CHARLIE_UID in newRoles&&!getRolesForUid(newRoles,CHARLIE_UID).includes('Admin')){
+                newRoles=addRoleToMap(newRoles,CHARLIE_UID,'Admin');
+              }
             }
             // Update calendar roles first (the source of truth)
             await updateDoc(doc(db,'calendars',adminCal.id),{roles:newRoles});
@@ -7391,7 +7529,11 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 document.getElementById('rename-cal-input')?.addEventListener('keydown',e=>{if(e.key==='Enter')saveRenameCalendar();});
 document.getElementById('new-subsection-input')?.addEventListener('keydown',e=>{if(e.key==='Enter')addSubsection();});
 
-// FAB visibility is controlled by showPage() only — no separate resize listener needed.
+// ── FAB: update visibility on orientation change / window resize ───────────
+window.addEventListener('resize',()=>{
+  const fab=document.getElementById('mobile-fab');
+  if(fab)fab.style.display=(window.innerWidth<=768&&currentPage==='calendar')?'flex':'none';
+});
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 window.toggleTheme=()=>{const isLight=document.body.classList.toggle('light-mode');localStorage.setItem('theme',isLight?'light':'dark');};
@@ -7416,7 +7558,7 @@ window.toggleNotifications=async()=>{
     const perm=await Notification.requestPermission();
     if(perm==='granted'){
       localStorage.setItem('notificationsEnabled','true');
-      new Notification('Quixilver Calendar',{body:'Notifications enabled!',icon:'https://quixilver8404.org/logo_old5.png'});
+      new Notification('Quix Calendar',{body:'Notifications enabled!',icon:'/icon_192.png'});
       toast('Notifications enabled!');
     } else {
       localStorage.setItem('notificationsEnabled','false');
@@ -7443,7 +7585,7 @@ window.requestNotificationPermission=async()=>{
   if(Notification.permission==='denied'){toast('Blocked — check browser settings');return;}
   const perm=await Notification.requestPermission();
   const ns=document.getElementById('notif-status');
-  if(perm==='granted'){localStorage.setItem('notificationsEnabled','true');if(ns)ns.textContent='Enabled';toast('Notifications enabled!');new Notification('Quixilver Calendar',{body:'You will be notified of new invitations.',icon:'https://quixilver8404.org/logo_old5.png'});}
+  if(perm==='granted'){localStorage.setItem('notificationsEnabled','true');if(ns)ns.textContent='Enabled';toast('Notifications enabled!');new Notification('Quix Calendar',{body:'You will be notified of new invitations.',icon:'/icon_192.png'});}
   else{localStorage.setItem('notificationsEnabled','false');if(ns)ns.textContent='Permission denied';toast('Notifications blocked');}
 };
 
@@ -7489,15 +7631,18 @@ async function autoDeclineStaleInvites(){
     if(!isInvited)return false;
     const rsvp=(e.rsvp||{})[myUid];
     if(rsvp)return false; // already responded
-    // Only auto-decline events that have already passed by 3+ days with no RSVP
-    return daysUntil(e.date)<-3;
+    // Only auto-decline events that have already passed with no RSVP
+    return daysUntil(e.date)<-1;
   });
   for(const ev of stale){
     try{
-      const newRsvp={...(ev.rsvp||{}),[myUid]:'declined'};
-      const newDeclineReasons={...(ev.declineReasons||{}),[myUid]:'Auto-declined: invitation not responded to within 3 days'};
-      await updateDoc(doc(db,'events',ev.id),{rsvp:newRsvp,declineReasons:newDeclineReasons});
-      const _ae=events.find(e=>e.id===ev.id);if(_ae){if(!_ae.rsvp)_ae.rsvp={};_ae.rsvp[myUid]='declined';}
+      const myInvEntry=(ev.invitees||[]).find(p=>p.uid===myUid||p.email===myEmail);
+      const isOptionalInv=myInvEntry?.attendance==='optional';
+      const update={[`rsvp.${myUid}`]:'declined'};
+      if(isOptionalInv){update[`optionalOptOut.${myUid}`]=true;}
+      else{update[`declineReasons.${myUid}`]='Auto-declined: invitation not responded to within 3 days';}
+      await updateDoc(doc(db,'events',ev.id),update);
+      const _ae=events.find(e=>e.id===ev.id);if(_ae){if(!_ae.rsvp)_ae.rsvp={};_ae.rsvp[myUid]='declined';if(isOptionalInv){if(!_ae.optionalOptOut)_ae.optionalOptOut={};_ae.optionalOptOut[myUid]=true;}}
     }catch(e){console.error('Auto-decline error:',e);}
   }
 }
@@ -7623,6 +7768,7 @@ window.runSearch=(q)=>{
   const meetings=allResults.filter(e=>e.type==='meeting').slice(0,6);
   const tasks=allResults.filter(e=>e.type==='task').slice(0,6);
   const evts=allResults.filter(e=>e.type==='event').slice(0,6);
+  const outreachEvts=allResults.filter(e=>e.type==='outreach').slice(0,6);
   const renderGroup=(label,items)=>{
     if(!items.length)return;
     const hdr=document.createElement('div');
@@ -7635,7 +7781,7 @@ window.runSearch=(q)=>{
       const sameYear=d.getFullYear()===getNow().getFullYear();
       const dateStr=d.toLocaleDateString('en-US',sameYear?{weekday:'short',month:'short',day:'numeric'}:{weekday:'short',month:'short',day:'numeric',year:'numeric'});
       const row=document.createElement('div');row.className='search-result-row';
-      row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;margin-top:2px"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--q-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${dateStr}${cal?' · '+escHtml(cal.name):''}${ev.location?' · 📍'+escHtml(ev.location.slice(0,30)):''}</div></div>${ev.completed?'<span style="font-size:9px;color:var(--q-muted2);background:var(--q-dark4);padding:2px 6px;border-radius:5px;flex-shrink:0">Done</span>':''}`;
+      row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;margin-top:2px"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--q-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.title}</div><div style="font-size:10px;color:var(--q-muted)">${dateStr}${cal?' · '+cal.name:''}${ev.location?' · 📍'+ev.location.slice(0,30):''}</div></div>${ev.completed?'<span style="font-size:9px;color:var(--q-muted2);background:var(--q-dark4);padding:2px 6px;border-radius:5px;flex-shrink:0">Done</span>':''}`;
       row.onclick=()=>{
         closeModal('search-modal');
         const evD=new Date(ev.date+'T12:00:00');
@@ -7652,6 +7798,7 @@ window.runSearch=(q)=>{
   renderGroup('Meetings',meetings);
   renderGroup('Tasks',tasks);
   renderGroup('Events',evts);
+  renderGroup('Outreach',outreachEvts);
 };
 
 // ── Attendance Tracking ─────────────────────────────────────────────────────
@@ -7684,7 +7831,9 @@ window.setAtt=(uid,status)=>{
 };
 window.saveAttendance=async()=>{
   if(!attendanceState.evId)return;
-  await updateDoc(doc(db,'events',attendanceState.evId),{attendance:attendanceState.records});
+  const updates={};
+  Object.entries(attendanceState.records).forEach(([uid,status])=>{updates[`attendance.${uid}`]=status;});
+  await updateDoc(doc(db,'events',attendanceState.evId),updates);
   toast('Attendance saved');closeModal('attendance-modal');
 };
 
@@ -7698,9 +7847,9 @@ function renderLeadSection(){
   for(const cal of allCals){
     const myRolesInCal=getRolesForUid(cal.roles||{},myUid);
     const primaryRole=getPrimaryRole(cal.roles||{},myUid);
-    if(primaryRole&&primaryRole!=='Captain'&&primaryRole!=='Co-Captain'&&primaryRole!=='Admin'){
+    if(primaryRole&&primaryRole!=='Captain'&&primaryRole!=='Co-Captain'&&primaryRole!=='Vice Captain'&&primaryRole!=='Admin'){
       // Map role to subsection name
-      const roleToSub={'Vice Captain':'Leadership','Outreach Lead':'Outreach','Programming Lead':'Programming','Co-Programming Lead':'Programming','Mechanical Lead':'Mechanical'};
+      const roleToSub={'Outreach Lead':'Outreach','Programming Lead':'Programming','Co-Programming Lead':'Programming','Mechanical Lead':'Mechanical'};
       leadSub=roleToSub[primaryRole]||null;
       leadCalId=cal.id;
       break;
@@ -7726,9 +7875,9 @@ function renderLeadSection(){
   secTasks.forEach(ev=>{
     const pri=ev.priority||'optional';
     const d=new Date(ev.date+'T12:00:00');
-    const isOverdue=d<now;
+    const isOverdue=new Date(ev.date+'T23:59:59')<now;
     const row=document.createElement('div');row.className='upcoming-row';
-    row.innerHTML=`<div class="upcoming-dot" style="background:${pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:${pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
     row.onclick=()=>openViewEvent(ev);el.appendChild(row);
   });
 }
@@ -7748,7 +7897,8 @@ window.applyWeekSchedule=async(mode)=>{
   const calendarId=document.getElementById('ev-calendar').value;
   if(!calendarId){toast('Select a calendar first');return;}
   if(!invitees.length){toast('Add invitees first — they will be copied to all created meetings');return;}
-  const baseDate=new Date(document.getElementById('ev-date').value+'T12:00:00');
+  const _bdStr=document.getElementById('ev-date').value;if(!_bdStr){toast('Select a base date first');return;}
+  const baseDate=new Date(_bdStr+'T12:00:00');
   const ws=weekStart(baseDate);
   const dayOffsets=mode==='crunch'?[1,2,3,4,5]:[2,4,5];
   const hasMandatory=invitees.some(i=>i.attendance==='mandatory');
@@ -7757,7 +7907,7 @@ window.applyWeekSchedule=async(mode)=>{
   let created=0;
   for(const offset of dayOffsets){
     const d=new Date(ws);d.setDate(d.getDate()+offset);
-    const dateStr=d.toISOString().split('T')[0];
+    const dateStr=localDateStr(d);
     await addDoc(collection(db,'events'),{
       uid:cu.uid,title,type:'meeting',date:dateStr,
       time:'15:30',timeEnd:'18:00',allDay:false,
@@ -7776,7 +7926,7 @@ window.applyWeekSchedule=async(mode)=>{
 
 // ══ ONBOARDING ══════════════════════════════════════════════════
 const ONBOARDING_STEPS=[
-  {tag:'Welcome to Quixilver',visual:'🤖',title:"Your team's <span>command center</span>",desc:'Quixilver Calendar keeps FTC Team 8404 organized — meetings, tasks, attendance, and roles in one place.',features:[{icon:'📅',text:'Team Calendar',sub:'Monthly & week views, recurring events'},{icon:'✅',text:'Task Dashboard',sub:'Priority-based task tracking'},{icon:'🏆',text:'Attendance',sub:'RSVP, track absences, roles'},{icon:'🔔',text:'Notifications',sub:'Never miss an invite again'}]},
+  {tag:'Welcome to Quix Calendar',visual:'🤖',title:"Your team's <span>command center</span>",desc:'Quix Calendar keeps your whole team organized — meetings, tasks, attendance, and roles in one place.',features:[{icon:'📅',text:'Team Calendar',sub:'Monthly & week views, recurring events'},{icon:'✅',text:'Task Dashboard',sub:'Priority-based task tracking'},{icon:'🏆',text:'Attendance',sub:'RSVP, track absences, roles'},{icon:'🔔',text:'Notifications',sub:'Never miss an invite again'}]},
   {tag:'Step 1 — Calendar',visual:'📅',title:'Schedule <span>meetings & events</span>',desc:'Navigate with the sidebar mini-calendar or month/week toggle. Click any day to create an event. Events color-code by priority.',features:[{icon:'📌',text:'Click any date',sub:'Instantly creates a new event'},{icon:'🔄',text:'Recurring events',sub:'Daily, weekly, or monthly repeats'},{icon:'⚡',text:'Quick schedule',sub:'Normal week or Crunch week presets'},{icon:'🗂',text:'Multiple calendars',sub:'Join with a 6-char invite code'}]},
   {tag:'Step 2 — Tasks',visual:'✅',title:'Track work with <span>priority tasks</span>',desc:'Create tasks and assign them to teammates. Three priority levels: Critical, Important, and Optional.',features:[{icon:'🔴',text:'Critical',sub:'Must be done — high urgency'},{icon:'🟡',text:'Important',sub:'Core work — default priority'},{icon:'🟢',text:'Optional',sub:'Nice to have — low urgency'},{icon:'👤',text:'Task owner',sub:'One person owns each task'}]},
   {tag:'Step 3 — Team',visual:'👥',title:'Meet your <span>team dashboard</span>',desc:'The Dashboard shows all tasks for the current week by subsection. The Team tab shows every member with role and attendance.',features:[{icon:'📊',text:'Weekly overview',sub:'Tasks grouped by subsection'},{icon:'🏷',text:'Subsections',sub:'Mechanical, Programming, Outreach…'},{icon:'⚠️',text:'Absences',sub:'Leaders track unexcused absences'},{icon:'🎖',text:'Roles',sub:'Captain, leads, and more'}]},

@@ -6,12 +6,12 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<title>Quixilver 8404 Calendar</title>
-<link rel="icon" type="image/png" href="https://quixilver8404.org/logo_old5.png"/>
+<title>Quix Calendar — Scheduling for FTC teams</title>
+<link rel="icon" type="image/png" href="/icon_192.png"/>
 <link rel="manifest" href="manifest.json"/>
 <meta name="theme-color" content="#0c0f18" media="(prefers-color-scheme: dark)"/>
 <meta name="theme-color" content="#f4f6fb" media="(prefers-color-scheme: light)"/>
-<meta name="apple-mobile-web-app-title" content="Quixilver"/>
+<meta name="apple-mobile-web-app-title" content="Quix Calendar"/>
 <link rel="apple-touch-icon" href="icon_180.png"/>
 <link rel="apple-touch-icon" sizes="180x180" href="icon_180.png"/>
 <link rel="apple-touch-icon" sizes="192x192" href="icon_192.png"/>
@@ -29,7 +29,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Core palette — Quixilver 8404 */
+  /* Core palette — Quix Calendar */
   --q-black:   #080a10;
   --q-dark:    #0b0d15;
   --q-dark2:   #0f1219;
@@ -3660,9 +3660,9 @@ body.light-mode .month-grid-day:hover {
   <div class="loader-logo-wrap">
     <div class="loader-ring"></div>
     <div class="loader-inner-ring"></div>
-    <img src="https://quixilver8404.org/logo_old5.png" alt="Quixilver" style="width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(0,168,255,0.5))"/>
+    <img src="/icon_192.png" alt="Quix Calendar" style="width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(0,168,255,0.5))"/>
   </div>
-  <div class="loader-text">Loading · Quixilver 8404</div>
+  <div class="loader-text">Loading · Quix Calendar</div>
 </div>
 
 <!-- AUTH -->
@@ -3670,10 +3670,10 @@ body.light-mode .month-grid-day:hover {
   <div class="auth-bg-grid"></div>
   <div class="auth-card">
     <div class="auth-wordmark">
-      <img src="https://quixilver8404.org/logo_old5.png" alt="Quixilver Logo" class="auth-logo-img"/>
-      <div class="auth-wordmark-text">Quixilver</div>
+      <img src="/icon_192.png" alt="Quix Calendar logo" class="auth-logo-img"/>
+      <div class="auth-wordmark-text">Quix Calendar</div>
     </div>
-    <div class="auth-team-tag">FTC Team &#35;8404</div>
+    <div class="auth-team-tag">Team scheduling, done right</div>
     <div id="auth-error" class="auth-error"></div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-signin" onclick="switchTab('signin')">Sign in</button>
@@ -3699,9 +3699,9 @@ body.light-mode .month-grid-day:hover {
   <div class="topbar">
     <!-- LEFT: Logo — fixed width so center never shifts -->
     <div class="topbar-wordmark" onclick="showPage('home')" style="cursor:pointer">
-      <img src="https://quixilver8404.org/logo_old5.png" alt="Quixilver" class="topbar-logo"/>
-      <span class="topbar-name">Quixilver</span>
-      <span class="topbar-badge">8404</span>
+      <img src="/icon_192.png" alt="Quix Calendar" class="topbar-logo"/>
+      <span class="topbar-name">Quix</span>
+      <span class="topbar-badge">Calendar</span>
     </div>
     <!-- CENTER: Nav pill — does not grow/shrink -->
     <div class="nav-pill" style="flex-shrink:0">
@@ -3821,6 +3821,9 @@ body.light-mode .month-grid-day:hover {
             <div class="agenda-title">Upcoming</div>
             <div id="sidebar-agenda"></div>
           </div>
+          <div style="margin-top:12px;text-align:center">
+            <button onclick="openBugModal()" style="background:none;border:none;color:var(--q-muted2);cursor:pointer;font-size:11px;letter-spacing:.02em" title="Report a bug or share feedback">🐞 Report a bug</button>
+          </div>
         </div>
       </div>
       <div class="cal-area">
@@ -3903,7 +3906,7 @@ body.light-mode .month-grid-day:hover {
       <!-- INSTALL GUIDE -->
       <div style="background:var(--q-dark);border:1px solid var(--q-border);border-radius:var(--r-lg);padding:26px 28px;box-shadow:var(--shadow)">
         <div style="font-size:20px;font-weight:700;margin-bottom:4px;letter-spacing:-.3px">&#128242; Install as App</div>
-        <div style="font-size:12px;color:var(--q-muted);margin-bottom:28px;line-height:1.6">Add Quixilver to your home screen or dock. No App Store needed &#8212; takes about 30 seconds.</div>
+        <div style="font-size:12px;color:var(--q-muted);margin-bottom:28px;line-height:1.6">Add Quix Calendar to your home screen or dock. No App Store needed &#8212; takes about 30 seconds.</div>
 
         <!-- iPhone -->
         <div class="ig-section">
@@ -3944,7 +3947,7 @@ body.light-mode .month-grid-day:hover {
                 </div>
               </div></div>
             </div></div>
-            <div class="ig-step"><div class="ig-num">4</div><div class="ig-body"><div class="ig-text">Tap <strong>Add</strong> in the top right &#8212; Quixilver is now on your home screen!</div></div></div>
+            <div class="ig-step"><div class="ig-num">4</div><div class="ig-body"><div class="ig-text">Tap <strong>Add</strong> in the top right &#8212; Quix Calendar is now on your home screen!</div></div></div>
           </div>
         </div>
 
@@ -3981,7 +3984,7 @@ body.light-mode .month-grid-day:hover {
                 </div>
               </div>
             </div></div>
-            <div class="ig-step"><div class="ig-num">3</div><div class="ig-body"><div class="ig-text">Click <strong>Add</strong> &#8212; Quixilver appears in your Dock like a native Mac app!</div></div></div>
+            <div class="ig-step"><div class="ig-num">3</div><div class="ig-body"><div class="ig-text">Click <strong>Add</strong> &#8212; Quix Calendar appears in your Dock like a native Mac app!</div></div></div>
           </div>
         </div>
 
@@ -4040,7 +4043,7 @@ body.light-mode .month-grid-day:hover {
                 <div style="padding:14px;font-size:11px;color:var(--q-muted2);text-align:center">App content</div>
               </div>
             </div></div>
-            <div class="ig-step"><div class="ig-num">3</div><div class="ig-body"><div class="ig-text">Click <strong>"Install"</strong> in the popup — Quixilver opens as a standalone app and appears in your Start menu and taskbar.</div><div class="ig-tip">&#128161; <strong>Edge users:</strong> Click the <strong>⋯ menu → Apps → Install this site as an app</strong> if you don't see the install icon.</div></div></div>
+            <div class="ig-step"><div class="ig-num">3</div><div class="ig-body"><div class="ig-text">Click <strong>"Install"</strong> in the popup — Quix Calendar opens as a standalone app and appears in your Start menu and taskbar.</div><div class="ig-tip">&#128161; <strong>Edge users:</strong> Click the <strong>⋯ menu → Apps → Install this site as an app</strong> if you don't see the install icon.</div></div></div>
           </div>
         </div>
 
@@ -4153,7 +4156,7 @@ body.light-mode .month-grid-day:hover {
     <div style="max-width:760px;margin:0 auto;padding:32px 24px 64px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
         <div style="font-size:28px;font-weight:700;font-family:var(--font-display);color:var(--q-text)">Help & Guide</div>
-        <div style="font-size:11px;font-family:var(--font-mono);color:var(--q-muted2);background:var(--q-dark4);padding:3px 8px;border-radius:6px;letter-spacing:.05em">QUIXILVER 8404</div>
+        <div style="font-size:11px;font-family:var(--font-mono);color:var(--q-muted2);background:var(--q-dark4);padding:3px 8px;border-radius:6px;letter-spacing:.05em">QUIX CALENDAR</div>
       </div>
 
       <!-- Keyboard Shortcuts -->
@@ -4294,10 +4297,15 @@ body.light-mode .month-grid-day:hover {
       <div class="help-section">
         <div class="help-section-title">Contact &amp; Feedback</div>
         <div class="help-feature" style="background:var(--q-blue-dim);border-color:var(--q-blue-border)">
-          <div class="help-feature-name" style="color:var(--q-blue2)">Get help or share feedback</div>
-          <div class="help-feature-body">Found a bug? Have a recommendation or feature request? Reach out — we read every message.<br><br>
-            <a href="mailto:ftc8404@gmail.com" style="color:var(--q-blue2);font-weight:700;font-size:13px;text-decoration:none">ftc8404@gmail.com</a>
-            <span style="color:var(--q-muted2);font-size:11px;margin-left:8px">— Team FTC 8404</span>
+          <div class="help-feature-name" style="color:var(--q-blue2)">Found a bug or have an idea?</div>
+          <div class="help-feature-body">Report it right here — no email needed. Your report goes straight to the Quix Calendar team, and we read every one.<br><br>
+            <button class="btn-primary-sm" onclick="openBugModal()" style="cursor:pointer">🐞 Report a bug or feedback</button>
+          </div>
+        </div>
+        <div class="help-feature" id="help-admin-inbox" style="display:none">
+          <div class="help-feature-name">Platform inbox</div>
+          <div class="help-feature-body">Review everything teams have reported.<br><br>
+            <button class="btn-secondary" onclick="openBugsAdmin()" style="cursor:pointer">📥 View all reports</button>
           </div>
         </div>
       </div>
@@ -4520,6 +4528,38 @@ body.light-mode .month-grid-day:hover {
   </div>
 </div>
 
+<!-- REPORT A BUG / FEEDBACK -->
+<div class="modal-overlay" id="bug-modal">
+  <div class="modal modal-sm">
+    <button class="modal-close" onclick="closeModal('bug-modal')">✕</button>
+    <div class="modal-title">Report a bug or share feedback</div>
+    <div style="font-size:12px;color:var(--q-muted);margin:-6px 0 14px;line-height:1.6">Found something broken or have an idea? Tell us — reports go straight to the Quix Calendar team.</div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-input" id="bug-type">
+        <option value="bug">🐞 Something is broken</option>
+        <option value="idea">💡 Feature request / idea</option>
+        <option value="feedback">💬 General feedback</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Details</label>
+      <textarea class="form-input" id="bug-message" rows="5" placeholder="What happened? What did you expect? The more detail, the faster we can fix it."></textarea>
+    </div>
+    <div style="font-size:11px;color:var(--q-muted2);margin-bottom:12px">We'll include your name, the page you're on, and your device info so we can reproduce it.</div>
+    <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('bug-modal')">Cancel</button><button class="btn-primary-sm" id="bug-submit-btn" onclick="submitBugReport()">Send report</button></div>
+  </div>
+</div>
+
+<!-- ADMIN: BUG REPORTS INBOX (platform owner only) -->
+<div class="modal-overlay" id="bugs-admin-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('bugs-admin-modal')">✕</button>
+    <div class="modal-title">Bug reports &amp; feedback</div>
+    <div id="bugs-admin-list" style="max-height:60vh;overflow-y:auto;margin-top:8px"><div style="font-size:12px;color:var(--q-muted2)">Loading…</div></div>
+  </div>
+</div>
+
 <!-- RENAME CALENDAR -->
 <div class="modal-overlay" id="rename-cal-modal">
   <div class="modal modal-sm">
@@ -4639,7 +4679,7 @@ body.light-mode .month-grid-day:hover {
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, updateProfile, updateEmail, updatePassword, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, serverTimestamp, getDocs, writeBatch, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs, writeBatch, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:"AIzaSyCPbBj5WUGWduOLw1hmA761nawPxUbLRyA",authDomain:"quixcalendar-fc708.firebaseapp.com",projectId:"quixcalendar-fc708",storageBucket:"quixcalendar-fc708.firebasestorage.app",messagingSenderId:"1066637408084",appId:"1:1066637408084:web:8f0655f4a089696319fac1"};
 const app=initializeApp(firebaseConfig);
@@ -4835,7 +4875,7 @@ function subscribeInvitedEvents(uid){
 
 function sendPushNotification(title,body){
   if('Notification' in window && Notification.permission==='granted' && localStorage.getItem('notificationsEnabled')==='true'){
-    new Notification(title,{body,icon:'https://quixilver8404.org/logo_old5.png'});
+    new Notification(title,{body,icon:'/icon_192.png'});
   }
 }
 
@@ -4970,6 +5010,9 @@ function updateAdminUI(){
     btn.textContent=allOn?'Hide all':'Show all';
     btn.style.display='inline';
   } else if(btn) btn.style.display='none';
+  // Platform-owner-only bug reports inbox
+  const inbox=document.getElementById('help-admin-inbox');
+  if(inbox)inbox.style.display=(cu?.uid===CHARLIE_UID)?'block':'none';
 }
 
 // ── Render all ─────────────────────────────────────────────────────────────
@@ -6134,6 +6177,7 @@ window.duplicateViewedEvent=async()=>{
   const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,rsvpByDate,declineReasonsByDate,optionalOptOutByDate,outreachCount,outreachHours,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
   data.title=(data.title||'')+(data.title?.endsWith(' (copy)')?'':' (copy)');
   data.completed=false;
+  data.uid=cu.uid; // the duplicate is owned by whoever makes it
   data.createdAt=serverTimestamp();data.updatedAt=serverTimestamp();
   await addDoc(collection(db,'events'),data);
   toast('Event duplicated');closeModal('view-modal');
@@ -6964,6 +7008,71 @@ window.saveNewCalendar=async()=>{
   }catch(e){toast('Error');}
 };
 
+// ── Bug reports & feedback ───────────────────────────────────────────────────
+window.openBugModal=()=>{
+  const t=document.getElementById('bug-message');if(t)t.value='';
+  const sel=document.getElementById('bug-type');if(sel)sel.value='bug';
+  document.getElementById('bug-modal').classList.add('open');
+  setTimeout(()=>t&&t.focus(),50);
+};
+window.submitBugReport=async()=>{
+  const type=document.getElementById('bug-type').value;
+  const message=document.getElementById('bug-message').value.trim();
+  if(!message){toast('Please describe the issue');return;}
+  if(!cu){toast('Please sign in first');return;}
+  const btn=document.getElementById('bug-submit-btn');
+  if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  try{
+    await addDoc(collection(db,'bugReports'),{
+      uid:cu.uid,
+      name:cu.displayName||'User',
+      email:cu.email||null,
+      type,
+      message:message.slice(0,4000),
+      page:currentPage||null,
+      calendarId:activeCalId||null,
+      userAgent:navigator.userAgent||null,
+      appVersion:'web',
+      status:'open',
+      createdAt:serverTimestamp()
+    });
+    toast('Thanks! Your report was sent 🙌');
+    closeModal('bug-modal');
+  }catch(e){
+    console.error('Bug report error:',e);
+    toast('Could not send — check your connection');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Send report';}
+  }
+};
+// Platform-owner inbox for reviewing reports
+window.openBugsAdmin=async()=>{
+  if(cu?.uid!==CHARLIE_UID){toast('Not available');return;}
+  document.getElementById('bugs-admin-modal').classList.add('open');
+  const list=document.getElementById('bugs-admin-list');
+  list.innerHTML='<div style="font-size:12px;color:var(--q-muted2)">Loading…</div>';
+  try{
+    const snap=await getDocs(query(collection(db,'bugReports'),orderBy('createdAt','desc')));
+    if(snap.empty){list.innerHTML='<div style="font-size:12px;color:var(--q-muted2)">No reports yet.</div>';return;}
+    const icon={bug:'🐞',idea:'💡',feedback:'💬'};
+    list.innerHTML=snap.docs.map(d=>{
+      const r=d.data();
+      const when=r.createdAt?.toDate?r.createdAt.toDate().toLocaleString():'';
+      return `<div style="border:1px solid var(--q-border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--q-dark3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-weight:700;font-size:13px">${icon[r.type]||'📩'} ${escHtml(r.name||'User')}</span>
+          <span style="font-size:10px;color:var(--q-muted2)">${escHtml(when)}</span>
+        </div>
+        <div style="font-size:13px;color:var(--q-text);white-space:pre-wrap;line-height:1.5;margin-bottom:6px">${escHtml(r.message||'')}</div>
+        <div style="font-size:10px;color:var(--q-muted2)">${escHtml(r.email||'')} · page: ${escHtml(r.page||'—')}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.error(e);
+    list.innerHTML='<div style="font-size:12px;color:var(--q-red)">Could not load reports.</div>';
+  }
+};
+
 // ── Share & Join ───────────────────────────────────────────────────────────
 window.openShareModal=async()=>{
   const cal=calendars.find(c=>c.id===activeCalId);
@@ -7449,7 +7558,7 @@ window.toggleNotifications=async()=>{
     const perm=await Notification.requestPermission();
     if(perm==='granted'){
       localStorage.setItem('notificationsEnabled','true');
-      new Notification('Quixilver Calendar',{body:'Notifications enabled!',icon:'https://quixilver8404.org/logo_old5.png'});
+      new Notification('Quix Calendar',{body:'Notifications enabled!',icon:'/icon_192.png'});
       toast('Notifications enabled!');
     } else {
       localStorage.setItem('notificationsEnabled','false');
@@ -7476,7 +7585,7 @@ window.requestNotificationPermission=async()=>{
   if(Notification.permission==='denied'){toast('Blocked — check browser settings');return;}
   const perm=await Notification.requestPermission();
   const ns=document.getElementById('notif-status');
-  if(perm==='granted'){localStorage.setItem('notificationsEnabled','true');if(ns)ns.textContent='Enabled';toast('Notifications enabled!');new Notification('Quixilver Calendar',{body:'You will be notified of new invitations.',icon:'https://quixilver8404.org/logo_old5.png'});}
+  if(perm==='granted'){localStorage.setItem('notificationsEnabled','true');if(ns)ns.textContent='Enabled';toast('Notifications enabled!');new Notification('Quix Calendar',{body:'You will be notified of new invitations.',icon:'/icon_192.png'});}
   else{localStorage.setItem('notificationsEnabled','false');if(ns)ns.textContent='Permission denied';toast('Notifications blocked');}
 };
 
@@ -7817,7 +7926,7 @@ window.applyWeekSchedule=async(mode)=>{
 
 // ══ ONBOARDING ══════════════════════════════════════════════════
 const ONBOARDING_STEPS=[
-  {tag:'Welcome to Quixilver',visual:'🤖',title:"Your team's <span>command center</span>",desc:'Quixilver Calendar keeps FTC Team 8404 organized — meetings, tasks, attendance, and roles in one place.',features:[{icon:'📅',text:'Team Calendar',sub:'Monthly & week views, recurring events'},{icon:'✅',text:'Task Dashboard',sub:'Priority-based task tracking'},{icon:'🏆',text:'Attendance',sub:'RSVP, track absences, roles'},{icon:'🔔',text:'Notifications',sub:'Never miss an invite again'}]},
+  {tag:'Welcome to Quix Calendar',visual:'🤖',title:"Your team's <span>command center</span>",desc:'Quix Calendar keeps your whole team organized — meetings, tasks, attendance, and roles in one place.',features:[{icon:'📅',text:'Team Calendar',sub:'Monthly & week views, recurring events'},{icon:'✅',text:'Task Dashboard',sub:'Priority-based task tracking'},{icon:'🏆',text:'Attendance',sub:'RSVP, track absences, roles'},{icon:'🔔',text:'Notifications',sub:'Never miss an invite again'}]},
   {tag:'Step 1 — Calendar',visual:'📅',title:'Schedule <span>meetings & events</span>',desc:'Navigate with the sidebar mini-calendar or month/week toggle. Click any day to create an event. Events color-code by priority.',features:[{icon:'📌',text:'Click any date',sub:'Instantly creates a new event'},{icon:'🔄',text:'Recurring events',sub:'Daily, weekly, or monthly repeats'},{icon:'⚡',text:'Quick schedule',sub:'Normal week or Crunch week presets'},{icon:'🗂',text:'Multiple calendars',sub:'Join with a 6-char invite code'}]},
   {tag:'Step 2 — Tasks',visual:'✅',title:'Track work with <span>priority tasks</span>',desc:'Create tasks and assign them to teammates. Three priority levels: Critical, Important, and Optional.',features:[{icon:'🔴',text:'Critical',sub:'Must be done — high urgency'},{icon:'🟡',text:'Important',sub:'Core work — default priority'},{icon:'🟢',text:'Optional',sub:'Nice to have — low urgency'},{icon:'👤',text:'Task owner',sub:'One person owns each task'}]},
   {tag:'Step 3 — Team',visual:'👥',title:'Meet your <span>team dashboard</span>',desc:'The Dashboard shows all tasks for the current week by subsection. The Team tab shows every member with role and attendance.',features:[{icon:'📊',text:'Weekly overview',sub:'Tasks grouped by subsection'},{icon:'🏷',text:'Subsections',sub:'Mechanical, Programming, Outreach…'},{icon:'⚠️',text:'Absences',sub:'Leaders track unexcused absences'},{icon:'🎖',text:'Roles',sub:'Captain, leads, and more'}]},

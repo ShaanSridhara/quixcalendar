@@ -1,10 +1,36 @@
 {
-  "hosting": {
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ]
-  }
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": [
+    {
+      "site": "quixcalendar",
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        { "source": "/index.html", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] },
+        { "source": "/manifest.json", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] },
+        { "source": "/sw.js", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] }
+      ]
+    },
+    {
+      "site": "quixcalendar-fc708",
+      "public": "public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        { "source": "/index.html", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] },
+        { "source": "/manifest.json", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] },
+        { "source": "/sw.js", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] }
+      ]
+    }
+  ]
 }
