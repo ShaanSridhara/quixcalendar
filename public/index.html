@@ -3384,6 +3384,24 @@ body.light-mode .month-grid-day:hover {
 .bottom-nav { display: none; }
 .mobile-fab { display: none; }
 
+/* Always-visible "Report a bug" floating button */
+.bug-fab {
+  position: fixed; right: 20px; bottom: 20px; z-index: 95;
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 17px; border: none; border-radius: 999px;
+  background: linear-gradient(135deg, var(--q-blue), var(--q-blue2));
+  color: #fff; font-family: var(--font-body); font-weight: 700; font-size: 13px;
+  letter-spacing: .01em; cursor: pointer;
+  box-shadow: 0 6px 22px rgba(0,168,255,0.42);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.bug-fab:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,168,255,0.52); filter: brightness(1.05); }
+.bug-fab:active { transform: translateY(0); }
+.bug-fab .bug-fab-emoji { font-size: 15px; line-height: 1; }
+@media(max-width:768px){
+  .bug-fab { bottom: calc(72px + env(safe-area-inset-bottom)); right: 14px; padding: 10px 15px; font-size: 12px; box-shadow: 0 5px 18px rgba(0,168,255,0.45); }
+}
+
 @media(max-width:768px){
 
   /* ── App shell: subtract bottom nav + safe-area inset (notched iPhones) */
@@ -3715,6 +3733,9 @@ body.light-mode .month-grid-day:hover {
 
 <!-- APP -->
 <div id="app-screen">
+  <button class="bug-fab" onclick="openBugModal()" title="Report a bug or share feedback" aria-label="Report a bug">
+    <span class="bug-fab-emoji">🐞</span><span>Report a bug</span>
+  </button>
   <div id="sidebar-backdrop" onclick="closeSidebar()"></div>
   <div class="topbar">
     <!-- LEFT: Logo — fixed width so center never shifts -->
