@@ -4295,11 +4295,18 @@ body.light-mode .month-grid-day:hover {
 
       <!-- Contact -->
       <div class="help-section">
-        <div class="help-section-title">Contact &amp; Feedback</div>
+        <div class="help-section-title">Contact &amp; Support</div>
         <div class="help-feature" style="background:var(--q-blue-dim);border-color:var(--q-blue-border)">
           <div class="help-feature-name" style="color:var(--q-blue2)">Found a bug or have an idea?</div>
           <div class="help-feature-body">Report it right here — no email needed. Your report goes straight to the Quix Calendar team, and we read every one.<br><br>
             <button class="btn-primary-sm" onclick="openBugModal()" style="cursor:pointer">🐞 Report a bug or feedback</button>
+          </div>
+        </div>
+        <div class="help-feature">
+          <div class="help-feature-name">Get in touch</div>
+          <div class="help-feature-body">Questions about setting up your team, or need a hand? We're happy to help.<br><br>
+            <a href="mailto:ftc8404@gmail.com?subject=Quix%20Calendar%20support" style="color:var(--q-blue2);font-weight:700;font-size:13px;text-decoration:none">✉️ ftc8404@gmail.com</a>
+            <span style="color:var(--q-muted2);font-size:11px;margin-left:8px">— Quix Calendar support</span>
           </div>
         </div>
         <div class="help-feature" id="help-admin-inbox" style="display:none">
@@ -4711,6 +4718,10 @@ function fmt12(t){
 
 // ── HTML escape helper — use for all user-generated content in innerHTML ──
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+// Escape user text placed inside a single-quoted JS string within a double-quoted
+// HTML attribute (e.g. onclick="fn('${jsStr(name)}')"). Neutralises attribute and
+// JS-string breakouts so a name like O'Brien or `"><script>` can't inject.
+function jsStr(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,"\\'");}
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const LEADER_ROLES=['Captain','Co-Captain','Vice Captain','Outreach Lead','Programming Lead','Co-Programming Lead','Mechanical Lead','Admin'];
@@ -4897,7 +4908,7 @@ function checkForNewInvites(invitedEvents){
     const typeLabel=ev.type==='task'?'Task':'Meeting';
     const dateStr=ev.date?(new Date(ev.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})):'';
     sendPushNotification(
-      `${isMandatory?'⚠️ Mandatory ':''}${typeLabel}${priLabel}: ${ev.title}`,
+      `${isMandatory?'⚠️ Mandatory ':''}${typeLabel}${priLabel}: ${escHtml(ev.title)}`,
       `${dateStr}${ev.time?' at '+ev.time:''} — You have been invited.`
     );
   });
@@ -5138,7 +5149,7 @@ function renderCalendar(container,forDate){
       const _mob=window.innerWidth<=768;
       const _timePrefix=(!_mob&&!ev.allDay&&ev.time)?fmt12(ev.time)+' · ':'';
       const _repeatSpan=(!_mob&&ev.repeat&&ev.repeat!=='none')?'<span style="font-size:8px;opacity:.6;flex-shrink:0">↻</span>':'';
-      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${_timePrefix}${ev.title}</span>${_repeatSpan}`;
+      pill.innerHTML=`<div class="event-pill-dot" style="background:${ev.completed?'var(--q-muted2)':color}"></div><span class="event-pill-text">${_timePrefix}${escHtml(ev.title)}</span>${_repeatSpan}`;
       pill.onclick=e=>{e.stopPropagation();closeOverflowPopup();openViewEvent(ev);};
       pill.ondblclick=e=>{e.stopPropagation();closeModal('view-modal');closeOverflowPopup();openEventModal(ev);};
       // Long-press to edit on touch (replaces dblclick which doesn't fire on mobile)
@@ -5296,8 +5307,8 @@ function renderWeekView(){
       blk.style.top=`${(sm0/60)*H}px`;blk.style.height=`${Math.max(((em0-sm0)/60)*H,18)}px`;
       blk.style.background=color+'28';blk.style.color=color;blk.style.borderLeftColor=color;
       const wBlockH=Math.max(((em0-sm0)/60)*H,18);
-      const wDescHtml=ev.description&&wBlockH>54?`<div style="font-size:9px;opacity:.7;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal">${ev.description}</div>`:'';
-      blk.innerHTML=`<div class="week-event-title">${ev.title}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${wDescHtml}`;
+      const wDescHtml=ev.description&&wBlockH>54?`<div style="font-size:9px;opacity:.7;margin-top:2px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal">${escHtml(ev.description)}</div>`:'';
+      blk.innerHTML=`<div class="week-event-title">${escHtml(ev.title)}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${wDescHtml}`;
       blk.onclick=e=>{e.stopPropagation();openViewEvent(ev);};col.appendChild(blk);
     });
     wd.appendChild(col);
@@ -5377,8 +5388,8 @@ function renderDayView(){
     blk.style.top=`${(sm0/60)*H}px`;blk.style.height=`${Math.max(((em0-sm0)/60)*H,18)}px`;
     blk.style.background=color+'28';blk.style.color=color;blk.style.borderLeftColor=color;
     const blockH=Math.max(((em0-sm0)/60)*H,18);
-    const descHtml=ev.description&&blockH>54?`<div style="font-size:9px;opacity:.7;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;white-space:normal">${ev.description}</div>`:'';
-    blk.innerHTML=`<div class="week-event-title" style="white-space:normal;font-weight:700">${ev.title}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${descHtml}`;
+    const descHtml=ev.description&&blockH>54?`<div style="font-size:9px;opacity:.7;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;white-space:normal">${escHtml(ev.description)}</div>`:'';
+    blk.innerHTML=`<div class="week-event-title" style="white-space:normal;font-weight:700">${escHtml(ev.title)}</div><div class="week-event-time">${fmt12(ev.time)}${ev.timeEnd?'–'+fmt12(ev.timeEnd):''}</div>${descHtml}`;
     blk.onclick=e=>{e.stopPropagation();openViewEvent(ev);};col.appendChild(blk);
   });
   cw.appendChild(col);
@@ -5412,7 +5423,7 @@ function renderSidebarAgenda(){
     const d=new Date(ev.date+'T12:00:00');
     const dateStr=ev.date===todayStr?'Today':(d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()?`${M[d.getMonth()]} ${d.getDate()}`:`${M[d.getMonth()]} ${d.getDate()}`);
     const item=document.createElement('div');item.className='agenda-item';
-    item.innerHTML=`<div class="agenda-dot" style="background:${color}"></div><div class="agenda-info"><div class="agenda-date">${dateStr}${ev.time?' · '+fmt12(ev.time):''}</div><div class="agenda-name">${ev.title}</div></div>`;
+    item.innerHTML=`<div class="agenda-dot" style="background:${color}"></div><div class="agenda-info"><div class="agenda-date">${dateStr}${ev.time?' · '+fmt12(ev.time):''}</div><div class="agenda-name">${escHtml(ev.title)}</div></div>`;
     item.onclick=()=>{currentDate=new Date(ev.date+'T12:00:00');miniDate=new Date(currentDate);enabledCalIds.add(ev.calendarId||ev.sharedCalId);showPage('calendar');setTimeout(()=>openViewEvent(ev),80);};
     el.appendChild(item);
   });
@@ -5673,7 +5684,7 @@ function showOverflowPopup(evs,anchor,ds){
     if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
     if(ev.completed)color='#94a3b8';
     const row=document.createElement('div');row.className='overflow-popup-pill';
-    row.innerHTML=`<div class="overflow-popup-pill-dot" style="background:${color}"></div><span class="overflow-popup-pill-text" style="color:${color}">${ev.title}</span>${ev.time?`<span class="overflow-popup-pill-time">${fmt12(ev.time)}</span>`:''}`;
+    row.innerHTML=`<div class="overflow-popup-pill-dot" style="background:${color}"></div><span class="overflow-popup-pill-text" style="color:${color}">${escHtml(ev.title)}</span>${ev.time?`<span class="overflow-popup-pill-time">${fmt12(ev.time)}</span>`:''}`;
     row.onclick=()=>{closeOverflowPopup();openViewEvent(ev);};
     popup.appendChild(row);
   });
@@ -5764,7 +5775,7 @@ function renderHomePage(){
         }
       }
     }
-    row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div>${rsvpHtml}`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div>${rsvpHtml}`;
     row.onclick=()=>openViewEvent(ev);upEl.appendChild(row);
   });
 
@@ -5790,7 +5801,7 @@ function renderHomePage(){
         const row=document.createElement('div');row.className='upcoming-row';
         const badge=`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;background:${isOutreach?'rgba(0,232,122,0.12)':'rgba(167,139,250,0.12)'};color:${color};border:1px solid ${isOutreach?'rgba(0,232,122,0.25)':'rgba(167,139,250,0.25)'}">${isOutreach?'Outreach':'Event'}</span>`;
         const invCount=(ev.invitees||[]).length;
-        row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''} · ${cal?.name||'Calendar'}</div></div>${badge}`;
+        row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''} · ${escHtml(cal?.name||"Calendar")}</div></div>${badge}`;
         row.onclick=()=>openViewEvent(ev);
         homeEvEl.appendChild(row);
       });
@@ -5836,7 +5847,7 @@ function renderHomePage(){
     else if(rsvp==='declined')statusHtml=`<div class="invite-actions"><span class="invite-status declined">Declined</span>${days3?`<button class="btn-accept" style="font-size:10px;padding:3px 9px" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Change</button>`:''}</div>`;
     else if(isOptionalInv)statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Accept</button><button class="btn-decline" style="color:var(--q-amber);border-color:rgba(245,158,11,.35)" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Not Attending</button></div>`;
     else statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Accept</button><button class="btn-decline" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Decline</button></div>`;
-    card.innerHTML=`<div class="invite-card-title">${ev.title}</div><div class="invite-card-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}<br>${cal?.name||'Calendar'}${me?` · <span style="color:${me.attendance==='mandatory'?'var(--q-red)':'var(--q-green)'}">${me.attendance==='mandatory'?'Mandatory':'Optional'}</span>`:''}</div>${statusHtml}`;
+    card.innerHTML=`<div class="invite-card-title">${escHtml(ev.title)}</div><div class="invite-card-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}<br>${escHtml(cal?.name||"Calendar")}${me?` · <span style="color:${me.attendance==='mandatory'?'var(--q-red)':'var(--q-green)'}">${me.attendance==='mandatory'?'Mandatory':'Optional'}</span>`:''}</div>${statusHtml}`;
     invEl.appendChild(card);
   });
 
@@ -5862,7 +5873,7 @@ function renderHomePage(){
     const d=new Date(ev.date+'T12:00:00');
     const row=document.createElement('div');row.className='upcoming-row';
     const isOverdue=!ev.completed&&new Date(ev.date+'T23:59:59')<getNow();
-    row.innerHTML=`<div class="upcoming-dot" style="background:${isOverdue?'var(--q-red)':pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · due '+fmt12(ev.time):''} · ${cal?.name||'Calendar'}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:${isOverdue?'var(--q-red)':pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · due '+fmt12(ev.time):''} · ${escHtml(cal?.name||"Calendar")}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
     row.onclick=()=>openViewEvent(ev);taskEl.appendChild(row);
   });
 
@@ -5876,7 +5887,7 @@ function renderHomePage(){
     const d=new Date(ev.date+'T12:00:00');
     const asgn=ev.assignees||[];
     const row=document.createElement('div');row.className='upcoming-row';
-    row.innerHTML=`<div class="upcoming-dot" style="background:var(--q-amber)"></div><div style="flex:1"><div class="upcoming-title">${ev.title}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${asgn.length} assignee${asgn.length!==1?'s':''}: ${asgn.map(a=>a.name||a.displayName||a.email).join(', ')}</div></div>`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:var(--q-amber)"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${asgn.length} assignee${asgn.length!==1?'s':''}: ${escHtml(asgn.map(a=>a.name||a.displayName||a.email).join(", "))}</div></div>`;
     row.onclick=()=>openViewEvent(ev);mgrEl.appendChild(row);
   });
 }
@@ -6088,7 +6099,7 @@ function renderViewPeople(){
     const mgrRow=ev.taskManagerUid?ppl.find(p=>p.uid===ev.taskManagerUid):null;
     if(mgrRow){
       const row=document.createElement('div');row.className='view-invitee-row';
-      row.innerHTML=`<span style="font-size:9px;font-weight:700;color:var(--q-blue2);background:var(--q-blue-dim);border-radius:5px;padding:2px 7px;flex-shrink:0">MANAGER</span><span style="color:var(--q-text);font-weight:600">${mgrRow.name||mgrRow.displayName||''}</span>`;
+      row.innerHTML=`<span style="font-size:9px;font-weight:700;color:var(--q-blue2);background:var(--q-blue-dim);border-radius:5px;padding:2px 7px;flex-shrink:0">MANAGER</span><span style="color:var(--q-text);font-weight:600">${escHtml(mgrRow.name||mgrRow.displayName||"")}</span>`;
       el.appendChild(row);
     }
     // Other assignees
@@ -6097,7 +6108,7 @@ function renderViewPeople(){
       const lbl=document.createElement('div');lbl.style.cssText='font-size:9px;font-weight:700;color:var(--q-muted2);letter-spacing:.6px;text-transform:uppercase;margin:8px 0 5px';lbl.textContent='Assignees';el.appendChild(lbl);
       others.forEach(p=>{
         const row=document.createElement('div');row.className='view-invitee-row';
-        row.innerHTML=`<span style="color:var(--q-text);font-weight:600">${p.name||p.displayName||''}</span>`;
+        row.innerHTML=`<span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span>`;
         el.appendChild(row);
       });
     }
@@ -6136,8 +6147,8 @@ function renderViewPeople(){
     let adminBtn='';
     // Don't allow marking optional attendees or opt-outs as unexcused
     if(isAdm&&!isTask&&rsvp==='declined'&&!isOptOut&&p.attendance!=='optional'){
-      if(!ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','mark');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
-      else adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','reverse');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
+      if(!ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
+      else adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
     }
     row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${uxB} ${adminBtn}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:var(--q-red)">Reason:</strong> ${escHtml(dr)}</div>`:''}`;
     if(hasDr&&!isOptOut)row.onclick=()=>row.querySelector('.decline-reason-box').classList.toggle('open');
@@ -6403,7 +6414,7 @@ function renderChecklists(){
       const isSelf=m.uid===cu.uid;
       const row=document.createElement('div');row.className='member-check-row';
       const sc=m.subsection?subColor(m.subsection,calId):'';
-      row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleInv('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${m.displayName}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}${m.subsection?` <span style="font-size:9px;color:${sc};background:${sc}22;border-radius:4px;padding:1px 5px">${m.subsection}</span>`:''}</div></div>${isChk?`<button class="member-check-att ${att}" onclick="toggleInvAtt('${m.uid}');event.stopPropagation()">${att==='mandatory'?'Mand.':'Opt.'}</button>`:''}`;
+      row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleInv('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${escHtml(m.displayName)}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}${m.subsection?` <span style="font-size:9px;color:${sc};background:${sc}22;border-radius:4px;padding:1px 5px">${escHtml(m.subsection)}</span>`:''}</div></div>${isChk?`<button class="member-check-att ${att}" onclick="toggleInvAtt('${m.uid}');event.stopPropagation()">${att==='mandatory'?'Mand.':'Opt.'}</button>`:''}`;
       row.onclick=e=>{if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT')return;document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
       container.appendChild(row);
     });
@@ -6418,7 +6429,7 @@ function renderChecklists(){
       const isChk=!!existing;
       const isSelf=m.uid===cu.uid;
       const row=document.createElement('div');row.className='member-check-row';
-      row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleAsgn('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${m.displayName}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}</div></div>`;
+      row.innerHTML=`<input type="checkbox" id="chk-${container.id}-${m.uid}" ${isChk?'checked':''} onchange="toggleAsgn('${m.uid}')"/><div style="flex:1"><div class="member-check-name">${escHtml(m.displayName)}${isSelf?' <span style="font-size:9px;color:var(--q-blue2)">(you)</span>':''}</div></div>`;
       row.onclick=e=>{if(e.target.tagName==='INPUT')return;document.getElementById(`chk-${container.id}-${m.uid}`)?.click();};
       container.appendChild(row);
     });
@@ -6574,7 +6585,7 @@ async function renderDashboard(){
         </div>
         ${totalHours>0?`<div style="display:flex;align-items:flex-end;gap:4px"><div class="dash-outreach-total" style="font-size:28px">${totalHours}</div><div style="font-size:12px;color:var(--q-muted);margin-bottom:6px;padding-left:4px">hours</div></div>`:''}
       </div>
-      ${recent.length?`<div>${recent.map(e=>{const d=new Date(e.date+'T12:00:00');const editBtn=canEditOutreachCount(e)?`<button onclick="openOutreachModal('${e.id}')" style="margin-left:8px;padding:3px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit</button>`:'';return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.title}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--q-green)">${(e.outreachCount||0).toLocaleString()}</div>${e.outreachHours!=null?`<div style="font-size:10px;color:var(--q-muted2)">${e.outreachHours}h</div>`:''}</div>${editBtn}</div>`;}).join('')}</div>`:''}
+      ${recent.length?`<div>${recent.map(e=>{const d=new Date(e.date+'T12:00:00');const editBtn=canEditOutreachCount(e)?`<button onclick="openOutreachModal('${e.id}')" style="margin-left:8px;padding:3px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit</button>`:'';return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(e.title)}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--q-green)">${(e.outreachCount||0).toLocaleString()}</div>${e.outreachHours!=null?`<div style="font-size:10px;color:var(--q-muted2)">${e.outreachHours}h</div>`:''}</div>${editBtn}</div>`;}).join('')}</div>`:''}
       ${outreachWithCount.length===0?`<div style="font-size:12px;color:var(--q-muted2)">No data logged yet. Log from event detail after outreach events.</div>`:''}
 
     `;
@@ -6692,7 +6703,7 @@ window.showDashMeetings=()=>{
     const invCount=(ev.invitees||[]).length;
     const row=document.createElement('div');row.className='member-ev-row';
     row.style.cssText='border-left:3px solid '+(ev.color||'var(--q-blue2)')+';cursor:pointer';
-    row.innerHTML=`<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--q-text)">${ev.title}</div><div style="font-size:11px;color:var(--q-muted);margin-top:2px">${dateStr}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''}</div></div>`;
+    row.innerHTML=`<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:11px;color:var(--q-muted);margin-top:2px">${dateStr}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''}</div></div>`;
     row.onclick=()=>{closeModal('dash-meetings-modal');openViewEvent(ev);};
     el.appendChild(row);
   });
@@ -6727,10 +6738,10 @@ async function renderTeamRoster(calId){
     card.innerHTML=`
       <div class="member-avatar">${m.pfpUrl?`<img src="${m.pfpUrl}"/>`:`<span>${char}</span>`}</div>
       <div style="flex:1;min-width:0;overflow:hidden">
-        <div style="font-size:13px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.displayName||'User'}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(m.displayName||"User")}</div>
         <div style="display:flex;align-items:center;gap:4px;margin-top:3px;flex-wrap:wrap">
           ${role?`<span class="role-badge ${role==='Admin'?'admin-role':''}" style="font-size:8px;padding:1px 6px">${role}</span>`:''}
-          ${sub?`<span class="subsection-tag" style="font-size:8px">${sub}</span>`:''}
+          ${sub?`<span class="subsection-tag" style="font-size:8px">${escHtml(sub)}</span>`:''}
           ${uxCount>0?`<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:6px;background:var(--q-red-dim);color:var(--q-red)">${uxCount}✗</span>`:''}
         </div>
       </div>
@@ -6778,16 +6789,16 @@ async function openMemberModal(m,calId,calRoles){
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
       <div class="member-avatar" style="width:48px;height:48px;font-size:18px">${m.pfpUrl?`<img src="${m.pfpUrl}"/>`:`<span>${char}</span>`}</div>
       <div>
-        <div style="font-size:18px;font-weight:700">${m.displayName||'User'}</div>
+        <div style="font-size:18px;font-weight:700">${escHtml(m.displayName||"User")}</div>
         <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
           ${allRoles.map(r=>`<span class="role-badge ${r==='Admin'?'admin-role':''}">${r}</span>`).join(' ')}
-          ${sub?`<span class="subsection-tag">${sub}</span>`:''}
+          ${sub?`<span class="subsection-tag">${escHtml(sub)}</span>`:''}
           ${unexcused>0?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--q-red-dim);color:var(--q-red)">${unexcused} unexcused absence${unexcused!==1?'s':''}</span>`:''}
         </div>
       </div>
       ${isAdm?`<div style="margin-left:auto;display:flex;gap:6px">
-        <button onclick="addMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">+ Unexcused Absence</button>
-        ${unexcused>0?`<button onclick="removeMemberAbsence('${m.uid}','${(m.displayName||'').replace(/'/g,"\\'")}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">- Unexcused Absence</button>`:''}
+        <button onclick="addMemberAbsence('${m.uid}','${jsStr(m.displayName)}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">+ Unexcused Absence</button>
+        ${unexcused>0?`<button onclick="removeMemberAbsence('${m.uid}','${jsStr(m.displayName)}')" style="padding:5px 11px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">- Unexcused Absence</button>`:''}
       </div>`:''}
     </div>
     <div class="modal-section-label">Meetings</div>
@@ -6806,7 +6817,7 @@ async function openMemberModal(m,calId,calRoles){
     const rsvpLabel=rsvp==='accepted'?'✓':rsvp==='declined'?'✗':'?';
     const row=document.createElement('div');row.className='member-ev-row';
     row.style.borderLeft=`3px solid ${ev.color||'var(--q-blue2)'}`;
-    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${ev.title}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+ev.time:''}</div></div><span style="font-size:11px;font-weight:700;color:${rsvpColor}">${rsvpLabel}</span>`;
+    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+ev.time:''}</div></div><span style="font-size:11px;font-weight:700;color:${rsvpColor}">${rsvpLabel}</span>`;
     row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
     mmEl.appendChild(row);
   });
@@ -6819,7 +6830,7 @@ async function openMemberModal(m,calId,calRoles){
     const isMgr=ev.taskManagerUid===m.uid;
     const row=document.createElement('div');row.className='member-ev-row';
     row.style.borderLeft=`3px solid ${priColor(pri)}`;
-    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${ev.title}${isMgr?' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--q-blue-dim);color:var(--q-blue2)">MGR</span>':''}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.taskSubsection?' · '+ev.taskSubsection:''}</div></div><span class="priority-badge priority-${pri}" style="font-size:8px">${pri.charAt(0).toUpperCase()+pri.slice(1)}</span>`;
+    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}${isMgr?' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--q-blue-dim);color:var(--q-blue2)">MGR</span>':''}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.taskSubsection?' · '+ev.taskSubsection:''}</div></div><span class="priority-badge priority-${pri}" style="font-size:8px">${pri.charAt(0).toUpperCase()+pri.slice(1)}</span>`;
     row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
     mtEl.appendChild(row);
   });
@@ -6832,7 +6843,7 @@ async function openMemberModal(m,calId,calRoles){
       const color=ev.type==='outreach'?'var(--q-green)':'#8b5cf6';
       const row=document.createElement('div');row.className='member-ev-row';
       row.style.borderLeft=`3px solid ${color}`;
-      row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${ev.title}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:5px;background:${color}22;color:${color}">${ev.type==='outreach'?'Outreach':'Event'}</span>`;
+      row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:5px;background:${color}22;color:${color}">${ev.type==='outreach'?'Outreach':'Event'}</span>`;
       row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
       meEl.appendChild(row);
     });
@@ -6875,13 +6886,13 @@ function buildDashTaskItem(t,container,calId){
   const item=document.createElement('div');item.className=`dash-task-item${t.completed?' completed':''}`;
   item.style.borderLeft=`3px solid ${t.completed?'#94a3b8':priColor}`;
   item.innerHTML=`
-    <div class="dash-task-title">${t.title}</div>
+    <div class="dash-task-title">${escHtml(t.title)}</div>
     <div class="dash-task-meta">
       <span class="priority-badge priority-${pri}" style="font-size:8px;padding:1px 5px">${pri.charAt(0).toUpperCase()+pri.slice(1)}</span>
-      ${t.taskSubsection?`<span class="dash-subsec-tag" style="background:${subCol}22;color:${subCol}">${t.taskSubsection}</span>`:''}
+      ${t.taskSubsection?`<span class="dash-subsec-tag" style="background:${subCol}22;color:${subCol}">${escHtml(t.taskSubsection)}</span>`:''}
       <span style="color:var(--q-muted2)">${dateStr}</span>
     </div>
-    ${assigneeNames?`<div style="font-size:10px;color:var(--q-muted);margin-top:4px">👤 ${mgr?`<strong>${mgr.displayName||mgr.name}</strong> + `:''} ${assigneeNames}</div>`:''}
+    ${assigneeNames?`<div style="font-size:10px;color:var(--q-muted);margin-top:4px">👤 ${mgr?`<strong>${escHtml(mgr.displayName||mgr.name)}</strong> + `:''} ${assigneeNames}</div>`:''}
   `;
   item.onclick=()=>openViewEvent(t);
   container.appendChild(item);
@@ -7099,7 +7110,7 @@ window.joinCalendar=async()=>{
   subscribeSharedCal(calId,cData.uid,cData.name,oName,cData.color||'#00b4ff',cData.roles||{},cData.subsections||[]);
   subscribeInvitedEvents(cu.uid);
   renderSidebar();
-  toast(`Joined "${cData.name}"!`);
+  toast(`Joined "${escHtml(cData.name)}"!`);
   document.getElementById('join-code-input').value='';
   await loadJoinedCalendars();
 };
@@ -7113,7 +7124,7 @@ async function loadJoinedCalendars(){
     const cDoc=await getDoc(doc(db,'calendars',calId));if(!cDoc.exists())continue;
     const cData=cDoc.data();const oDoc=await getDoc(doc(db,'users',cData.uid));const oName=oDoc.data()?.displayName||'Unknown';
     const div=document.createElement('div');div.style.cssText='display:flex;align-items:center;gap:7px;font-size:12px;color:var(--q-muted);margin-bottom:7px';
-    div.innerHTML=`<div style="width:7px;height:7px;border-radius:50%;background:${cData.color||'#00b4ff'};flex-shrink:0"></div><span style="flex:1">${cData.name} <span style="color:var(--q-muted2);font-size:10px">by ${oName}</span></span><button onclick="leaveCalendar('${calId}')" style="background:none;border:none;color:var(--q-red);cursor:pointer;font-size:11px">Leave</button>`;
+    div.innerHTML=`<div style="width:7px;height:7px;border-radius:50%;background:${cData.color||'#00b4ff'};flex-shrink:0"></div><span style="flex:1">${escHtml(cData.name)} <span style="color:var(--q-muted2);font-size:10px">by ${oName}</span></span><button onclick="leaveCalendar('${calId}')" style="background:none;border:none;color:var(--q-red);cursor:pointer;font-size:11px">Leave</button>`;
     listEl.appendChild(div);
     subscribeSharedCal(calId,cData.uid,cData.name,oName,cData.color||'#00b4ff',cData.roles||{},cData.subsections||[]);
     enabledCalIds.add(calId);
@@ -7251,8 +7262,8 @@ async function renderAdminPage(){
     row.innerHTML=`
       <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--q-blue-dim2),var(--q-blue-dim));border:1.5px solid var(--q-blue-border);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--q-blue2);font-size:13px;flex-shrink:0">${(m.displayName||'?').charAt(0).toUpperCase()}</div>
       <div style="flex:1;min-width:120px">
-        <div style="font-size:13px;font-weight:600;color:var(--q-text);display:flex;align-items:center;gap:5px;flex-wrap:wrap">${m.displayName} ${mRolesList.map(r=>`<span class="role-badge ${r==='Admin'?'admin-role':''}">${r}</span>`).join('')}</div>
-        <div style="font-size:10px;color:var(--q-muted);margin-top:1px">${m.email}${m.subsection?` · <strong style="color:var(--q-text)">${m.subsection}</strong>`:''}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--q-text);display:flex;align-items:center;gap:5px;flex-wrap:wrap">${escHtml(m.displayName)} ${mRolesList.map(r=>`<span class="role-badge ${r==='Admin'?'admin-role':''}">${r}</span>`).join('')}</div>
+        <div style="font-size:10px;color:var(--q-muted);margin-top:1px">${escHtml(m.email)}${m.subsection?` · <strong style="color:var(--q-text)">${escHtml(m.subsection)}</strong>`:''}</div>
       </div>
       <div style="display:flex;gap:5px;flex-shrink:0;align-items:center">`;
     // Subsection selector
@@ -7266,7 +7277,7 @@ async function renderAdminPage(){
       if(m.uid!==cu.uid){
         const kickBtn=document.createElement('button');kickBtn.style.cssText='padding:3px 8px;font-size:10px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)';
         kickBtn.textContent='Kick';
-        kickBtn.onclick=async()=>{if(!confirm(`Remove ${m.displayName}?`))return;await updateDoc(doc(db,'users',m.uid),{joinedCalendars:arrayRemove(adminCal.id)});toast(`${m.displayName} removed`);renderAdminPage();};
+        kickBtn.onclick=async()=>{if(!confirm(`Remove ${escHtml(m.displayName)}?`))return;await updateDoc(doc(db,'users',m.uid),{joinedCalendars:arrayRemove(adminCal.id)});toast(`${escHtml(m.displayName)} removed`);renderAdminPage();};
         row.querySelector('div:last-child').appendChild(kickBtn);
       }
     }
@@ -7278,7 +7289,7 @@ async function renderAdminPage(){
   if(subs.length===0)sl.innerHTML='<div style="font-size:11px;color:var(--q-muted2)">No subsections yet</div>';
   subs.forEach(s=>{
     const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--q-dark3);border-radius:7px;margin-bottom:5px;font-size:12px';
-    row.innerHTML=`<span style="flex:1;color:var(--q-text);font-weight:500">${s}</span>${isCaptain(adminCal.id)?`<button style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)" onclick="deleteSubsection('${adminCal.id}','${s.replace(/'/g,"\\'")}')">Remove</button>`:''}`;
+    row.innerHTML=`<span style="flex:1;color:var(--q-text);font-weight:500">${escHtml(s)}</span>${isCaptain(adminCal.id)?`<button style="padding:2px 7px;font-size:10px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)" onclick="deleteSubsection('${adminCal.id}','${jsStr(s)}')">Remove</button>`:''}`;
     sl.appendChild(row);
   });
   document.getElementById('new-subsection-input').dataset.calId=adminCal.id;
@@ -7300,7 +7311,7 @@ async function renderAdminPage(){
       hasAny=true;
       const ux=(ev.unexcusedAbsences||{})[p.uid];const reason=getDeclineReason(ev,p.uid);const uxNote=(ev.unexcusedNotes||{})[p.uid];
       const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--q-dark3);border-radius:7px;margin-bottom:5px;font-size:12px;flex-wrap:wrap';
-      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${p.name||p.displayName||''}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">declined "${ev.title}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Reason: ${reason}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${uxNote}</div>`:''}</div>${ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${(p.name||p.displayName||'').replace(/'/g,"\\'")}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
+      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">declined "${escHtml(ev.title)}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Reason: ${escHtml(reason)}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${escHtml(uxNote)}</div>`:''}</div>${ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
       al.appendChild(row);
     });
   });
@@ -7325,7 +7336,7 @@ async function renderAdminPage(){
             ${(()=>{
               const holders=members.filter(m=>hasRole(calRoles,m.uid,role));
               return holders.length>0
-                ?`<div style="font-size:11px;color:var(--q-muted);margin-top:2px">Currently: ${holders.map(h=>`<strong style="color:var(--q-text)">${h.displayName}</strong>`).join(', ')}</div>`
+                ?`<div style="font-size:11px;color:var(--q-muted);margin-top:2px">Currently: ${holders.map(h=>`<strong style="color:var(--q-text)">${escHtml(h.displayName)}</strong>`).join(', ')}</div>`
                 :`<div style="font-size:11px;color:var(--q-muted2);margin-top:2px">Unassigned</div>`;
             })()}
           </div>
@@ -7351,10 +7362,10 @@ async function renderAdminPage(){
             let newRoles={...calRoles};
             const alreadyHas=hasRole(newRoles,m.uid,role);
             if(alreadyHas){
-              if(!confirm(`Remove ${role} from ${m.displayName}?`))return;
+              if(!confirm(`Remove ${role} from ${escHtml(m.displayName)}?`))return;
               newRoles=removeRoleFromMap(newRoles,m.uid,role);
             } else {
-              if(!confirm(`Assign ${role} to ${m.displayName}?`))return;
+              if(!confirm(`Assign ${role} to ${escHtml(m.displayName)}?`))return;
               // For unique roles, remove from previous holder first
               if(role!=='Captain'&&role!=='Co-Captain'&&role!=='Vice Captain'&&role!=='Co-Programming Lead'){
                 Object.keys(newRoles).forEach(k=>{
@@ -7374,7 +7385,7 @@ async function renderAdminPage(){
               const pr=getPrimaryRole(newRoles,uid);
               updateDoc(doc(db,'users',uid),{role:pr||null}).catch(()=>{});
             });
-            toast(alreadyHas?`Removed ${role} from ${m.displayName}`:`${m.displayName} is now ${role}`);
+            toast(alreadyHas?`Removed ${role} from ${escHtml(m.displayName)}`:`${escHtml(m.displayName)} is now ${role}`);
             renderAdminPage();
           }catch(e){
             console.error('Role update failed:',e);
@@ -7781,7 +7792,7 @@ window.runSearch=(q)=>{
       const sameYear=d.getFullYear()===getNow().getFullYear();
       const dateStr=d.toLocaleDateString('en-US',sameYear?{weekday:'short',month:'short',day:'numeric'}:{weekday:'short',month:'short',day:'numeric',year:'numeric'});
       const row=document.createElement('div');row.className='search-result-row';
-      row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;margin-top:2px"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--q-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ev.title}</div><div style="font-size:10px;color:var(--q-muted)">${dateStr}${cal?' · '+cal.name:''}${ev.location?' · 📍'+ev.location.slice(0,30):''}</div></div>${ev.completed?'<span style="font-size:9px;color:var(--q-muted2);background:var(--q-dark4);padding:2px 6px;border-radius:5px;flex-shrink:0">Done</span>':''}`;
+      row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;margin-top:2px"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--q-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${dateStr}${cal?" · "+escHtml(cal.name):""}${ev.location?' · 📍'+ev.location.slice(0,30):''}</div></div>${ev.completed?'<span style="font-size:9px;color:var(--q-muted2);background:var(--q-dark4);padding:2px 6px;border-radius:5px;flex-shrink:0">Done</span>':''}`;
       row.onclick=()=>{
         closeModal('search-modal');
         const evD=new Date(ev.date+'T12:00:00');
@@ -7806,14 +7817,14 @@ let attendanceState={};
 window.openAttendanceModal=async(ev)=>{
   if(!ev||ev.type!=='meeting')return;
   attendanceState={evId:ev.id,records:{...((ev.attendance)||{})}};
-  document.getElementById('att-modal-title').textContent=`Attendance: ${ev.title}`;
+  document.getElementById('att-modal-title').textContent=`Attendance: ${escHtml(ev.title)}`;
   const d=new Date(ev.date+'T12:00:00');
   document.getElementById('att-modal-sub').textContent=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   const listEl=document.getElementById('att-list');listEl.innerHTML='';
   (ev.invitees||[]).forEach(p=>{
     const cur=attendanceState.records[p.uid]||'unknown';
     const row=document.createElement('div');row.className='att-row';
-    row.innerHTML=`<div style="flex:1;font-size:13px;font-weight:600;color:var(--q-text)">${p.name||p.displayName||''}</div>
+    row.innerHTML=`<div style="flex:1;font-size:13px;font-weight:600;color:var(--q-text)">${escHtml(p.name||p.displayName||"")}</div>
       <button class="att-btn${cur==='present'?' present':''}" onclick="setAtt('${p.uid}','present')">Present</button>
       <button class="att-btn${cur==='absent'?' absent':''}" onclick="setAtt('${p.uid}','absent')">Absent</button>`;
     row.id=`att-row-${p.uid}`;
@@ -7877,7 +7888,7 @@ function renderLeadSection(){
     const d=new Date(ev.date+'T12:00:00');
     const isOverdue=new Date(ev.date+'T23:59:59')<now;
     const row=document.createElement('div');row.className='upcoming-row';
-    row.innerHTML=`<div class="upcoming-dot" style="background:${pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${ev.title}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:${pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)'}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}${isOverdue?' <span class="overdue-badge">OVERDUE</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div></div><span class="priority-badge priority-${pri}">${PRIORITY_LABELS[pri]}</span>`;
     row.onclick=()=>openViewEvent(ev);el.appendChild(row);
   });
 }
@@ -7940,7 +7951,7 @@ function _renderOB(step){
   const feat=d.features.map(f=>`<div class="onboarding-feature"><div class="onboarding-feature-icon">${f.icon}</div><div><div class="onboarding-feature-text">${f.text}</div><div class="onboarding-feature-sub">${f.sub}</div></div></div>`).join('');
   const dots=ONBOARDING_STEPS.map((_,i)=>`<div class="onboarding-dot${i===step?' active':''}" onclick="_goOB(${i})"></div>`).join('');
   const isLast=step===tot-1;
-  document.getElementById('onboarding-body').innerHTML=`<div class="onboarding-visual">${d.visual}</div><span class="onboarding-step-tag">${d.tag} · ${step+1} of ${tot}</span><div class="onboarding-title">${d.title}</div><p class="onboarding-desc">${d.desc}</p><div class="onboarding-features">${feat}</div><div class="onboarding-nav"><button class="onboarding-btn-skip" onclick="_skipOB()">${isLast?'':'Skip tour'}</button><div class="onboarding-dots">${dots}</div><button class="onboarding-btn-next" onclick="_nextOB()">${isLast?'Get Started →':'Next →'}</button></div>`;
+  document.getElementById('onboarding-body').innerHTML=`<div class="onboarding-visual">${d.visual}</div><span class="onboarding-step-tag">${d.tag} · ${step+1} of ${tot}</span><div class="onboarding-title">${escHtml(d.title)}</div><p class="onboarding-desc">${d.desc}</p><div class="onboarding-features">${feat}</div><div class="onboarding-nav"><button class="onboarding-btn-skip" onclick="_skipOB()">${isLast?'':'Skip tour'}</button><div class="onboarding-dots">${dots}</div><button class="onboarding-btn-next" onclick="_nextOB()">${isLast?'Get Started →':'Next →'}</button></div>`;
 }
 window._goOB=(n)=>{_obStep=n;_renderOB(n);};
 window._nextOB=()=>{if(_obStep<ONBOARDING_STEPS.length-1){_obStep++;_renderOB(_obStep);}else{_skipOB();}};

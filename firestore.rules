@@ -2,71 +2,119 @@ rules_version = '2';
 
 // Quix Calendar — Firestore security rules
 // -----------------------------------------------------------------------------
-// Baseline posture: nothing is world-readable or world-writable. Every request
-// must come from a signed-in user. This is the critical guarantee for running
-// multiple FTC teams on one backend — an anonymous visitor can never read or
-// write any team's calendars, events, members, or bug reports.
-//
-// Cross-member writes (a Captain marking a teammate's absence, assigning roles,
-// RSVPing to an event, etc.) are intentionally allowed between authenticated
-// users, because the app's leadership tools depend on them. Doc IDs are random
-// Firestore IDs, not enumerable. Field-level, per-team hardening is a sensible
-// follow-up once the multi-team model stabilises.
+// Goals:
+//  1. No anonymous access. Every request must come from a signed-in user.
+//  2. Per-team write isolation. A user can only change a calendar / its events
+//     if they OWN that calendar or hold a leadership role on it. Members can
+//     RSVP to events they're invited to. Nobody can tamper with another team's
+//     data by guessing document IDs.
+//  3. No identity tampering. Leaders can update a teammate's role / absence /
+//     membership, but NOBODY except the account owner can change a user's
+//     displayName, email, or avatar (blocks impersonation).
+//  4. Bug reports are write-once by users, readable only by the platform owner.
 // -----------------------------------------------------------------------------
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Platform super-admin (the account that owns the deployment).
-    function isPlatformAdmin() {
-      return request.auth != null
-        && request.auth.uid == 'FFCcwj3440ZXFcDZVAZzXmGuRQw2';
-    }
-
+    // ── Helpers ──────────────────────────────────────────────────────────────
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // User profiles — displayName / pfp / role / absence counters.
-    // Readable by any signed-in user (needed to show member names & avatars).
-    // Writable by signed-in users (leaders update teammates' roles/absences).
+    // The account that owns the deployment (platform super-admin).
+    function isPlatformAdmin() {
+      return isSignedIn()
+        && request.auth.uid == 'FFCcwj3440ZXFcDZVAZzXmGuRQw2';
+    }
+
+    function calendar(calId) {
+      return get(/databases/$(database)/documents/calendars/$(calId)).data;
+    }
+
+    // True if the signed-in user owns, or holds any role on, the given calendar.
+    function leadsCalendar(calId) {
+      return calId is string
+        && exists(/databases/$(database)/documents/calendars/$(calId))
+        && (
+          calendar(calId).uid == request.auth.uid
+          || request.auth.uid in calendar(calId).get('roles', {})
+        );
+    }
+
+    // ── Users ────────────────────────────────────────────────────────────────
+    // Profiles are readable by any signed-in user (needed to render member
+    // names & avatars). You may create/edit only your OWN profile. Leaders may
+    // update a teammate's non-identity fields (role, absence count, membership,
+    // per-calendar subsection) — but can never change someone's name, email, or
+    // avatar.
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId
+        || (
+          request.resource.data.get('displayName', null) == resource.data.get('displayName', null)
+          && request.resource.data.get('email', null) == resource.data.get('email', null)
+          && request.resource.data.get('pfpUrl', null) == resource.data.get('pfpUrl', null)
+        )
+      );
       allow delete: if request.auth.uid == userId || isPlatformAdmin();
     }
 
-    // Team calendars. Read is required for invite-code lookup and for shared
-    // calendars. Owners and team leaders write (create/rename/roles/subsections).
+    // ── Calendars (teams) ─────────────────────────────────────────────────────
+    // Readable by any signed-in user (invite-code lookup needs this, and shared
+    // calendars are read by members). Only the owner or a role-holder may edit;
+    // only the owner (or platform admin) may delete. Creation must stamp the
+    // creator as the owner.
     match /calendars/{calId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
-      allow update: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn()
+        && (
+          resource.data.uid == request.auth.uid
+          || request.auth.uid in resource.data.get('roles', {})
+          || isPlatformAdmin()
+        );
       allow delete: if isSignedIn()
         && (resource.data.uid == request.auth.uid || isPlatformAdmin());
     }
 
-    // Events / meetings / tasks.
+    // ── Events (meetings / tasks / events / outreach) ─────────────────────────
+    // Create: must stamp the creator as owner.
+    // Update: the event owner, anyone invited (RSVP / mark complete), or a
+    //         leader of the event's calendar (attendance, outreach, edits).
+    // Delete: the event owner, a leader of its calendar, or platform admin.
     match /events/{eventId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
-      allow update: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn()
+        && (
+          resource.data.uid == request.auth.uid
+          || request.auth.uid in resource.data.get('inviteeUids', [])
+          || leadsCalendar(resource.data.get('calendarId', ''))
+          || isPlatformAdmin()
+        );
       allow delete: if isSignedIn()
-        && (resource.data.uid == request.auth.uid || isPlatformAdmin());
+        && (
+          resource.data.uid == request.auth.uid
+          || leadsCalendar(resource.data.get('calendarId', ''))
+          || isPlatformAdmin()
+        );
     }
 
-    // Bug reports & feedback. Any signed-in user may file one, but only the
-    // platform admin can read them, and nobody can edit or delete them from the
-    // client (keeps the audit trail intact).
+    // ── Bug reports & feedback ────────────────────────────────────────────────
+    // Any signed-in user may file one (stamped with their own uid). Only the
+    // platform owner can read them; nobody can edit or delete from the client.
     match /bugReports/{reportId} {
       allow create: if isSignedIn()
         && request.resource.data.uid == request.auth.uid;
-      allow read: if isPlatformAdmin();
-      allow update: if isPlatformAdmin();
-      allow delete: if isPlatformAdmin();
+      allow read, update, delete: if isPlatformAdmin();
     }
 
-    // Deny everything else by default.
+    // ── Default deny ───────────────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }
