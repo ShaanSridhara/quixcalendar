@@ -108,26 +108,37 @@
 
 /* ── Light Mode ─────────────────────────────────────────────────── */
 body.light-mode {
-  --q-black:   #f0f4fa;
+  --q-black:   #eef2f9;
   --q-dark:    #ffffff;
-  --q-dark2:   #f4f7fd;
-  --q-dark3:   #ebeff8;
-  --q-dark4:   #e2e8f4;
-  --q-dark5:   #d8dfee;
-  --q-dark6:   #cdd5e6;
-  --q-text:    #0f1624;
-  --q-muted:   #5a6e88;
-  --q-muted2:  #8fa3bd;
-  --q-border:  rgba(0,20,60,0.07);
-  --q-border2: rgba(0,20,60,0.12);
-  --q-border3: rgba(0,20,60,0.20);
+  --q-dark2:   #f5f8fd;
+  --q-dark3:   #eef2f9;
+  --q-dark4:   #e4eaf4;
+  --q-dark5:   #d9e1ee;
+  --q-dark6:   #ccd6e6;
+  --q-text:    #101828;
+  --q-muted:   #56657d;
+  --q-muted2:  #6b7c95;
+  /* Deeper, readable accent — cyan-on-white was nearly invisible */
+  --q-blue:    #0a8ee8;
+  --q-blue2:   #0369a8;
+  --q-blue3:   #2b93d6;
+  --q-blue-dim:  rgba(3,105,168,0.08);
+  --q-blue-dim2: rgba(3,105,168,0.14);
+  --q-blue-border: rgba(3,105,168,0.24);
+  --q-border:  rgba(15,35,80,0.09);
+  --q-border2: rgba(15,35,80,0.14);
+  --q-border3: rgba(15,35,80,0.22);
   --q-glass:   rgba(255,255,255,0.6);
   --q-glass2:  rgba(255,255,255,0.85);
-  --topbar-bg: rgba(255,255,255,0.92);
+  --topbar-bg: rgba(255,255,255,0.85);
   --sidebar-bg:#ffffff;
-  --shadow:    0 2px 16px rgba(10,30,80,0.09);
-  --shadow-lg: 0 8px 48px rgba(10,30,80,0.15);
+  --shadow-sm: 0 1px 3px rgba(16,40,90,0.06), 0 1px 2px rgba(16,40,90,0.08);
+  --shadow:    0 4px 20px rgba(16,40,90,0.08), 0 1px 3px rgba(16,40,90,0.06);
+  --shadow-lg: 0 12px 48px rgba(16,40,90,0.16);
+  --shadow-blue: 0 4px 18px rgba(10,142,232,0.22);
 }
+/* Softer grain + no heavy glow washes in light mode */
+body.light-mode::before { opacity: 0.10; }
 
 /* ── Reset & Base ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -4549,7 +4560,7 @@ body.light-mode .month-grid-day:hover {
   <div class="modal modal-sm">
     <button class="modal-close" onclick="closeModal('bug-modal')">✕</button>
     <div class="modal-title">Report a bug or share feedback</div>
-    <div style="font-size:12px;color:var(--q-muted);margin:-6px 0 14px;line-height:1.6">Found something broken or have an idea? Tell us — reports go straight to the Quix Calendar team.</div>
+    <div style="font-size:12px;color:var(--q-muted);margin:-6px 0 14px;line-height:1.6">Found something broken or have an idea? Tell us — every report is saved and emailed straight to the Quix Calendar team.</div>
     <div class="form-group">
       <label class="form-label">Type</label>
       <select class="form-input" id="bug-type">
@@ -7079,6 +7090,31 @@ window.openBugModal=()=>{
   document.getElementById('bug-modal').classList.add('open');
   setTimeout(()=>t&&t.focus(),50);
 };
+// Where bug-report emails are delivered. FormSubmit is free + no account —
+// the address owner just clicks "Activate" in the first email FormSubmit sends.
+const BUG_EMAIL='shaansridhara1@gmail.com';
+const BUG_EMAIL_ENDPOINT='https://formsubmit.co/ajax/'+BUG_EMAIL;
+// Fire the email off without blocking the reporter. Never throws.
+async function emailBugReport(payload){
+  try{
+    const typeLabel={bug:'Bug',idea:'Feature request',feedback:'Feedback'}[payload.type]||'Report';
+    await fetch(BUG_EMAIL_ENDPOINT,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({
+        _subject:`🐞 Quix Calendar — ${typeLabel} from ${payload.name}`,
+        _template:'table',
+        _captcha:'false',
+        Type:typeLabel,
+        From:`${payload.name} <${payload.email||'no email'}>`,
+        Message:payload.message,
+        Page:payload.page||'—',
+        Device:payload.userAgent||'—',
+        _honey:'' // spam honeypot
+      })
+    });
+  }catch(e){/* email is best-effort; the report is already saved in Firestore */}
+}
 window.submitBugReport=async()=>{
   const type=document.getElementById('bug-type').value;
   const message=document.getElementById('bug-message').value.trim();
@@ -7086,20 +7122,24 @@ window.submitBugReport=async()=>{
   if(!cu){toast('Please sign in first');return;}
   const btn=document.getElementById('bug-submit-btn');
   if(btn){btn.disabled=true;btn.textContent='Sending…';}
+  const payload={
+    uid:cu.uid,
+    name:cu.displayName||'User',
+    email:cu.email||null,
+    type,
+    message:message.slice(0,4000),
+    page:currentPage||null,
+    calendarId:activeCalId||null,
+    userAgent:navigator.userAgent||null,
+    appVersion:'web',
+    status:'open',
+    createdAt:serverTimestamp()
+  };
   try{
-    await addDoc(collection(db,'bugReports'),{
-      uid:cu.uid,
-      name:cu.displayName||'User',
-      email:cu.email||null,
-      type,
-      message:message.slice(0,4000),
-      page:currentPage||null,
-      calendarId:activeCalId||null,
-      userAgent:navigator.userAgent||null,
-      appVersion:'web',
-      status:'open',
-      createdAt:serverTimestamp()
-    });
+    // Durable record first (always works, feeds the in-app inbox)…
+    await addDoc(collection(db,'bugReports'),payload);
+    // …then email the team (best-effort, won't block or fail the report).
+    emailBugReport(payload);
     toast('Thanks! Your report was sent 🙌');
     closeModal('bug-modal');
   }catch(e){
@@ -8004,7 +8044,7 @@ function _renderOB(step){
   const feat=d.features.map(f=>`<div class="onboarding-feature"><div class="onboarding-feature-icon">${f.icon}</div><div><div class="onboarding-feature-text">${f.text}</div><div class="onboarding-feature-sub">${f.sub}</div></div></div>`).join('');
   const dots=ONBOARDING_STEPS.map((_,i)=>`<div class="onboarding-dot${i===step?' active':''}" onclick="_goOB(${i})"></div>`).join('');
   const isLast=step===tot-1;
-  document.getElementById('onboarding-body').innerHTML=`<div class="onboarding-visual">${d.visual}</div><span class="onboarding-step-tag">${d.tag} · ${step+1} of ${tot}</span><div class="onboarding-title">${escHtml(d.title)}</div><p class="onboarding-desc">${d.desc}</p><div class="onboarding-features">${feat}</div><div class="onboarding-nav"><button class="onboarding-btn-skip" onclick="_skipOB()">${isLast?'':'Skip tour'}</button><div class="onboarding-dots">${dots}</div><button class="onboarding-btn-next" onclick="_nextOB()">${isLast?'Get Started →':'Next →'}</button></div>`;
+  document.getElementById('onboarding-body').innerHTML=`<div class="onboarding-visual">${d.visual}</div><span class="onboarding-step-tag">${d.tag} · ${step+1} of ${tot}</span><div class="onboarding-title">${d.title}</div><p class="onboarding-desc">${d.desc}</p><div class="onboarding-features">${feat}</div><div class="onboarding-nav"><button class="onboarding-btn-skip" onclick="_skipOB()">${isLast?'':'Skip tour'}</button><div class="onboarding-dots">${dots}</div><button class="onboarding-btn-next" onclick="_nextOB()">${isLast?'Get Started →':'Next →'}</button></div>`;
 }
 window._goOB=(n)=>{_obStep=n;_renderOB(n);};
 window._nextOB=()=>{if(_obStep<ONBOARDING_STEPS.length-1){_obStep++;_renderOB(_obStep);}else{_skipOB();}};
