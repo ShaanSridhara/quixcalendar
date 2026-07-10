@@ -4790,8 +4790,8 @@ async function initUserData(user){
   if(!snap.exists()){
     await setDoc(uref,{displayName:user.displayName||'User',email:user.email,joinedCalendars:[],pfpUrl:null,unexcusedCount:0,role:null});
     const code=Math.random().toString(36).substring(2,8).toUpperCase();
-    const initRoles=user.uid===CHARLIE_UID?{[user.uid]:'Captain'}:{};
-    await addDoc(collection(db,'calendars'),{uid:user.uid,name:'General',color:'#00b4ff',inviteCode:code,roles:initRoles,subsections:[],createdAt:serverTimestamp()});
+    // Every new user owns a personal calendar and is its Captain from day one.
+    await addDoc(collection(db,'calendars'),{uid:user.uid,name:'My Calendar',color:'#00b4ff',inviteCode:code,roles:{[user.uid]:'Captain'},subsections:[],personal:true,createdAt:serverTimestamp()});
   } else {
     userPfpUrl=snap.data().pfpUrl||null;
     myRole=snap.data().role||null;
@@ -4946,14 +4946,22 @@ function getMyRolesForCal(calId){
   if(!cal)return [];
   return getRolesForUid(cal.roles||{},cu?.uid);
 }
+// You always have full control of a calendar you OWN, even if the roles map is
+// empty (e.g. the personal calendar created at sign-up). This is the source of
+// truth for permissions and heals older accounts whose roles map was blank.
+function ownsCalendar(calId){
+  const cal=calendars.find(c=>c.id===calId);
+  return !!(cal&&cal.uid===cu?.uid);
+}
 function isLeader(calId){
-  return !!getMyRoleForCal(calId);
+  return ownsCalendar(calId)||!!getMyRoleForCal(calId);
 }
 function isCaptain(calId){
+  if(ownsCalendar(calId))return true;
   const roles=getMyRolesForCal(calId);
   return roles.includes('Captain')||roles.includes('Co-Captain')||roles.includes('Vice Captain')||roles.includes('Admin');
 }
-function isAdmin(calId){return isLeader(calId);} // Captain, Co-Captain, all leads, and Admin all count
+function isAdmin(calId){return isLeader(calId);} // owner, Captain, Co-Captain, all leads, and Admin all count
 
 // ── Page nav ───────────────────────────────────────────────────────────────
 window.showPage=(page)=>{
