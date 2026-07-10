@@ -3399,7 +3399,15 @@ body.light-mode .month-grid-day:hover {
 .bug-fab:active { transform: translateY(0); }
 .bug-fab .bug-fab-emoji { font-size: 15px; line-height: 1; }
 @media(max-width:768px){
-  .bug-fab { bottom: calc(72px + env(safe-area-inset-bottom)); right: 14px; padding: 10px 15px; font-size: 12px; box-shadow: 0 5px 18px rgba(0,168,255,0.45); }
+  /* Icon-only, bottom-LEFT so it never collides with the "+" add-event button */
+  .bug-fab {
+    left: 16px; right: auto;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    width: 46px; height: 46px; padding: 0; border-radius: 50%;
+    justify-content: center; box-shadow: 0 5px 18px rgba(0,168,255,0.45);
+  }
+  .bug-fab span:not(.bug-fab-emoji) { display: none; }
+  .bug-fab .bug-fab-emoji { font-size: 20px; }
 }
 
 @media(max-width:768px){
@@ -3452,12 +3460,16 @@ body.light-mode .month-grid-day:hover {
     padding-bottom: env(safe-area-inset-bottom);
   }
   .bottom-nav-btn {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 3px; background: none; border: none;
-    color: var(--q-muted); cursor: pointer; font-size: 10px;
+    color: var(--q-muted); cursor: pointer; font-size: 9px;
     font-family: var(--font-body); font-weight: 600;
-    padding: 6px 4px; transition: color 0.18s;
+    padding: 6px 2px; transition: color 0.18s;
     -webkit-tap-highlight-color: transparent; min-height: 44px;
+  }
+  .bottom-nav-btn span {
+    max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    letter-spacing: -0.01em;
   }
   .bottom-nav-btn.active { color: var(--q-blue2); }
   .bottom-nav-btn svg { transition: stroke 0.18s; }
@@ -3689,7 +3701,7 @@ body.light-mode .month-grid-day:hover {
   <div class="loader-logo-wrap">
     <div class="loader-ring"></div>
     <div class="loader-inner-ring"></div>
-    <img src="/icon_192.png" alt="Quix Calendar" style="width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(0,168,255,0.5))"/>
+    <img src="/logo.png" alt="Quixilver" style="width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(0,168,255,0.5))"/>
   </div>
   <div class="loader-text">Loading · Quix Calendar</div>
 </div>
@@ -3699,7 +3711,7 @@ body.light-mode .month-grid-day:hover {
   <div class="auth-bg-grid"></div>
   <div class="auth-card">
     <div class="auth-wordmark">
-      <img src="/icon_192.png" alt="Quix Calendar logo" class="auth-logo-img"/>
+      <img src="/logo.png" alt="Quixilver logo" class="auth-logo-img"/>
       <div class="auth-wordmark-text">Quix Calendar</div>
     </div>
     <div class="auth-team-tag">Team scheduling, done right</div>
@@ -3740,7 +3752,7 @@ body.light-mode .month-grid-day:hover {
   <div class="topbar">
     <!-- LEFT: Logo — fixed width so center never shifts -->
     <div class="topbar-wordmark" onclick="showPage('home')" style="cursor:pointer">
-      <img src="/icon_192.png" alt="Quix Calendar" class="topbar-logo"/>
+      <img src="/logo.png" alt="Quixilver" class="topbar-logo"/>
       <span class="topbar-name">Quix</span>
       <span class="topbar-badge">Calendar</span>
     </div>
@@ -3861,9 +3873,6 @@ body.light-mode .month-grid-day:hover {
           <div class="agenda-section">
             <div class="agenda-title">Upcoming</div>
             <div id="sidebar-agenda"></div>
-          </div>
-          <div style="margin-top:12px;text-align:center">
-            <button onclick="openBugModal()" style="background:none;border:none;color:var(--q-muted2);cursor:pointer;font-size:11px;letter-spacing:.02em" title="Report a bug or share feedback">🐞 Report a bug</button>
           </div>
         </div>
       </div>
@@ -4371,7 +4380,7 @@ body.light-mode .month-grid-day:hover {
     </button>
     <button class="bottom-nav-btn" id="bnav-dash" onclick="showPage('dashboard')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-      <span>Dashboard</span>
+      <span>Board</span>
     </button>
     <button class="bottom-nav-btn" id="bnav-profile" onclick="showPage('profile')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -4593,6 +4602,15 @@ body.light-mode .month-grid-day:hover {
     <div class="form-group">
       <label class="form-label">Details</label>
       <textarea class="form-input" id="bug-message" rows="5" placeholder="What happened? What did you expect? The more detail, the faster we can fix it."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Screenshot <span style="color:var(--q-muted2);font-weight:400">(optional)</span></label>
+      <input type="file" id="bug-image" accept="image/*" style="display:none" onchange="onBugImagePick(this)"/>
+      <button type="button" class="btn-secondary" style="width:100%;cursor:pointer" onclick="document.getElementById('bug-image').click()">📎 Attach an image</button>
+      <div id="bug-image-preview" style="display:none;margin-top:10px;position:relative">
+        <img id="bug-image-thumb" style="width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid var(--q-border2);background:var(--q-dark3)"/>
+        <button type="button" onclick="clearBugImage()" title="Remove image" style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,0.6);color:#fff;cursor:pointer;font-size:13px;line-height:1">✕</button>
+      </div>
     </div>
     <div style="font-size:11px;color:var(--q-muted2);margin-bottom:12px">We'll include your name, the page you're on, and your device info so we can reproduce it.</div>
     <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('bug-modal')">Cancel</button><button class="btn-primary-sm" id="bug-submit-btn" onclick="submitBugReport()">Send report</button></div>
@@ -7105,9 +7123,45 @@ window.saveNewCalendar=async()=>{
 };
 
 // ── Bug reports & feedback ───────────────────────────────────────────────────
+let _bugImageData=null; // compressed data-URL of an attached screenshot
+window.clearBugImage=()=>{
+  _bugImageData=null;
+  const inp=document.getElementById('bug-image');if(inp)inp.value='';
+  const prev=document.getElementById('bug-image-preview');if(prev)prev.style.display='none';
+};
+// Resize/compress a picked image to a small JPEG data-URL so it fits in one
+// Firestore document (well under the 1 MB limit).
+window.onBugImagePick=(input)=>{
+  const file=input.files&&input.files[0];if(!file)return;
+  if(!/^image\//.test(file.type)){toast('Please pick an image');input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=1280;
+      let{width:w,height:h}=img;
+      if(w>MAX||h>MAX){const s=Math.min(MAX/w,MAX/h);w=Math.round(w*s);h=Math.round(h*s);}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      let data=c.toDataURL('image/jpeg',0.7);
+      // If still large, step the quality down until it's comfortably under 1 MB.
+      let q=0.7;
+      while(data.length>900000&&q>0.35){q-=0.12;data=c.toDataURL('image/jpeg',q);}
+      if(data.length>950000){toast('Image is too large — try a smaller crop');clearBugImage();return;}
+      _bugImageData=data;
+      const thumb=document.getElementById('bug-image-thumb');if(thumb)thumb.src=data;
+      const prev=document.getElementById('bug-image-preview');if(prev)prev.style.display='block';
+    };
+    img.onerror=()=>{toast('Could not read that image');clearBugImage();};
+    img.src=e.target.result;
+  };
+  reader.onerror=()=>{toast('Could not read that image');clearBugImage();};
+  reader.readAsDataURL(file);
+};
 window.openBugModal=()=>{
   const t=document.getElementById('bug-message');if(t)t.value='';
   const sel=document.getElementById('bug-type');if(sel)sel.value='bug';
+  clearBugImage();
   document.getElementById('bug-modal').classList.add('open');
   setTimeout(()=>t&&t.focus(),50);
 };
@@ -7130,6 +7184,7 @@ async function emailBugReport(payload){
         From:`${payload.name} <${payload.email||'no email'}>`,
         Message:payload.message,
         Page:payload.page||'—',
+        Screenshot:payload.screenshot?'Yes — view it in the app’s Platform inbox':'None',
         Device:payload.userAgent||'—',
         _honey:'' // spam honeypot
       })
@@ -7154,6 +7209,7 @@ window.submitBugReport=async()=>{
     userAgent:navigator.userAgent||null,
     appVersion:'web',
     status:'open',
+    screenshot:_bugImageData||null,
     createdAt:serverTimestamp()
   };
   try{
@@ -7162,10 +7218,11 @@ window.submitBugReport=async()=>{
     // …then email the team (best-effort, won't block or fail the report).
     emailBugReport(payload);
     toast('Thanks! Your report was sent 🙌');
+    clearBugImage();
     closeModal('bug-modal');
   }catch(e){
     console.error('Bug report error:',e);
-    toast('Could not send — check your connection');
+    toast(payload.screenshot?'Could not send — try a smaller image':'Could not send — check your connection');
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Send report';}
   }
@@ -7183,12 +7240,15 @@ window.openBugsAdmin=async()=>{
     list.innerHTML=snap.docs.map(d=>{
       const r=d.data();
       const when=r.createdAt?.toDate?r.createdAt.toDate().toLocaleString():'';
+      // screenshot is client-supplied — only render if it's genuinely an image data-URL
+      const shot=(typeof r.screenshot==='string'&&/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(r.screenshot))?r.screenshot:null;
       return `<div style="border:1px solid var(--q-border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--q-dark3)">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
           <span style="font-weight:700;font-size:13px">${icon[r.type]||'📩'} ${escHtml(r.name||'User')}</span>
           <span style="font-size:10px;color:var(--q-muted2)">${escHtml(when)}</span>
         </div>
         <div style="font-size:13px;color:var(--q-text);white-space:pre-wrap;line-height:1.5;margin-bottom:6px">${escHtml(r.message||'')}</div>
+        ${shot?`<a href="${shot}" target="_blank" rel="noopener"><img src="${shot}" alt="screenshot" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;border:1px solid var(--q-border2);background:var(--q-dark4);margin-bottom:6px"/></a>`:''}
         <div style="font-size:10px;color:var(--q-muted2)">${escHtml(r.email||'')} · page: ${escHtml(r.page||'—')}</div>
       </div>`;
     }).join('');
