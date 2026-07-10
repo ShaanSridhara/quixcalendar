@@ -3675,6 +3675,15 @@ body.light-mode .month-grid-day:hover {
     </div>
     <div class="auth-team-tag">Team scheduling, done right</div>
     <div id="auth-error" class="auth-error"></div>
+    <button id="btn-google" onclick="handleGoogle()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:11px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:#fff;color:#1f2328;font-family:var(--font-body);font-weight:600;font-size:14px;cursor:pointer;transition:filter .15s">
+      <svg width="18" height="18" viewBox="0 0 48 48" style="display:block"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.6 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C41.8 35.6 44 30.3 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>
+      <span>Continue with Google</span>
+    </button>
+    <div style="display:flex;align-items:center;gap:12px;margin:16px 0">
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.12)"></div>
+      <span style="font-size:11px;color:var(--q-muted2);letter-spacing:.05em">OR</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.12)"></div>
+    </div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-signin" onclick="switchTab('signin')">Sign in</button>
       <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Create account</button>
@@ -4685,7 +4694,7 @@ body.light-mode .month-grid-day:hover {
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, updateProfile, updateEmail, updatePassword, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, updateProfile, updateEmail, updatePassword, browserLocalPersistence, setPersistence, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs, writeBatch, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:"AIzaSyCPbBj5WUGWduOLw1hmA761nawPxUbLRyA",authDomain:"quixcalendar-fc708.firebaseapp.com",projectId:"quixcalendar-fc708",storageBucket:"quixcalendar-fc708.firebasestorage.app",messagingSenderId:"1066637408084",appId:"1:1066637408084:web:8f0655f4a089696319fac1"};
@@ -4931,6 +4940,42 @@ window.handleSignUp=async()=>{
 };
 window.signOut=async()=>{if(unsubEv)unsubEv();if(unsubCals)unsubCals();_invitedUnsubs.forEach(u=>u());_invitedUnsubs.length=0;_sharedCalUnsubs.forEach(unsubs=>unsubs.forEach(u=>u()));_sharedCalUnsubs.clear();await fbSignOut(auth);};
 function friendlyErr(c){return({'auth/user-not-found':'No account with that email.','auth/wrong-password':'Incorrect password.','auth/email-already-in-use':'Email already in use.','auth/weak-password':'Password needs 6+ chars.','auth/invalid-email':'Invalid email.','auth/invalid-credential':'Incorrect email or password.'})[c]||'Something went wrong.';}
+
+// ── Google sign-in ───────────────────────────────────────────────────────────
+function googleErr(e){
+  const c=e&&e.code;
+  if(c==='auth/operation-not-allowed')return 'Google sign-in isn’t enabled yet. Please use email for now.';
+  if(c==='auth/unauthorized-domain')return 'This site isn’t authorized for Google sign-in yet.';
+  if(c==='auth/account-exists-with-different-credential')return 'You already have an account with that email — sign in with your password.';
+  if(c==='auth/network-request-failed')return 'Network error. Check your connection and try again.';
+  return 'Could not sign in with Google. Please try again.';
+}
+window.handleGoogle=async()=>{
+  setAuthError('');
+  const btn=document.getElementById('btn-google');
+  if(btn)btn.disabled=true;
+  const provider=new GoogleAuthProvider();
+  provider.setCustomParameters({prompt:'select_account'});
+  // Installed PWA / standalone mode: popups are unreliable, use full-page redirect.
+  const standalone=window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+  try{
+    if(standalone){await signInWithRedirect(auth,provider);return;}
+    await signInWithPopup(auth,provider);
+    // onAuthStateChanged takes over from here
+  }catch(e){
+    if(e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request'){
+      if(btn)btn.disabled=false;return; // user backed out — no error
+    }
+    if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){
+      try{await signInWithRedirect(auth,provider);return;}catch(e2){setAuthError(googleErr(e2));}
+    }else{
+      setAuthError(googleErr(e));
+    }
+    if(btn)btn.disabled=false;
+  }
+};
+// Complete a redirect-based Google sign-in when the page reloads back to us.
+getRedirectResult(auth).catch(e=>{if(e&&e.code&&e.code!=='auth/no-auth-event')setAuthError(googleErr(e));});
 
 // ── Roles ──────────────────────────────────────────────────────────────────
 // A user is a leader if they have any role set. Captain is the top leader.
