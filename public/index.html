@@ -4623,9 +4623,10 @@ body.light-mode .month-grid-day:hover {
       <button class="btn-secondary" id="view-dup-btn" onclick="duplicateViewedEvent()" style="display:none">Duplicate</button>
       <button class="btn-secondary" id="view-edit-btn" onclick="editViewedEvent()" style="display:none">Edit</button>
       <button class="complete-btn" id="view-complete-btn" onclick="markTaskComplete()" style="display:none">Mark Complete</button>
-      <button class="btn-secondary" id="view-optout-btn" onclick="optionalOptOut(viewingEv?.id,viewingEv?._occurrenceDate||null)" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Not Attending</button>
-      <button class="btn-secondary" id="view-decline-btn" onclick="rsvpEvent(viewingEv?.id,'decline',viewingEv?._occurrenceDate||null)" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)">Can't Go</button>
-      <button class="btn-secondary" id="view-attendance-btn" onclick="openAttendanceModal(viewingEv)" style="display:none">Mark Attendance</button>
+      <button class="btn-secondary" id="view-accept-btn" onclick="rsvpViewed('accept')" style="display:none;color:var(--q-green);border-color:rgba(0,232,122,.35)">✓ Going</button>
+      <button class="btn-secondary" id="view-optout-btn" onclick="optOutViewed()" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Not Attending</button>
+      <button class="btn-secondary" id="view-decline-btn" onclick="rsvpViewed('decline')" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)">Can't Go</button>
+      <button class="btn-secondary" id="view-attendance-btn" onclick="attendanceViewed()" style="display:none">Mark Attendance</button>
       <button class="btn-secondary" onclick="closeModal('view-modal')">Close</button>
     </div>
   </div>
@@ -6171,6 +6172,14 @@ async function loadAbsenceCount(){
 }
 
 // ── RSVP ──────────────────────────────────────────────────────────────────
+// Inline onclick="" handlers run in the global scope and cannot see the
+// module-scoped `viewingEv`, so route view-modal actions through these wrappers
+// (which are module-scoped and CAN see it). Previously these buttons threw
+// "viewingEv is not defined" and silently did nothing.
+window.rsvpViewed=(action)=>{if(viewingEv)rsvpEvent(viewingEv.id,action,viewingEv._occurrenceDate||null);};
+window.optOutViewed=()=>{if(viewingEv)optionalOptOut(viewingEv.id,viewingEv._occurrenceDate||null);};
+window.attendanceViewed=()=>{if(viewingEv)openAttendanceModal(viewingEv);};
+window.outreachViewed=()=>{if(viewingEv)openOutreachModal(viewingEv);};
 window.rsvpEvent=async(evId,action,occDate=null)=>{
   const ev=events.find(e=>e.id===evId);if(!ev)return;
   const myInv=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
@@ -6301,9 +6310,9 @@ function openViewEvent(ev){
       if(isPast){
         if(ev.outreachCount!=null){
           const hoursStr=ev.outreachHours!=null?`<div class="outreach-count-num" style="font-size:20px">${ev.outreachHours}</div><div class="outreach-count-label">hours</div>`:'';
-          html+=`<div class="outreach-count-box" style="margin-top:8px"><div style="display:flex;gap:18px;align-items:flex-end"><div><div class="outreach-count-num">${ev.outreachCount}</div><div class="outreach-count-label">students reached</div></div>${hoursStr}</div>${canEdit?`<button onclick="openOutreachModal(viewingEv)" style="margin-left:auto;padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Edit</button>`:''}</div>`;
+          html+=`<div class="outreach-count-box" style="margin-top:8px"><div style="display:flex;gap:18px;align-items:flex-end"><div><div class="outreach-count-num">${ev.outreachCount}</div><div class="outreach-count-label">students reached</div></div>${hoursStr}</div>${canEdit?`<button onclick="outreachViewed()" style="margin-left:auto;padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Edit</button>`:''}</div>`;
         } else if(canEdit){
-          html+=`<div style="margin-top:8px;padding:10px 12px;background:var(--q-dark3);border:1px dashed rgba(0,232,122,.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:var(--q-muted2)">No data logged yet</span><button onclick="openOutreachModal(viewingEv)" style="padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Log Data</button></div>`;
+          html+=`<div style="margin-top:8px;padding:10px 12px;background:var(--q-dark3);border:1px dashed rgba(0,232,122,.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:var(--q-muted2)">No data logged yet</span><button onclick="outreachViewed()" style="padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Log Data</button></div>`;
         } else {
           html+=`<div style="margin-top:8px;font-size:12px;color:var(--q-muted2);padding:8px 0">No data logged yet.</div>`;
         }
@@ -6342,6 +6351,10 @@ function openViewEvent(ev){
   const myRsvpV=getMyRsvp(ev,cu?.uid);
   const showOptout=ev.type==='meeting'&&myInvV?.attendance==='optional'&&!hasMeetingStarted(ev)&&myRsvpV!=='declined';
   document.getElementById('view-optout-btn').style.display=showOptout?'block':'none';
+  // "Going": let an invitee (re)confirm attendance whenever they're not already
+  // marked accepted — this is how you switch back after declining.
+  const showAccept=ev.type==='meeting'&&myInvV&&myRsvpV!=='accepted'&&!hasMeetingStarted(ev);
+  document.getElementById('view-accept-btn').style.display=showAccept?'block':'none';
   const _daysToEv=daysUntil(ev.date);
   const showDeclineBtn=ev.type==='meeting'&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!hasMeetingStarted(ev)&&(_daysToEv<0||_daysToEv>=3);
   document.getElementById('view-decline-btn').style.display=showDeclineBtn?'block':'none';
