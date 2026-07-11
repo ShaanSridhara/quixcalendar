@@ -661,6 +661,38 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .view-btn.active { background: var(--q-dark6); color: var(--q-text); }
 .view-btn + .view-btn { border-left: 1px solid var(--q-border); }
 
+/* ── Agenda (list) view ───────────────────────────────────────── */
+.agenda-list { flex: 1; overflow-y: auto; padding: 8px 4px 100px; -webkit-overflow-scrolling: touch; }
+.agenda-day { margin-bottom: 6px; }
+.agenda-day-head { display: flex; align-items: center; gap: 12px; padding: 14px 14px 8px; position: sticky; top: 0; background: linear-gradient(var(--q-black) 65%, transparent); z-index: 2; }
+.agenda-day-num { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--q-text); min-width: 30px; text-align: center; line-height: 1; }
+.agenda-day-txt { display: flex; flex-direction: column; gap: 2px; }
+.agenda-day-dow { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--q-blue2); text-transform: uppercase; }
+.agenda-day-mon { font-size: 11px; color: var(--q-muted2); }
+.agenda-today .agenda-day-num { color: #fff; background: var(--q-blue); border-radius: 10px; padding: 5px 0; box-shadow: 0 2px 12px var(--q-blue-glow); }
+.agenda-events { display: flex; flex-direction: column; gap: 6px; padding: 0 10px; }
+.agenda-row { display: flex; align-items: stretch; gap: 10px; padding: 11px 12px; border-radius: 12px; background: var(--q-dark3); border: 1px solid var(--q-border); cursor: pointer; transition: background 0.15s, transform 0.1s; }
+.agenda-row:hover { background: var(--q-dark4); }
+.agenda-row:active { transform: scale(0.99); }
+.agenda-row.done .agenda-title { text-decoration: line-through; color: var(--q-muted2); }
+.agenda-time { font-size: 11px; font-weight: 600; color: var(--q-muted); min-width: 58px; padding-top: 2px; font-variant-numeric: tabular-nums; }
+.agenda-bar { width: 4px; border-radius: 4px; flex-shrink: 0; }
+.agenda-body { flex: 1; min-width: 0; }
+.agenda-title { font-size: 14px; font-weight: 600; color: var(--q-text); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; }
+.agenda-meta { font-size: 11px; color: var(--q-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-overdue .agenda-day-head { padding-top: 10px; }
+.agenda-overdue-badge { font-size: 12px; font-weight: 700; color: var(--q-red); background: var(--q-red-dim); border: 1px solid rgba(255,59,92,0.3); border-radius: 8px; padding: 4px 10px; }
+.agenda-overdue .agenda-row { border-color: rgba(255,59,92,0.25); }
+.agenda-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 60px 24px; text-align: center; }
+.agenda-empty-icon { font-size: 40px; opacity: 0.8; }
+.agenda-empty-title { font-size: 16px; font-weight: 700; color: var(--q-muted); }
+.agenda-empty-sub { font-size: 13px; color: var(--q-muted2); max-width: 260px; }
+
+/* Mobile month-cell dots */
+.cell-dots { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; padding: 2px 3px 0; }
+.cell-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.cell-dot-more { font-size: 8px; font-weight: 700; color: var(--q-muted2); margin-left: 1px; }
+
 /* ── Color picker swatches ────────────────────────────────────── */
 .color-swatch-row { display: flex; gap: 7px; flex-wrap: wrap; margin: 4px 0 2px; }
 .color-swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform .12s, border-color .12s; flex-shrink: 0; }
@@ -3604,12 +3636,17 @@ body.light-mode .month-grid-day:hover {
   }
   .dash-outreach-total { font-size: 28px; }
 
-  /* ── Calendar subbar: single compact row — ‹ [Month Year] › [Today] [Month|Week|Day] ── */
-  #cal-subbar { flex-wrap: nowrap; padding: 6px 10px; align-items: center; }
-  .cal-subbar-right { width: auto; }
-  /* Hide export button, calendar dot/name/hint to save space; keep Today button compact */
+  /* ── Calendar subbar: two rows on phones —
+       row 1: ‹ [Month Year] › [Today]
+       row 2: full-width [Agenda|Month|Week|Day] toggle ── */
+  #cal-subbar { flex-wrap: wrap; padding: 6px 10px; align-items: center; row-gap: 6px; }
+  .cal-subbar-right { width: 100%; margin-left: 0; }
   #cal-header-dot, #cal-header-name, #cal-header-hint { display: none !important; }
+  #cal-subbar button[onclick*="exportICS"] { display: none !important; }
+  #cal-subbar #month-label { font-size: 13px; }
   #cal-subbar .topbar-nav-btn[onclick="goToday()"] { font-size: 10px !important; padding: 4px 8px !important; }
+  #cal-subbar .view-toggle { width: 100%; display: flex; }
+  #cal-subbar .view-toggle .view-btn { flex: 1; text-align: center; justify-content: center; }
 
   /* ── Month grid: scroll vertically with TALLER cells instead of cramming six
      rows into the viewport. The grid was locked to the screen height
@@ -3804,6 +3841,7 @@ body.light-mode .month-grid-day:hover {
     <div class="cal-subbar-right" style="display:flex;align-items:center;gap:6px">
       <button class="topbar-nav-btn" onclick="exportICS()" title="Export to .ics / Apple Calendar / Google Calendar" style="font-size:10px;padding:5px 10px;font-family:var(--font-body)">Export ↓</button>
       <div class="view-toggle">
+        <button class="view-btn" id="view-agenda-btn" onclick="setView('agenda')">Agenda</button>
         <button class="view-btn active" id="view-month-btn" onclick="setView('month')">Month</button>
         <button class="view-btn" id="view-week-btn" onclick="setView('week')">Week</button>
         <button class="view-btn" id="view-day-btn" onclick="setView('day')">Day</button>
@@ -3919,6 +3957,9 @@ body.light-mode .month-grid-day:hover {
               </div>
             </div>
           </div>
+        </div>
+        <div id="agenda-view" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+          <div id="agenda-list" class="agenda-list"></div>
         </div>
       </div>
     </div>
@@ -5142,13 +5183,106 @@ function renderAll(){
   if(currentView==='month')renderCalendar();
   else if(currentView==='week')renderWeekView();
   else if(currentView==='day')renderDayView();
+  else if(currentView==='agenda')renderAgendaView();
   renderMiniCal();renderSidebarAgenda();updateTopbar();updateCalHeader();updateMonthStats();
+}
+
+// Resolve a person's display name from any data we already have loaded, so we
+// never show a raw Firestore UID. Returns null if unknown (caller can fetch).
+function resolvePersonName(uid,ev){
+  if(!uid)return null;
+  const pick=p=>p&&(p.name||p.displayName)||null;
+  const inEv=[...(ev?.assignees||[]),...(ev?.invitees||[])].find(p=>p.uid===uid);
+  if(pick(inEv))return pick(inEv);
+  const inMembers=(calMembers||[]).find(m=>m.uid===uid);
+  if(pick(inMembers))return pick(inMembers);
+  for(const e of events){
+    const p=[...(e.assignees||[]),...(e.invitees||[])].find(x=>x.uid===uid);
+    if(pick(p))return pick(p);
+  }
+  return null;
+}
+
+// Shared event-color logic (matches the month pills)
+function eventColor(ev){
+  if(ev.completed)return '#94a3b8';
+  if(ev.type==='task'){const pri=ev.priority||'important';return pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
+  if(ev.type==='event')return ev.color||'#8b5cf6';
+  if(ev.type==='outreach')return ev.color||'#00e87a';
+  const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
+  return ev.color||cal?.color||'#2979ff';
+}
+
+// ── Agenda (list) view — clean, readable, great on mobile ────────────────────
+function renderAgendaView(){
+  const el=document.getElementById('agenda-list');if(!el)return;
+  el.innerHTML='';
+  const allCals=[...calendars,...sharedCalendars];
+  if(!allCals.length){
+    el.innerHTML='<div class="agenda-empty"><div class="agenda-empty-icon">📅</div><div class="agenda-empty-title">No calendars yet</div><div class="agenda-empty-sub">Create a calendar to get started</div></div>';
+    return;
+  }
+  const todayStr=getTodayStr();
+  const start=new Date(getNow());start.setHours(0,0,0,0);
+  const past=new Date(start);past.setDate(past.getDate()-90);
+  const end=new Date(start);end.setDate(end.getDate()+90);
+  const exp=expandRec(events,past,end).filter(e=>{
+    if(e.isShared)return enabledCalIds.has(e.sharedCalId);
+    if(e._invited)return true;
+    return enabledCalIds.has(e.calendarId);
+  }).filter(e=>calTypeFilter==='all'||(calTypeFilter==='meetings'&&e.type==='meeting')||(calTypeFilter==='tasks'&&e.type==='task')||(calTypeFilter==='events'&&(e.type==='event'||e.type==='outreach')));
+
+  const typeLabel={meeting:'Meeting',task:'Task',event:'Event',outreach:'Outreach'};
+  const rowFor=(ev)=>{
+    const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
+    const color=eventColor(ev);
+    const row=document.createElement('div');row.className='agenda-row'+(ev.completed?' done':'');
+    const timeTxt=ev.type==='task'?(ev.time?fmt12(ev.time):'Task'):(ev.allDay?'All day':(ev.time?fmt12(ev.time):'—'));
+    const meta=`${typeLabel[ev.type]||'Item'}${cal?.name?' · '+escHtml(cal.name):''}`;
+    row.innerHTML=`<div class="agenda-time">${escHtml(timeTxt)}</div><div class="agenda-bar" style="background:${color}"></div><div class="agenda-body"><div class="agenda-title">${escHtml(ev.title)}</div><div class="agenda-meta">${meta}${ev.location?' · 📍 '+escHtml(ev.location):''}</div></div>`;
+    row.onclick=()=>openViewEvent(ev);
+    return row;
+  };
+
+  // Overdue incomplete tasks first
+  const overdue=exp.filter(e=>e.type==='task'&&!e.completed&&e.date<todayStr).sort((a,b)=>a.date.localeCompare(b.date));
+  if(overdue.length){
+    const sec=document.createElement('div');sec.className='agenda-day agenda-overdue';
+    sec.innerHTML='<div class="agenda-day-head"><span class="agenda-overdue-badge">⚠ Overdue</span></div>';
+    const wrap=document.createElement('div');wrap.className='agenda-events';
+    overdue.forEach(ev=>wrap.appendChild(rowFor(ev)));
+    sec.appendChild(wrap);el.appendChild(sec);
+  }
+
+  // Upcoming grouped by day
+  const upcoming=exp.filter(e=>e.date>=todayStr).sort((a,b)=> a.date===b.date?(a.time||'').localeCompare(b.time||''):a.date.localeCompare(b.date));
+  const byDay=new Map();
+  upcoming.forEach(e=>{if(!byDay.has(e.date))byDay.set(e.date,[]);byDay.get(e.date).push(e);});
+  const DOW=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if(!byDay.size && !overdue.length){
+    el.innerHTML='<div class="agenda-empty"><div class="agenda-empty-icon">✨</div><div class="agenda-empty-title">Nothing scheduled</div><div class="agenda-empty-sub">Tap the + button to add a meeting, task, or event</div></div>';
+    return;
+  }
+  for(const [ds,evs] of byDay){
+    const dt=new Date(ds+'T12:00:00');
+    const isToday=ds===todayStr;
+    const tmr=new Date(getNow());tmr.setDate(tmr.getDate()+1);
+    const isTmr=ds===localDateStr(tmr);
+    const rel=isToday?'Today':isTmr?'Tomorrow':'';
+    const sec=document.createElement('div');sec.className='agenda-day'+(isToday?' agenda-today':'');
+    sec.innerHTML=`<div class="agenda-day-head"><span class="agenda-day-num">${dt.getDate()}</span><div class="agenda-day-txt"><span class="agenda-day-dow">${DOW[dt.getDay()]}${rel?' · '+rel:''}</span><span class="agenda-day-mon">${MON[dt.getMonth()]} ${dt.getFullYear()}</span></div></div>`;
+    const wrap=document.createElement('div');wrap.className='agenda-events';
+    evs.forEach(ev=>wrap.appendChild(rowFor(ev)));
+    sec.appendChild(wrap);el.appendChild(sec);
+  }
 }
 
 function updateTopbar(){
   const M=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const D=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  if(currentView==='month'){document.getElementById('month-label').textContent=`${M[currentDate.getMonth()]} ${currentDate.getFullYear()}`;}
+  if(currentView==='agenda'){document.getElementById('month-label').textContent='Upcoming';}
+  else if(currentView==='month'){document.getElementById('month-label').textContent=`${M[currentDate.getMonth()]} ${currentDate.getFullYear()}`;}
   else if(currentView==='day'){document.getElementById('month-label').textContent=`${D[currentDate.getDay()]}, ${M[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}`;}
   else{const ws=weekStart(currentDate),we=new Date(ws);we.setDate(we.getDate()+6);document.getElementById('month-label').textContent=ws.getMonth()===we.getMonth()?`${M[ws.getMonth()]} ${ws.getDate()}–${we.getDate()}, ${ws.getFullYear()}`:`${M[ws.getMonth()]} ${ws.getDate()} – ${M[we.getMonth()]} ${we.getDate()}`;}
   document.getElementById('user-display-name').textContent=cu?.displayName||cu?.email?.split('@')[0]||'User';
@@ -5242,7 +5376,13 @@ function renderCalendar(container,forDate){
     const hasOverdue=isCur&&ds<todayStr&&cev.some(e=>e.type==='task'&&!e.completed);
     const cell=document.createElement('div');
     cell.className=`cal-cell${!isCur?' other-month':''}${isToday?' today':''}${hasOverdue?' has-overdue':''}`;
-    cell.onclick=ev=>{if(ev.target===cell||ev.target.classList.contains('cell-num')||ev.target.classList.contains('cell-events'))openNewEventOnDate(ds);};
+    const _mobM=window.innerWidth<=768;
+    cell.onclick=ev=>{
+      const t=ev.target;
+      if(t!==cell&&!t.classList.contains('cell-num')&&!t.classList.contains('cell-events')&&!t.classList.contains('cell-dots'))return;
+      if(_mobM&&cev.length){currentDate=new Date(cd);setView('day');return;} // tap a day → see its schedule
+      openNewEventOnDate(ds);
+    };
     const nd=document.createElement('div');nd.className='cell-num';nd.textContent=day;cell.appendChild(nd);
     const evd=document.createElement('div');evd.className='cell-events';
     const makePill=(ev)=>{
@@ -5273,12 +5413,20 @@ function renderCalendar(container,forDate){
       pill.addEventListener('mouseleave',hideHoverCard);
       return pill;
     };
-    cev.slice(0,3).forEach(ev=>evd.appendChild(makePill(ev)));
-    if(cev.length>3){
-      const mo=document.createElement('div');mo.className='more-events';
-      mo.innerHTML=`+${cev.length-3} more`;
-      mo.onclick=e=>{e.stopPropagation();showOverflowPopup(cev.slice(3),mo,ds);};
-      evd.appendChild(mo);
+    if(_mobM){
+      // Phones: compact colored dots (text pills are unreadable at this size)
+      const dotsRow=document.createElement('div');dotsRow.className='cell-dots';
+      cev.slice(0,4).forEach(ev=>{const dot=document.createElement('span');dot.className='cell-dot';dot.style.background=eventColor(ev);dotsRow.appendChild(dot);});
+      if(cev.length>4){const more=document.createElement('span');more.className='cell-dot-more';more.textContent='+'+(cev.length-4);dotsRow.appendChild(more);}
+      evd.appendChild(dotsRow);
+    } else {
+      cev.slice(0,3).forEach(ev=>evd.appendChild(makePill(ev)));
+      if(cev.length>3){
+        const mo=document.createElement('div');mo.className='more-events';
+        mo.innerHTML=`+${cev.length-3} more`;
+        mo.onclick=e=>{e.stopPropagation();showOverflowPopup(cev.slice(3),mo,ds);};
+        evd.appendChild(mo);
+      }
     }
     cell.appendChild(evd);
     if(!container){const hint=document.createElement('div');hint.className='cell-add-hint';hint.textContent='＋';hint.title='Add event';hint.onclick=e=>{e.stopPropagation();openNewEventOnDate(ds);};cell.appendChild(hint);}
@@ -5815,9 +5963,11 @@ window.setView=(v)=>{
   document.getElementById('month-view').style.display=v==='month'?'flex':'none';
   document.getElementById('week-view').style.display=v==='week'?'flex':'none';
   document.getElementById('day-view').style.display=v==='day'?'flex':'none';
+  document.getElementById('agenda-view').style.display=v==='agenda'?'flex':'none';
   document.getElementById('view-month-btn').classList.toggle('active',v==='month');
   document.getElementById('view-week-btn').classList.toggle('active',v==='week');
   document.getElementById('view-day-btn').classList.toggle('active',v==='day');
+  const ab=document.getElementById('view-agenda-btn');if(ab)ab.classList.toggle('active',v==='agenda');
   renderAll();
 };
 
@@ -6159,8 +6309,12 @@ function openViewEvent(ev){
   }
   const mgrRow=document.getElementById('view-manager-row');
   if(ev.type==='task'&&ev.taskManagerUid){
-    const mgr=(ev.assignees||[]).find(a=>a.uid===ev.taskManagerUid);
-    document.getElementById('view-manager').textContent='Manager: '+(mgr?.name||mgr?.displayName||ev.taskManagerUid);
+    const mgrEl=document.getElementById('view-manager');
+    const known=resolvePersonName(ev.taskManagerUid,ev);
+    mgrEl.textContent='Manager: '+(known||'…');
+    if(!known){ // not in any loaded list — look the name up
+      getDoc(doc(db,'users',ev.taskManagerUid)).then(s=>{mgrEl.textContent='Manager: '+((s.exists()&&s.data().displayName)||'Unknown');}).catch(()=>{mgrEl.textContent='Manager: Unknown';});
+    }
     mgrRow.style.display='flex';
   } else mgrRow.style.display='none';
   const ppl=ev.type==='task'?ev.assignees:ev.invitees;
@@ -7684,7 +7838,10 @@ document.addEventListener('click',e=>{
 });
 window.switchTab=(tab)=>{document.getElementById('tab-signin').classList.toggle('active',tab==='signin');document.getElementById('tab-signup').classList.toggle('active',tab==='signup');document.getElementById('form-signin').style.display=tab==='signin'?'block':'none';document.getElementById('form-signup').style.display=tab==='signup'?'block':'none';setAuthError('');};
 function setAuthError(msg){const el=document.getElementById('auth-error');el.style.display=msg?'block':'none';el.textContent=msg;}
-function showApp(){document.getElementById('auth-screen').style.display='none';document.getElementById('app-screen').classList.add('visible');showPage('home');setTimeout(maybeShowOnboarding,600);}
+function showApp(){document.getElementById('auth-screen').style.display='none';document.getElementById('app-screen').classList.add('visible');
+  // Phones default to the readable Agenda list instead of a cramped month grid.
+  if(window.innerWidth<=768&&currentView==='month')setView('agenda');
+  showPage('home');setTimeout(maybeShowOnboarding,600);}
 function showAuth(){document.getElementById('app-screen').classList.remove('visible');document.getElementById('auth-screen').style.display='flex';}
 window.toggleUserMenu=()=>document.getElementById('user-dropdown').classList.toggle('open');
 document.addEventListener('click',e=>{
