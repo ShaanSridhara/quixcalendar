@@ -3667,18 +3667,25 @@ body.light-mode .month-grid-day:hover {
   .event-pill-dot { width: 5px; height: 5px; }
   .more-events { font-size: 10px; padding: 2px 6px; }
 
-  /* ── Week view: widen the 7 day columns and scroll horizontally instead of
-     cramming them into ~340px. The time gutter stays pinned on the left so you
-     never lose the hour labels. (Day view is single-column and untouched.) ── */
-  #week-view { overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; }
+  /* ── Week view: fit the WHOLE week in the viewport (no horizontal scroll), so
+     you always see all 7 days incl. today. Columns are narrow — events render as
+     compact colored blocks; tap one (or tap the day header → Day view) for
+     detail. A slim time gutter keeps the hour labels. ── */
+  #week-view { overflow-x: hidden !important; overflow-y: hidden !important; }
   #week-view .week-sticky-header,
   #week-view .week-allday-strip,
-  #week-view .week-inner { min-width: 700px; }
+  #week-view .week-inner { min-width: 0; width: 100%; }
   #week-view .week-time-gutter,
   #week-view .week-time-gutter-hdr,
-  #week-view .week-allday-gutter {
-    position: sticky; left: 0; z-index: 11; background: var(--q-dark2); }
-  #week-view .week-time-label { font-size: 9px; }
+  #week-view .week-allday-gutter { width: 34px; min-width: 34px; flex-shrink: 0; }
+  #week-view .week-time-label { font-size: 8px; }
+  #week-view .week-day-header { padding: 4px 0; }
+  #week-view .week-day-header > div:first-child { font-size: 8px; }
+  #week-view .week-day-num { font-size: 13px; }
+  #week-view .week-event-block { padding: 2px 3px; border-radius: 4px; overflow: hidden; }
+  #week-view .week-event-title { font-size: 8px; font-weight: 600; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #week-view .week-event-time { font-size: 7px; opacity: 0.75; }
+  #week-view .week-allday-pill { font-size: 8px; padding: 1px 3px; }
 
   /* ── Safe-area: account for home indicator on iPhone ── */
   #app-screen { height: calc(100dvh - 60px - env(safe-area-inset-bottom, 0px)); }
@@ -5506,8 +5513,9 @@ function renderWeekView(){
   const hdr=document.getElementById('week-sticky-header');hdr.innerHTML='<div class="week-time-gutter-hdr"></div>';
   days.forEach(d=>{
     const isT=d.toDateString()===today.toDateString();
-    const div=document.createElement('div');div.className='week-day-header';
+    const div=document.createElement('div');div.className='week-day-header';div.style.cursor='pointer';
     div.innerHTML=`<div style="font-size:9px;color:var(--q-muted2)">${dayNames[d.getDay()]}</div><div class="week-day-num${isT?' today':''}">${d.getDate()}</div>`;
+    div.onclick=()=>{currentDate=new Date(d);setView('day');}; // tap a day → its full Day view
     hdr.appendChild(div);
   });
   const als=document.getElementById('week-allday-strip');als.innerHTML='<div class="week-allday-gutter">all-day</div>';
