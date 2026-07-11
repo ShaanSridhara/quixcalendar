@@ -5482,24 +5482,24 @@ function expandRec(evList,rs,re){
 // declineReasons/optionalOptOut fields apply to the whole series otherwise.
 // Non-recurring events keep using the flat fields untouched.
 function occKey(ev){ return (ev.repeat && ev.repeat!=='none') ? (ev._occurrenceDate||ev.date) : null; }
+// For recurring events, RSVP is strictly per-occurrence (rsvpByDate). We do NOT
+// fall back to the flat series-wide field: one legacy flat decline would
+// otherwise make EVERY occurrence look declined. Non-recurring events use flat.
 function getMyRsvp(ev,uid){
   if(!uid) return undefined;
   const key=occKey(ev);
   if(!key) return (ev.rsvp||{})[uid];
-  const perOcc=(ev.rsvpByDate||{})[key]||{};
-  return uid in perOcc ? perOcc[uid] : (ev.rsvp||{})[uid];
+  return ((ev.rsvpByDate||{})[key]||{})[uid];
 }
 function getDeclineReason(ev,uid){
   const key=occKey(ev);
   if(!key) return (ev.declineReasons||{})[uid];
-  const perOcc=(ev.declineReasonsByDate||{})[key]||{};
-  return uid in perOcc ? perOcc[uid] : (ev.declineReasons||{})[uid];
+  return ((ev.declineReasonsByDate||{})[key]||{})[uid];
 }
 function getOptOut(ev,uid){
   const key=occKey(ev);
   if(!key) return (ev.optionalOptOut||{})[uid];
-  const perOcc=(ev.optionalOptOutByDate||{})[key]||{};
-  return uid in perOcc ? perOcc[uid] : (ev.optionalOptOut||{})[uid];
+  return ((ev.optionalOptOutByDate||{})[key]||{})[uid];
 }
 
 // ── Week view ──────────────────────────────────────────────────────────────
