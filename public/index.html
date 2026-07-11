@@ -475,6 +475,14 @@ textarea.form-input { resize: vertical; min-height: 72px; }
   border: 1px solid var(--q-blue-border);
   border-radius: 5px; padding: 2px 7px;
 }
+/* Clean inline "Calendar" descriptor — reads as one wordmark with "Quix" */
+.topbar-sub {
+  font-family: var(--font-display);
+  font-size: 16px; font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--q-muted);
+  margin-left: -1px;
+}
 
 /* Nav pill */
 .nav-pill {
@@ -1896,7 +1904,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media(max-width:768px){
   .topbar { padding: 0 12px; height: 52px; }
-  .topbar-badge { display: none; }
+  .topbar-badge, .topbar-sub { display: none; }
   .nav-pill { gap: 1px; }
   .nav-pill-btn { padding: 5px 8px; font-size: 10px; }
   .topbar-right { gap: 4px; }
@@ -3754,7 +3762,7 @@ body.light-mode .month-grid-day:hover {
     <div class="topbar-wordmark" onclick="showPage('home')" style="cursor:pointer">
       <img src="/logo.png" alt="Quixilver" class="topbar-logo"/>
       <span class="topbar-name">Quix</span>
-      <span class="topbar-badge">Calendar</span>
+      <span class="topbar-sub">Calendar</span>
     </div>
     <!-- CENTER: Nav pill — does not grow/shrink -->
     <div class="nav-pill" style="flex-shrink:0">
@@ -7779,7 +7787,20 @@ window.requestNotificationPermission=async()=>{
 function renderTodayStrip(){
   const wrap=document.getElementById('today-strip-wrap');if(!wrap)return;
   const todayStr=getTodayStr();
-  const todayEvents=events.filter(e=>e.date===todayStr&&!e.completed&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const myUid=cu?.uid,myEmail=cu?.email;
+  // "On your plate" = only what involves ME.
+  //  • Tasks: only if they're assigned to me (a captain who CREATES the team's
+  //    tasks should NOT see all of them here — just their own).
+  //  • Meetings/events: if I'm invited, or I'm the host/creator.
+  const mine=(e)=>{
+    if(e.type==='task')
+      return (e.assignees||[]).some(a=>a.uid===myUid||a.email===myEmail)
+          || (e.inviteeUids||[]).includes(myUid);
+    return (e.inviteeUids||[]).includes(myUid)
+        || (e.invitees||[]).some(p=>p.uid===myUid||p.email===myEmail)
+        || e.uid===myUid;
+  };
+  const todayEvents=events.filter(e=>e.date===todayStr&&!e.completed&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))&&mine(e)).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   if(!todayEvents.length){wrap.innerHTML='';return;}
   const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const now=getNow();
