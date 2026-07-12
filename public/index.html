@@ -4882,7 +4882,7 @@ let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
 let _dashMeetings=[],_dashPeriodLabel='';
-let declineTargetEvId=null,declineTargetOccDate=null,unexcusedTarget=null,_outreachTargetEvId=null;
+let declineTargetEvId=null,declineTargetOccDate=null,unexcusedTarget=null,_outreachTargetEvId=null,_outreachTargetOccDate=null;
 let viewTab='all',currentPage='home';
 let calTypeFilter='all';
 let enabledCalIds=new Set();
@@ -5500,6 +5500,42 @@ function getOptOut(ev,uid){
   const key=occKey(ev);
   if(!key) return (ev.optionalOptOut||{})[uid];
   return ((ev.optionalOptOutByDate||{})[key]||{})[uid];
+}
+// Outreach counts are ALSO per-occurrence for recurring events: each occurrence
+// stores its own students/hours in outreachCountByDate/outreachHoursByDate keyed
+// by date. Non-recurring events use the flat outreachCount/outreachHours fields.
+function getOutreachCount(ev){
+  const key=occKey(ev);
+  if(!key) return ev.outreachCount!=null?ev.outreachCount:null;
+  const v=(ev.outreachCountByDate||{})[key];
+  return v!=null?v:null;
+}
+function getOutreachHours(ev){
+  const key=occKey(ev);
+  if(!key) return ev.outreachHours!=null?ev.outreachHours:null;
+  const v=(ev.outreachHoursByDate||{})[key];
+  return v!=null?v:null;
+}
+// Totals across all logged occurrences (for dashboard sums).
+function outreachSum(ev){
+  if(ev.repeat&&ev.repeat!=='none'){
+    const c=ev.outreachCountByDate||{},h=ev.outreachHoursByDate||{};
+    return {students:Object.values(c).reduce((s,x)=>s+(x||0),0),hours:Object.values(h).reduce((s,x)=>s+(x||0),0),logged:Object.values(c).filter(x=>x!=null).length};
+  }
+  return {students:ev.outreachCount||0,hours:ev.outreachHours||0,logged:ev.outreachCount!=null?1:0};
+}
+// Flatten outreach events into per-occurrence LOGGED entries {ev,date,count,hours}.
+function outreachLoggedEntries(list){
+  const out=[];
+  list.forEach(e=>{
+    if(e.repeat&&e.repeat!=='none'){
+      const c=e.outreachCountByDate||{},h=e.outreachHoursByDate||{};
+      Object.keys(c).forEach(dt=>{if(c[dt]!=null)out.push({ev:e,date:dt,count:c[dt],hours:h[dt]!=null?h[dt]:null});});
+    } else if(e.outreachCount!=null){
+      out.push({ev:e,date:e.date,count:e.outreachCount,hours:e.outreachHours!=null?e.outreachHours:null});
+    }
+  });
+  return out;
 }
 
 // ── Week view ──────────────────────────────────────────────────────────────
@@ -6179,7 +6215,7 @@ async function loadAbsenceCount(){
 window.rsvpViewed=(action)=>{if(viewingEv)rsvpEvent(viewingEv.id,action,viewingEv._occurrenceDate||null);};
 window.optOutViewed=()=>{if(viewingEv)optionalOptOut(viewingEv.id,viewingEv._occurrenceDate||null);};
 window.attendanceViewed=()=>{if(viewingEv)openAttendanceModal(viewingEv);};
-window.outreachViewed=()=>{if(viewingEv)openOutreachModal(viewingEv);};
+window.outreachViewed=()=>{if(viewingEv)openOutreachModal(viewingEv,viewingEv._occurrenceDate||null);};
 window.rsvpEvent=async(evId,action,occDate=null)=>{
   const ev=events.find(e=>e.id===evId);if(!ev)return;
   const myInv=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
@@ -6308,9 +6344,10 @@ function openViewEvent(ev){
       // Outreach numbers can be logged/edited anytime — before, during, or after
       // the event. No time gate.
       let html='<span class="outreach-badge">🌱 OUTREACH</span>';
-      if(ev.outreachCount!=null){
-        const hoursStr=ev.outreachHours!=null?`<div class="outreach-count-num" style="font-size:20px">${ev.outreachHours}</div><div class="outreach-count-label">hours</div>`:'';
-        html+=`<div class="outreach-count-box" style="margin-top:8px"><div style="display:flex;gap:18px;align-items:flex-end"><div><div class="outreach-count-num">${ev.outreachCount}</div><div class="outreach-count-label">students reached</div></div>${hoursStr}</div>${canEdit?`<button onclick="outreachViewed()" style="margin-left:auto;padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Edit</button>`:''}</div>`;
+      const _oc=getOutreachCount(ev),_oh=getOutreachHours(ev);
+      if(_oc!=null){
+        const hoursStr=_oh!=null?`<div class="outreach-count-num" style="font-size:20px">${_oh}</div><div class="outreach-count-label">hours</div>`:'';
+        html+=`<div class="outreach-count-box" style="margin-top:8px"><div style="display:flex;gap:18px;align-items:flex-end"><div><div class="outreach-count-num">${_oc}</div><div class="outreach-count-label">students reached</div></div>${hoursStr}</div>${canEdit?`<button onclick="outreachViewed()" style="margin-left:auto;padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Edit</button>`:''}</div>`;
       } else if(canEdit){
         html+=`<div style="margin-top:8px;padding:10px 12px;background:var(--q-dark3);border:1px dashed rgba(0,232,122,.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:var(--q-muted2)">No data logged yet</span><button onclick="outreachViewed()" style="padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Log Data</button></div>`;
       } else {
@@ -6468,7 +6505,7 @@ window.deleteViewedEvent=async()=>{if(!viewingEv)return;if(viewingEv.uid!==cu?.u
 window.editViewedEvent=()=>{closeModal('view-modal');openEventModal(viewingEv);};
 window.duplicateViewedEvent=async()=>{
   if(!viewingEv)return;
-  const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,rsvpByDate,declineReasonsByDate,optionalOptOutByDate,outreachCount,outreachHours,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
+  const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,rsvpByDate,declineReasonsByDate,optionalOptOutByDate,outreachCount,outreachHours,outreachCountByDate,outreachHoursByDate,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
   data.title=(data.title||'')+(data.title?.endsWith(' (copy)')?'':' (copy)');
   data.completed=false;
   data.uid=cu.uid; // the duplicate is owned by whoever makes it
@@ -6840,8 +6877,8 @@ async function renderDashboard(){
 
   // Outreach impact panel (shown if calendar has any outreach events)
   const outreachEvents=events.filter(e=>e.type==='outreach'&&(e.calendarId===calId||e.sharedCalId===calId));
-  const outreachWithCount=outreachEvents.filter(e=>e.outreachCount!=null);
-  const totalStudents=outreachWithCount.reduce((s,e)=>s+(e.outreachCount||0),0);
+  const _outreachEntries=outreachLoggedEntries(outreachEvents); // per-occurrence logged entries
+  const totalStudents=outreachEvents.reduce((s,e)=>s+outreachSum(e).students,0);
   const colsWrap=document.getElementById('dash-columns');
   // Outreach panel above the column area (use dash-summary area for this)
   let outreachPanel=document.getElementById('dash-outreach-panel');
@@ -6852,9 +6889,11 @@ async function renderDashboard(){
   }
   if(outreachEvents.length>0){
     const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const recent=outreachEvents.filter(e=>e.outreachCount!=null).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
-    const pending=outreachEvents.filter(e=>e.outreachCount==null&&daysUntil(e.date)<0);
-    const totalHours=outreachWithCount.reduce((s,e)=>s+(e.outreachHours||0),0);
+    const recent=_outreachEntries.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+    // Pending = non-recurring past outreach with no count. (Per-occurrence
+    // pending nudges for recurring events live on the Home page.)
+    const pending=outreachEvents.filter(e=>!(e.repeat&&e.repeat!=='none')&&e.outreachCount==null&&daysUntil(e.date)<0);
+    const totalHours=outreachEvents.reduce((s,e)=>s+outreachSum(e).hours,0);
     outreachPanel.innerHTML=`
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <span style="font-size:16px">🌱</span>
@@ -6868,8 +6907,8 @@ async function renderDashboard(){
         </div>
         ${totalHours>0?`<div style="display:flex;align-items:flex-end;gap:4px"><div class="dash-outreach-total" style="font-size:28px">${totalHours}</div><div style="font-size:12px;color:var(--q-muted);margin-bottom:6px;padding-left:4px">hours</div></div>`:''}
       </div>
-      ${recent.length?`<div>${recent.map(e=>{const d=new Date(e.date+'T12:00:00');const editBtn=canEditOutreachCount(e)?`<button onclick="openOutreachModal('${e.id}')" style="margin-left:8px;padding:3px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit</button>`:'';return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(e.title)}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--q-green)">${(e.outreachCount||0).toLocaleString()}</div>${e.outreachHours!=null?`<div style="font-size:10px;color:var(--q-muted2)">${e.outreachHours}h</div>`:''}</div>${editBtn}</div>`;}).join('')}</div>`:''}
-      ${outreachWithCount.length===0?`<div style="font-size:12px;color:var(--q-muted2)">No data logged yet. Log from event detail after outreach events.</div>`:''}
+      ${recent.length?`<div>${recent.map(en=>{const e=en.ev;const d=new Date(en.date+'T12:00:00');const editBtn=canEditOutreachCount(e)?`<button onclick="openOutreachModal('${e.id}','${en.date}')" style="margin-left:8px;padding:3px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit</button>`:'';return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(e.title)}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--q-green)">${(en.count||0).toLocaleString()}</div>${en.hours!=null?`<div style="font-size:10px;color:var(--q-muted2)">${en.hours}h</div>`:''}</div>${editBtn}</div>`;}).join('')}</div>`:''}
+      ${_outreachEntries.length===0?`<div style="font-size:12px;color:var(--q-muted2)">No data logged yet. Log from event detail after outreach events.</div>`:''}
 
     `;
     outreachPanel.style.display='block';
@@ -7824,7 +7863,7 @@ window.closeModal=(id)=>{
     setTimeout(()=>el.classList.remove('closing'),170);
   }
   if(id==='event-modal'){const btn=document.getElementById('ev-save-btn');if(btn){btn.disabled=false;btn.textContent='Save';}}
-  if(id==='outreach-modal'){const btn=document.getElementById('outreach-save-btn');if(btn){btn.disabled=false;btn.textContent='Save';}const hi=document.getElementById('outreach-hours-input');if(hi)hi.value='';_outreachTargetEvId=null;}
+  if(id==='outreach-modal'){const btn=document.getElementById('outreach-save-btn');if(btn){btn.disabled=false;btn.textContent='Save';}const hi=document.getElementById('outreach-hours-input');if(hi)hi.value='';_outreachTargetEvId=null;_outreachTargetOccDate=null;}
 };
 function animateDashStats(){
   document.querySelectorAll('.dash-stat-num').forEach(el=>{
@@ -8047,42 +8086,60 @@ function renderPendingOutreachReports(){
   // Recently-past outreach events (within the last week) still awaiting a
   // student count. Once logged, or once more than a week old, they drop off
   // this list — it's a nudge to log promptly, not a permanent log.
-  const editable=events.filter(e=>{
-    if(e.type!=='outreach')return false;
-    const dLeft=daysUntil(e.date);
-    if(dLeft>0)return false; // not yet past
-    if(dLeft<-7)return false; // more than a week ago
-    if(e.outreachCount!=null)return false; // already logged
-    return canEditOutreachCount(e);
-  }).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
+  // Build per-occurrence pending entries (recurring events expand each
+  // occurrence in the last week; non-recurring is a single entry).
+  const now=getNow();const weekAgo=new Date(now);weekAgo.setDate(weekAgo.getDate()-8);weekAgo.setHours(0,0,0,0);
+  const entries=[];
+  events.forEach(e=>{
+    if(e.type!=='outreach'||!canEditOutreachCount(e))return;
+    if(e.repeat&&e.repeat!=='none'){
+      expandRec([e],weekAgo,now).forEach(occ=>{
+        const dLeft=daysUntil(occ.date);
+        if(dLeft>0||dLeft<-7)return;
+        if((e.outreachCountByDate||{})[occ._occurrenceDate]!=null)return;
+        entries.push({ev:e,date:occ._occurrenceDate});
+      });
+    } else {
+      const dLeft=daysUntil(e.date);
+      if(dLeft>0||dLeft<-7||e.outreachCount!=null)return;
+      entries.push({ev:e,date:e.date});
+    }
+  });
+  const editable=entries.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8);
   card.style.display=editable.length?'block':'none';
   listEl.innerHTML='';
   if(!editable.length)return;
   const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  editable.forEach(ev=>{
-    const d=new Date(ev.date+'T12:00:00');
+  editable.forEach(en=>{
+    const ev=en.ev,d=new Date(en.date+'T12:00:00');
     const item=document.createElement('div');item.className='outreach-prompt-card';
     item.innerHTML=`
       <div class="outreach-prompt-title">${escHtml(ev.title)}</div>
       <div class="outreach-prompt-meta">${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${ev.time?' · '+fmt12(ev.time):''}</div>
       <div class="outreach-prompt-action">📊 Log student count</div>
     `;
-    item.onclick=()=>openOutreachModal(ev);
+    item.onclick=()=>openOutreachModal(ev,en.date);
     listEl.appendChild(item);
   });
 }
 
-window.openOutreachModal=(evOrId)=>{
+window.openOutreachModal=(evOrId,occDate=null)=>{
   const ev=typeof evOrId==='string'?events.find(e=>e.id===evOrId):evOrId;
   if(!ev){toast('Event not found');return;}
   if(!canEditOutreachCount(ev)){toast('You don\'t have permission to log this');return;}
   _outreachTargetEvId=ev.id;
-  const d=new Date(ev.date+'T12:00:00');
+  const isRec=ev.repeat&&ev.repeat!=='none';
+  // The occurrence this count belongs to (recurring only).
+  _outreachTargetOccDate=isRec?(occDate||ev._occurrenceDate||ev.date):null;
+  const dispDate=_outreachTargetOccDate||ev.date;
+  const d=new Date(dispDate+'T12:00:00');
   const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   document.getElementById('outreach-modal-event-name').textContent=ev.title;
   document.getElementById('outreach-modal-event-date').textContent=`${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${ev.time?' · '+fmt12(ev.time):''}`;
-  document.getElementById('outreach-count-input').value=ev.outreachCount!=null?ev.outreachCount:'';
-  document.getElementById('outreach-hours-input').value=ev.outreachHours!=null?ev.outreachHours:'';
+  const curCount=_outreachTargetOccDate?((ev.outreachCountByDate||{})[_outreachTargetOccDate]):ev.outreachCount;
+  const curHours=_outreachTargetOccDate?((ev.outreachHoursByDate||{})[_outreachTargetOccDate]):ev.outreachHours;
+  document.getElementById('outreach-count-input').value=curCount!=null?curCount:'';
+  document.getElementById('outreach-hours-input').value=curHours!=null?curHours:'';
   const btn=document.getElementById('outreach-save-btn');
   if(btn){btn.disabled=false;btn.textContent='Save';}
   document.getElementById('outreach-modal').classList.add('open');
@@ -8099,17 +8156,28 @@ window.submitOutreachCount=async()=>{
   const hours=rawH===''?null:Math.round(Number(rawH)*2)/2; // round to nearest 0.5; null if not provided
   const btn=document.getElementById('outreach-save-btn');
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  const key=_outreachTargetOccDate; // recurring → this occurrence only; else flat
   try{
-    await updateDoc(doc(db,'events',_outreachTargetEvId),{outreachCount:count,outreachHours:hours,outreachCountUpdatedBy:cu.uid,outreachCountUpdatedAt:serverTimestamp()});
+    const patch=key
+      ?{[`outreachCountByDate.${key}`]:count,[`outreachHoursByDate.${key}`]:hours,outreachCountUpdatedBy:cu.uid,outreachCountUpdatedAt:serverTimestamp()}
+      :{outreachCount:count,outreachHours:hours,outreachCountUpdatedBy:cu.uid,outreachCountUpdatedAt:serverTimestamp()};
+    await updateDoc(doc(db,'events',_outreachTargetEvId),patch);
     // Update local cache so UI reflects immediately
     const cached=events.find(e=>e.id===_outreachTargetEvId);
-    if(cached){cached.outreachCount=count;cached.outreachHours=hours;}
+    if(cached){
+      if(key){cached.outreachCountByDate={...(cached.outreachCountByDate||{}),[key]:count};cached.outreachHoursByDate={...(cached.outreachHoursByDate||{}),[key]:hours};}
+      else{cached.outreachCount=count;cached.outreachHours=hours;}
+    }
     toast(`Saved — ${count.toLocaleString()} students${hours!=null?', '+hours+'h':''}`);
     closeModal('outreach-modal');
     renderHomePage();
     if(currentPage==='dashboard')renderDashboard();
     // Refresh view modal if it's open on this event
-    if(viewingEv&&viewingEv.id===_outreachTargetEvId&&document.getElementById('view-modal').classList.contains('open')){viewingEv.outreachCount=count;openViewEvent(viewingEv);}
+    if(viewingEv&&viewingEv.id===_outreachTargetEvId&&document.getElementById('view-modal').classList.contains('open')){
+      if(key){viewingEv.outreachCountByDate={...(viewingEv.outreachCountByDate||{}),[key]:count};viewingEv.outreachHoursByDate={...(viewingEv.outreachHoursByDate||{}),[key]:hours};}
+      else{viewingEv.outreachCount=count;viewingEv.outreachHours=hours;}
+      openViewEvent(viewingEv);
+    }
   }catch(e){
     toast('Error saving');console.error(e);
     if(btn){btn.disabled=false;btn.textContent='Save';}
