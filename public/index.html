@@ -6305,19 +6305,16 @@ function openViewEvent(ev){
   if(outSec){
     if(ev.type==='outreach'){
       const canEdit=canEditOutreachCount(ev);
-      const isPast=daysUntil(ev.date)<0;
+      // Outreach numbers can be logged/edited anytime — before, during, or after
+      // the event. No time gate.
       let html='<span class="outreach-badge">🌱 OUTREACH</span>';
-      if(isPast){
-        if(ev.outreachCount!=null){
-          const hoursStr=ev.outreachHours!=null?`<div class="outreach-count-num" style="font-size:20px">${ev.outreachHours}</div><div class="outreach-count-label">hours</div>`:'';
-          html+=`<div class="outreach-count-box" style="margin-top:8px"><div style="display:flex;gap:18px;align-items:flex-end"><div><div class="outreach-count-num">${ev.outreachCount}</div><div class="outreach-count-label">students reached</div></div>${hoursStr}</div>${canEdit?`<button onclick="outreachViewed()" style="margin-left:auto;padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Edit</button>`:''}</div>`;
-        } else if(canEdit){
-          html+=`<div style="margin-top:8px;padding:10px 12px;background:var(--q-dark3);border:1px dashed rgba(0,232,122,.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:var(--q-muted2)">No data logged yet</span><button onclick="outreachViewed()" style="padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Log Data</button></div>`;
-        } else {
-          html+=`<div style="margin-top:8px;font-size:12px;color:var(--q-muted2);padding:8px 0">No data logged yet.</div>`;
-        }
+      if(ev.outreachCount!=null){
+        const hoursStr=ev.outreachHours!=null?`<div class="outreach-count-num" style="font-size:20px">${ev.outreachHours}</div><div class="outreach-count-label">hours</div>`:'';
+        html+=`<div class="outreach-count-box" style="margin-top:8px"><div style="display:flex;gap:18px;align-items:flex-end"><div><div class="outreach-count-num">${ev.outreachCount}</div><div class="outreach-count-label">students reached</div></div>${hoursStr}</div>${canEdit?`<button onclick="outreachViewed()" style="margin-left:auto;padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Edit</button>`:''}</div>`;
+      } else if(canEdit){
+        html+=`<div style="margin-top:8px;padding:10px 12px;background:var(--q-dark3);border:1px dashed rgba(0,232,122,.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:var(--q-muted2)">No data logged yet</span><button onclick="outreachViewed()" style="padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Log Data</button></div>`;
       } else {
-        html+=`<div style="margin-top:6px;font-size:11px;color:var(--q-muted2)">Data can be logged after the event.</div>`;
+        html+=`<div style="margin-top:8px;font-size:12px;color:var(--q-muted2);padding:8px 0">No data logged yet.</div>`;
       }
       outSec.innerHTML=html;outSec.style.display='block';
     } else {
