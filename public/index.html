@@ -6018,11 +6018,18 @@ window.setView=(v)=>{
 
 // ── Home ───────────────────────────────────────────────────────────────────
 function daysUntil(ds){const n=getNow();const today=new Date(n.getFullYear(),n.getMonth(),n.getDate());return(new Date(ds+'T00:00:00')-today)/(864e5);}
-function hasMeetingStarted(ev){
-  if(!ev||!ev.date)return false;
+// occDate overrides ev.date so recurring events are checked against the SPECIFIC
+// occurrence being RSVP'd, not the (often-past) first occurrence on the base doc.
+function hasMeetingStarted(ev,occDate){
+  const date=occDate||ev?.date;
+  if(!ev||!date)return false;
   const [h,m]=(ev.time||'23:59').split(':').map(Number);
-  const dt=new Date(ev.date+'T00:00:00');dt.setHours(h,m,0,0);
+  const dt=new Date(date+'T00:00:00');dt.setHours(h,m,0,0);
   return getNow()>=dt;
+}
+// The date of the occurrence being acted on for a (possibly recurring) event.
+function occDateFor(ev,occDate){
+  return (ev.repeat&&ev.repeat!=='none')?(occDate||ev.date):ev.date;
 }
 const priOrder={critical:0,important:1,optional:2};
 
@@ -6220,14 +6227,15 @@ window.rsvpEvent=async(evId,action,occDate=null)=>{
   const ev=events.find(e=>e.id===evId);if(!ev)return;
   const myInv=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
   const isOptional=myInv?.attendance==='optional';
+  const _occ=occDateFor(ev,occDate); // the specific occurrence being acted on
   // Optional invitees can always change RSVP until meeting starts; mandatory lock at 3 days
-  if(!isOptional&&daysUntil(ev.date)<3&&daysUntil(ev.date)>=0){toast('RSVP locked — within 3 days of event');return;}
+  if(!isOptional&&daysUntil(_occ)<3&&daysUntil(_occ)>=0){toast('RSVP locked — within 3 days of event');return;}
   const isRec=ev.repeat&&ev.repeat!=='none';
   const key=isRec?(occDate||ev.date):null;
   if(action==='decline'){
     if(isOptional){
       // Optional: silent opt-out, no reason needed, no unexcused absence
-      if(hasMeetingStarted(ev)){toast('Meeting has already started');return;}
+      if(hasMeetingStarted(ev,_occ)){toast('Meeting has already started');return;}
       const patch=key
         ?{[`rsvpByDate.${key}.${cu.uid}`]:'declined',[`optionalOptOutByDate.${key}.${cu.uid}`]:true,[`declineReasonsByDate.${key}.${cu.uid}`]:null}
         :{[`rsvp.${cu.uid}`]:'declined',[`optionalOptOut.${cu.uid}`]:true,[`declineReasons.${cu.uid}`]:null};
@@ -6383,14 +6391,16 @@ function openViewEvent(ev){
   // Optional opt-out: show for optional invitees before meeting starts, even if already accepted
   const myInvV=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
   const myRsvpV=getMyRsvp(ev,cu?.uid);
-  const showOptout=ev.type==='meeting'&&myInvV?.attendance==='optional'&&!hasMeetingStarted(ev)&&myRsvpV!=='declined';
+  const _occV=occDateFor(ev,ev._occurrenceDate); // this occurrence's date
+  const _startedV=hasMeetingStarted(ev,_occV);
+  const showOptout=ev.type==='meeting'&&myInvV?.attendance==='optional'&&!_startedV&&myRsvpV!=='declined';
   document.getElementById('view-optout-btn').style.display=showOptout?'block':'none';
   // "Going": let an invitee (re)confirm attendance whenever they're not already
   // marked accepted — this is how you switch back after declining.
-  const showAccept=ev.type==='meeting'&&myInvV&&myRsvpV!=='accepted'&&!hasMeetingStarted(ev);
+  const showAccept=ev.type==='meeting'&&myInvV&&myRsvpV!=='accepted'&&!_startedV;
   document.getElementById('view-accept-btn').style.display=showAccept?'block':'none';
-  const _daysToEv=daysUntil(ev.date);
-  const showDeclineBtn=ev.type==='meeting'&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!hasMeetingStarted(ev)&&(_daysToEv<0||_daysToEv>=3);
+  const _daysToEv=daysUntil(_occV);
+  const showDeclineBtn=ev.type==='meeting'&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
   document.getElementById('view-decline-btn').style.display=showDeclineBtn?'block':'none';
   const showAttBtn=ev.type==='meeting'&&(isOwn||isAdm)&&daysUntil(ev.date)<0&&(ev.invitees||[]).length>0;
   document.getElementById('view-attendance-btn').style.display=showAttBtn?'block':'none';
@@ -6478,7 +6488,7 @@ function renderViewPeople(){
 
 window.optionalOptOut=async(evId,occDate=null)=>{
   const ev=events.find(e=>e.id===evId);if(!ev)return;
-  if(hasMeetingStarted(ev)){toast('Meeting has already started');return;}
+  if(hasMeetingStarted(ev,occDateFor(ev,occDate))){toast('Meeting has already started');return;}
   const myInv=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
   if(!myInv||myInv.attendance!=='optional'){toast('Only optional invitees can opt out this way');return;}
   const isRec=ev.repeat&&ev.repeat!=='none';
