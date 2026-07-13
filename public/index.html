@@ -6903,8 +6903,12 @@ async function renderDashboard(){
   let outreachPanel=document.getElementById('dash-outreach-panel');
   if(!outreachPanel){
     outreachPanel=document.createElement('div');outreachPanel.id='dash-outreach-panel';outreachPanel.className='dash-outreach-panel';
-    const dashSum=document.getElementById('dash-summary');
-    if(dashSum&&dashSum.parentNode)dashSum.parentNode.insertBefore(outreachPanel,dashSum.nextSibling);
+  }
+  // Place it BELOW the (sticky, on mobile) tab bar and above the columns, so the
+  // sticky tab bar never covers it.
+  const _dashCols=document.getElementById('dash-columns');
+  if(_dashCols&&_dashCols.parentNode&&outreachPanel.nextElementSibling!==_dashCols){
+    _dashCols.parentNode.insertBefore(outreachPanel,_dashCols);
   }
   if(outreachEvents.length>0){
     const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
