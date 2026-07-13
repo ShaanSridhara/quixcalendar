@@ -5482,24 +5482,30 @@ function expandRec(evList,rs,re){
 // declineReasons/optionalOptOut fields apply to the whole series otherwise.
 // Non-recurring events keep using the flat fields untouched.
 function occKey(ev){ return (ev.repeat && ev.repeat!=='none') ? (ev._occurrenceDate||ev.date) : null; }
-// For recurring events, RSVP is strictly per-occurrence (rsvpByDate). We do NOT
-// fall back to the flat series-wide field: one legacy flat decline would
-// otherwise make EVERY occurrence look declined. Non-recurring events use flat.
+// Recurring-event RSVP model: the flat field (rsvp/declineReasons/optionalOptOut)
+// is the SERIES-WIDE answer ("I'm in for this weekly meeting"), and the per-date
+// map (rsvpByDate etc.) OVERRIDES it for a single occurrence. So we read the
+// per-occurrence value if the user set one, otherwise fall back to their series
+// answer. (Declining one occurrence only writes that date, so it never changes
+// the others.) Non-recurring events just use the flat field.
 function getMyRsvp(ev,uid){
   if(!uid) return undefined;
   const key=occKey(ev);
   if(!key) return (ev.rsvp||{})[uid];
-  return ((ev.rsvpByDate||{})[key]||{})[uid];
+  const perOcc=(ev.rsvpByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.rsvp||{})[uid];
 }
 function getDeclineReason(ev,uid){
   const key=occKey(ev);
   if(!key) return (ev.declineReasons||{})[uid];
-  return ((ev.declineReasonsByDate||{})[key]||{})[uid];
+  const perOcc=(ev.declineReasonsByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.declineReasons||{})[uid];
 }
 function getOptOut(ev,uid){
   const key=occKey(ev);
   if(!key) return (ev.optionalOptOut||{})[uid];
-  return ((ev.optionalOptOutByDate||{})[key]||{})[uid];
+  const perOcc=(ev.optionalOptOutByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.optionalOptOut||{})[uid];
 }
 // Outreach counts are ALSO per-occurrence for recurring events: each occurrence
 // stores its own students/hours in outreachCountByDate/outreachHoursByDate keyed
@@ -6257,14 +6263,17 @@ window.rsvpEvent=async(evId,action,occDate=null)=>{
       document.getElementById('decline-modal').classList.add('open');
     }
   } else {
+    // Accepting a recurring meeting means "I'm attending this series" — write the
+    // series-wide flat rsvp so it shows on every occurrence, and also stamp this
+    // occurrence (clears any earlier per-date decline for the date in view).
     const patch=key
-      ?{[`rsvpByDate.${key}.${cu.uid}`]:'accepted',[`declineReasonsByDate.${key}.${cu.uid}`]:null,[`optionalOptOutByDate.${key}.${cu.uid}`]:null}
+      ?{[`rsvp.${cu.uid}`]:'accepted',[`optionalOptOut.${cu.uid}`]:null,[`rsvpByDate.${key}.${cu.uid}`]:'accepted',[`declineReasonsByDate.${key}.${cu.uid}`]:null,[`optionalOptOutByDate.${key}.${cu.uid}`]:null}
       :{[`rsvp.${cu.uid}`]:'accepted',[`declineReasons.${cu.uid}`]:null,[`optionalOptOut.${cu.uid}`]:null};
     await updateDoc(doc(db,'events',evId),patch);
     const _ae=events.find(e=>e.id===evId);
     if(_ae){
+      if(!_ae.rsvp)_ae.rsvp={};_ae.rsvp[cu.uid]='accepted';
       if(key){if(!_ae.rsvpByDate)_ae.rsvpByDate={};if(!_ae.rsvpByDate[key])_ae.rsvpByDate[key]={};_ae.rsvpByDate[key][cu.uid]='accepted';}
-      else{if(!_ae.rsvp)_ae.rsvp={};_ae.rsvp[cu.uid]='accepted';}
     }
     toast('Accepted!');renderHomePage();
   }
