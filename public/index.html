@@ -3592,9 +3592,10 @@ body.light-mode .month-grid-day:hover {
   .dash-outreach-total { font-size: 24px; }
   .dash-outreach-event-row { padding: 6px 0; }
 
-  /* Tabs — WRAP so every tab (incl. Outreach/Team) is reachable; STICKY to the
-     top of the dashboard scroll so they stay reachable while viewing tasks. */
-  .dash-tab-bar { position: sticky; top: 0; z-index: 6;
+  /* Tabs — WRAP so every tab (incl. Outreach/Team) is reachable. NOT sticky:
+     a sticky bar covered the outreach panel / slivered content that scrolled
+     under it. Plain flow scrolls cleanly with nothing overlapping. */
+  .dash-tab-bar { position: static;
     padding: 8px 12px 6px; flex-wrap: wrap; gap: 4px; overflow-x: visible;
     border-bottom: 1px solid var(--q-border); background: var(--q-black); }
   .dash-tab { padding: 6px 11px; font-size: 11px; border: 1px solid var(--q-border2); border-radius: 8px; margin-bottom: 0; min-height: 32px; }
@@ -3625,14 +3626,10 @@ body.light-mode .month-grid-day:hover {
   .admin-member-row > div:nth-child(2) { flex: 1 1 calc(100% - 46px); }
   .admin-member-row > div:last-child { width: 100%; padding-left: 46px; margin-top: 2px; }
 
-  /* ── Dashboard: outreach panel — compact + scrollable so it can't
-       push the tab bar off-screen on small phones ── */
+  /* ── Dashboard: outreach panel — natural height, scrolls with the page ── */
   .dash-outreach-panel {
     margin: 0 12px 10px;
     padding: 12px 14px;
-    max-height: 170px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
   }
   .dash-outreach-total { font-size: 28px; }
 
@@ -6904,11 +6901,10 @@ async function renderDashboard(){
   if(!outreachPanel){
     outreachPanel=document.createElement('div');outreachPanel.id='dash-outreach-panel';outreachPanel.className='dash-outreach-panel';
   }
-  // Place it BELOW the (sticky, on mobile) tab bar and above the columns, so the
-  // sticky tab bar never covers it.
-  const _dashCols=document.getElementById('dash-columns');
-  if(_dashCols&&_dashCols.parentNode&&outreachPanel.nextElementSibling!==_dashCols){
-    _dashCols.parentNode.insertBefore(outreachPanel,_dashCols);
+  // Keep it in the overview area, right after the stat summary.
+  const _dashSum=document.getElementById('dash-summary');
+  if(_dashSum&&_dashSum.parentNode&&_dashSum.nextElementSibling!==outreachPanel){
+    _dashSum.parentNode.insertBefore(outreachPanel,_dashSum.nextSibling);
   }
   if(outreachEvents.length>0){
     const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
