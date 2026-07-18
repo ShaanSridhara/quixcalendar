@@ -4839,6 +4839,7 @@ function fmt12(t){
 
 // ── HTML escape helper — use for all user-generated content in innerHTML ──
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function linkify(s){return escHtml(s).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--q-blue2);text-decoration:underline;word-break:break-all">$1</a>');}
 // Escape user text placed inside a single-quoted JS string within a double-quoted
 // HTML attribute (e.g. onclick="fn('${jsStr(name)}')"). Neutralises attribute and
 // JS-string breakouts so a name like O'Brien or `"><script>` can't inject.
@@ -6351,7 +6352,7 @@ function openViewEvent(ev){
   } else if(locRow) locRow.style.display='none';
   if(ev.repeat&&ev.repeat!=='none'){document.getElementById('view-repeat').textContent=REPEAT_LABELS[ev.repeat]+(ev.repeatEnd?' until '+ev.repeatEnd:'');document.getElementById('view-repeat-row').style.display='flex';}
   else document.getElementById('view-repeat-row').style.display='none';
-  if(ev.description){document.getElementById('view-desc').textContent=ev.description;document.getElementById('view-desc').style.display='block';}
+  if(ev.description){document.getElementById('view-desc').innerHTML=linkify(ev.description);document.getElementById('view-desc').style.display='block';}
   else document.getElementById('view-desc').style.display='none';
   // Post-meeting notes
   let postEl=document.getElementById('view-post-notes');
