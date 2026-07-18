@@ -4540,6 +4540,14 @@ body.light-mode .month-grid-day:hover {
         <div id="ev-group-filter-task" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px"></div>
         <div class="member-checklist" id="ev-assign-checklist"><div class="member-check-empty">Loading…</div></div>
       </div>
+      <div class="form-group">
+        <label class="form-label">Completion tracking</label>
+        <div style="display:flex;gap:7px;margin-top:4px">
+          <button type="button" id="cmode-btn-group" onclick="setCompletionMode('group')" style="flex:1;padding:8px;font-size:11px;font-weight:700;border-radius:7px;border:1px solid rgba(0,180,255,.3);background:var(--q-blue-dim);color:var(--q-blue2);cursor:pointer;font-family:var(--font-body);opacity:1;transition:opacity .15s">👥 As a group</button>
+          <button type="button" id="cmode-btn-individual" onclick="setCompletionMode('individual')" style="flex:1;padding:8px;font-size:11px;font-weight:700;border-radius:7px;border:1px solid rgba(0,180,255,.3);background:var(--q-blue-dim);color:var(--q-blue2);cursor:pointer;font-family:var(--font-body);opacity:.45;transition:opacity .15s">🧑 Individually</button>
+        </div>
+        <div style="font-size:10px;color:var(--q-muted2);margin-top:4px">Individually: each assignee marks their own part done — no need to create a separate task per person.</div>
+      </div>
     </div>
 
     <!-- EVENT SECTION -->
@@ -4877,7 +4885,7 @@ let editEvId=null,viewingEv=null;
 let unsubEv=null,unsubCals=null;
 let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
-let userPfpUrl=null,myRole=null,currentTaskPriority='important',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
+let userPfpUrl=null,myRole=null,currentTaskPriority='important',currentTaskCompletionMode='group',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
 let _dashMeetings=[],_dashPeriodLabel='';
 let declineTargetEvId=null,declineTargetOccDate=null,unexcusedTarget=null,_outreachTargetEvId=null,_outreachTargetOccDate=null;
 let viewTab='all',currentPage='home';
@@ -6393,7 +6401,7 @@ function openViewEvent(ev){
   document.getElementById('view-dup-btn').style.display=(isOwn||isAdm||isMgr)?'block':'none';
   document.getElementById('view-edit-btn').style.display=(isOwn||isAdm||isMgr)&&!ev.completed?'block':'none';
   // FIX #6: complete button shows for admin OR task manager, task turns gray when done
-  document.getElementById('view-complete-btn').style.display=(ev.type==='task'&&(isAdm||isMgr)&&!ev.completed)?'block':'none';
+  document.getElementById('view-complete-btn').style.display=(ev.type==='task'&&(isAdm||isMgr)&&!ev.completed&&(ev.completionMode||'group')==='group')?'block':'none';
   // Optional opt-out: show for optional invitees before meeting starts, even if already accepted
   const myInvV=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
   const myRsvpV=getMyRsvp(ev,cu?.uid);
@@ -6430,12 +6438,21 @@ function renderViewPeople(){
     const pri=ev.priority||'important';
     const priColor=pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)';
     const priLabel=pri==='critical'?'Critical':pri==='important'?'Important':'Optional';
-    el.innerHTML=`<div style="margin-bottom:10px"><span class="priority-badge priority-${pri}" style="font-size:11px;padding:3px 10px">${priLabel} priority</span></div>`;
+    const isIndiv=(ev.completionMode||'group')==='individual';
+    const canToggleAny=isAdmin(ev.calendarId)||ev.taskManagerUid===cu?.uid;
+    el.innerHTML=`<div style="margin-bottom:10px"><span class="priority-badge priority-${pri}" style="font-size:11px;padding:3px 10px">${priLabel} priority</span>${isIndiv?' <span style="font-size:9px;font-weight:700;color:var(--q-blue2);background:var(--q-blue-dim);border-radius:5px;padding:3px 8px">INDIVIDUAL COMPLETION</span>':''}</div>`;
+    function completionBadge(p){
+      if(!isIndiv)return '';
+      const done=!!(ev.completedBy&&ev.completedBy[p.uid]);
+      const canToggle=canToggleAny||p.uid===cu?.uid;
+      if(canToggle)return `<button onclick="toggleMyTaskDone('${ev.id}','${p.uid}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid ${done?'rgba(34,197,94,.3)':'rgba(148,163,184,.3)'};background:${done?'var(--q-green-dim)':'var(--q-dark4)'};color:${done?'var(--q-green)':'var(--q-muted2)'};cursor:pointer;font-family:var(--font-body)">${done?'✓ Done':'Mark done'}</button>`;
+      return `<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:${done?'var(--q-green-dim)':'var(--q-dark4)'};color:${done?'var(--q-green)':'var(--q-muted2)'}">${done?'✓ Done':'Pending'}</span>`;
+    }
     // Manager first
     const mgrRow=ev.taskManagerUid?ppl.find(p=>p.uid===ev.taskManagerUid):null;
     if(mgrRow){
       const row=document.createElement('div');row.className='view-invitee-row';
-      row.innerHTML=`<span style="font-size:9px;font-weight:700;color:var(--q-blue2);background:var(--q-blue-dim);border-radius:5px;padding:2px 7px;flex-shrink:0">MANAGER</span><span style="color:var(--q-text);font-weight:600">${escHtml(mgrRow.name||mgrRow.displayName||"")}</span>`;
+      row.innerHTML=`<span style="font-size:9px;font-weight:700;color:var(--q-blue2);background:var(--q-blue-dim);border-radius:5px;padding:2px 7px;flex-shrink:0">MANAGER</span><span style="color:var(--q-text);font-weight:600;flex:1">${escHtml(mgrRow.name||mgrRow.displayName||"")}</span>${completionBadge(mgrRow)}`;
       el.appendChild(row);
     }
     // Other assignees
@@ -6444,7 +6461,7 @@ function renderViewPeople(){
       const lbl=document.createElement('div');lbl.style.cssText='font-size:9px;font-weight:700;color:var(--q-muted2);letter-spacing:.6px;text-transform:uppercase;margin:8px 0 5px';lbl.textContent='Assignees';el.appendChild(lbl);
       others.forEach(p=>{
         const row=document.createElement('div');row.className='view-invitee-row';
-        row.innerHTML=`<span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span>`;
+        row.innerHTML=`<span style="color:var(--q-text);font-weight:600;flex:1">${escHtml(p.name||p.displayName||"")}</span>${completionBadge(p)}`;
         el.appendChild(row);
       });
     }
@@ -6540,6 +6557,23 @@ window.markTaskComplete=async()=>{
   if(currentPage==='home')renderHomePage();
 };
 
+// Individual completion mode: each assignee marks their own part done; task as a whole
+// is "completed" once every assignee has checked in — avoids needing separate tasks per person.
+window.toggleMyTaskDone=async(evId,uid)=>{
+  const ev=events.find(e=>e.id===evId);if(!ev||ev.type!=='task')return;
+  const canToggle=isAdmin(ev.calendarId)||ev.taskManagerUid===cu?.uid||uid===cu?.uid;
+  if(!canToggle){toast('No permission');return;}
+  const completedBy={...(ev.completedBy||{})};
+  if(completedBy[uid])delete completedBy[uid];else completedBy[uid]=true;
+  const allDone=(ev.assignees||[]).length>0&&(ev.assignees||[]).every(a=>completedBy[a.uid]);
+  await updateDoc(doc(db,'events',evId),{completedBy,completed:allDone,completedAt:allDone?serverTimestamp():null});
+  ev.completedBy=completedBy;ev.completed=allDone;
+  if(viewingEv?.id===evId&&document.getElementById('view-modal').classList.contains('open')){
+    viewingEv.completedBy=completedBy;viewingEv.completed=allDone;openViewEvent(viewingEv);
+  }
+  if(currentPage==='home')renderHomePage();
+};
+
 // ── Unexcused ──────────────────────────────────────────────────────────────
 window.openUnexcused=(evId,uid,name,action)=>{
   unexcusedTarget={evId,uid,action};
@@ -6592,8 +6626,10 @@ function openEventModal(ev=null,defDate=null,defType='meeting'){
   document.getElementById('ev-delete-btn').style.display=ev?'block':'none';
   document.getElementById('ev-week-schedule-wrap').style.display=ev?'none':'block';
   currentTaskPriority=ev?.priority||'important';
+  currentTaskCompletionMode=ev?.completionMode||'group';
   _evColor=ev?.color||null;renderColorPicker(_evColor);
   setTaskPriority(currentTaskPriority);
+  setCompletionMode(currentTaskCompletionMode);
   document.getElementById('ev-allday').checked=ev?.allDay||false;
   document.getElementById('ev-time-row').style.display=(type==='task'||(type!=='task'&&!ev?.allDay))?'grid':'none';
   const sel=document.getElementById('ev-calendar');sel.innerHTML='';
@@ -7232,6 +7268,7 @@ function buildDashTaskItem(t,container,calId){
       <span class="priority-badge priority-${pri}" style="font-size:8px;padding:1px 5px">${pri.charAt(0).toUpperCase()+pri.slice(1)}</span>
       ${t.taskSubsection?`<span class="dash-subsec-tag" style="background:${subCol}22;color:${subCol}">${escHtml(t.taskSubsection)}</span>`:''}
       <span style="color:var(--q-muted2)">${dateStr}</span>
+      ${(t.completionMode==='individual'&&!t.completed&&(t.assignees||[]).length>0)?`<span style="color:var(--q-muted2)">${(t.assignees||[]).filter(a=>t.completedBy&&t.completedBy[a.uid]).length}/${(t.assignees||[]).length} done</span>`:''}
     </div>
     ${assigneeNames?`<div style="font-size:10px;color:var(--q-muted);margin-top:4px">👤 ${mgr?`<strong>${escHtml(mgr.displayName||mgr.name)}</strong> + `:''} ${assigneeNames}</div>`:''}
   `;
@@ -7244,6 +7281,13 @@ window.setTaskPriority=(pri)=>{
   ['critical','important','optional'].forEach(p=>{
     const btn=document.getElementById('pri-btn-'+p);
     if(btn)btn.style.opacity=p===pri?'1':'0.35';
+  });
+};
+window.setCompletionMode=(mode)=>{
+  currentTaskCompletionMode=mode;
+  ['group','individual'].forEach(m=>{
+    const btn=document.getElementById('cmode-btn-'+m);
+    if(btn)btn.style.opacity=m===mode?'1':'0.45';
   });
 };
 window.toggleInv=(uid)=>{const m=calMembers.find(x=>x.uid===uid);if(!m)return;const i=invitees.findIndex(x=>x.uid===uid);if(i>=0)invitees.splice(i,1);else invitees.push({...m,attendance:'mandatory'});renderChecklists();};
@@ -7296,6 +7340,7 @@ window.saveEvent=async()=>{
     taskManagerUid:currentType==='task'?(mgr||null):null,
     priority:currentType==='task'?taskPriority:null,
     taskSubsection:currentType==='task'?(document.getElementById('ev-task-subsection')?.value||null):null,
+    completionMode:currentType==='task'?(currentTaskCompletionMode||'group'):null,
     calendarId,color:_evColor||autoColor,
     description:document.getElementById('ev-desc').value.trim()||null,
     postNotes:currentType==='meeting'?(document.getElementById('ev-post-notes').value.trim()||null):null,
