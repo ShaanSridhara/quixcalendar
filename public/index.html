@@ -4557,9 +4557,26 @@ body.light-mode .month-grid-day:hover {
         <input type="checkbox" id="ev-is-outreach" style="accent-color:var(--q-green);width:14px;height:14px;flex-shrink:0" onchange="toggleEventOutreach()"/>
         <div>
           <div style="font-size:12px;font-weight:700;color:var(--q-text)">🌱 Outreach event</div>
-          <div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Attendees can log how many students were reached — shows on everyone's dashboard</div>
+          <div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Attendees can log outreach numbers — shows on everyone's dashboard</div>
         </div>
       </label>
+      <div id="ev-outreach-metrics-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--q-dark3);border:1px solid var(--q-border);border-radius:8px">
+        <div style="font-size:10px;font-weight:700;color:var(--q-muted2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">What should this event track?</div>
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer">
+          <input type="checkbox" id="ev-track-reach" checked style="accent-color:var(--q-green);width:14px;height:14px;flex-shrink:0;margin-top:1px" onchange="syncOutreachMetricChecks(this)"/>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--q-text)">Reached</div>
+            <div style="font-size:10px;color:var(--q-muted2)">Students reached at each visit — logged separately per occurrence for repeating events</div>
+          </div>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">
+          <input type="checkbox" id="ev-track-impact" style="accent-color:var(--q-green);width:14px;height:14px;flex-shrink:0;margin-top:1px" onchange="syncOutreachMetricChecks(this)"/>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--q-text)">Impacted</div>
+            <div style="font-size:10px;color:var(--q-muted2)">Total students impacted — logged once for the whole series, even if this event repeats</div>
+          </div>
+        </label>
+      </div>
     </div>
 
     <!-- PEOPLE SECTION — shared by meeting, event, outreach -->
@@ -4738,10 +4755,15 @@ body.light-mode .month-grid-day:hover {
     <div class="modal-title">📊 Log Outreach Impact</div>
     <p id="outreach-modal-event-name" style="font-size:13px;font-weight:600;color:var(--q-text);margin-bottom:4px"></p>
     <p id="outreach-modal-event-date" style="font-size:11px;color:var(--q-muted2);margin-bottom:16px"></p>
-    <div class="form-group">
-      <label class="form-label">How many students were reached?</label>
+    <div class="form-group" id="outreach-reach-wrap">
+      <label class="form-label" id="outreach-reach-label">How many students were reached?</label>
       <input class="form-input" id="outreach-count-input" type="number" min="0" max="99999" placeholder="e.g. 42" style="font-size:20px;font-weight:700;text-align:center"/>
       <div style="font-size:10px;color:var(--q-muted2);margin-top:5px;text-align:center">Enter the number of kids / students at the event — not team members</div>
+    </div>
+    <div class="form-group" id="outreach-impact-wrap">
+      <label class="form-label">How many students were impacted?</label>
+      <input class="form-input" id="outreach-impact-input" type="number" min="0" max="99999" placeholder="e.g. 150" style="font-size:20px;font-weight:700;text-align:center"/>
+      <div style="font-size:10px;color:var(--q-muted2);margin-top:5px;text-align:center" id="outreach-impact-hint">Total students impacted by this event</div>
     </div>
     <div class="form-group">
       <label class="form-label">Hours volunteered</label>
@@ -5528,23 +5550,33 @@ function getOutreachHours(ev){
   const v=(ev.outreachHoursByDate||{})[key];
   return v!=null?v:null;
 }
-// Totals across all logged occurrences (for dashboard sums).
+// Totals across all logged occurrences (for dashboard sums). Impact is always
+// a single series-wide number, even for repeating events — it is never split
+// per-occurrence the way "reached" is.
 function outreachSum(ev){
+  const impact=ev.outreachTrackImpact?(ev.outreachImpactCount||0):0;
   if(ev.repeat&&ev.repeat!=='none'){
     const c=ev.outreachCountByDate||{},h=ev.outreachHoursByDate||{};
-    return {students:Object.values(c).reduce((s,x)=>s+(x||0),0),hours:Object.values(h).reduce((s,x)=>s+(x||0),0),logged:Object.values(c).filter(x=>x!=null).length};
+    return {students:Object.values(c).reduce((s,x)=>s+(x||0),0),hours:Object.values(h).reduce((s,x)=>s+(x||0),0),logged:Object.values(c).filter(x=>x!=null).length,impact};
   }
-  return {students:ev.outreachCount||0,hours:ev.outreachHours||0,logged:ev.outreachCount!=null?1:0};
+  return {students:ev.outreachCount||0,hours:ev.outreachHours||0,logged:ev.outreachCount!=null?1:0,impact};
 }
 // Flatten outreach events into per-occurrence LOGGED entries {ev,date,count,hours}.
+// For events that only track Impact (no per-occurrence Reached data), the
+// series-wide impact number surfaces as a single entry instead.
 function outreachLoggedEntries(list){
   const out=[];
   list.forEach(e=>{
     if(e.repeat&&e.repeat!=='none'){
       const c=e.outreachCountByDate||{},h=e.outreachHoursByDate||{};
       Object.keys(c).forEach(dt=>{if(c[dt]!=null)out.push({ev:e,date:dt,count:c[dt],hours:h[dt]!=null?h[dt]:null});});
+      if(e.outreachTrackImpact&&e.outreachImpactCount!=null&&Object.keys(c).filter(dt=>c[dt]!=null).length===0){
+        out.push({ev:e,date:e.date,count:e.outreachImpactCount,hours:null,isImpact:true});
+      }
     } else if(e.outreachCount!=null){
       out.push({ev:e,date:e.date,count:e.outreachCount,hours:e.outreachHours!=null?e.outreachHours:null});
+    } else if(e.outreachTrackImpact&&e.outreachImpactCount!=null){
+      out.push({ev:e,date:e.date,count:e.outreachImpactCount,hours:e.outreachHours!=null?e.outreachHours:null,isImpact:true});
     }
   });
   return out;
@@ -6367,10 +6399,17 @@ function openViewEvent(ev){
       // Outreach numbers can be logged/edited anytime — before, during, or after
       // the event. No time gate.
       let html='<span class="outreach-badge">🌱 OUTREACH</span>';
-      const _oc=getOutreachCount(ev),_oh=getOutreachHours(ev);
-      if(_oc!=null){
-        const hoursStr=_oh!=null?`<div class="outreach-count-num" style="font-size:20px">${_oh}</div><div class="outreach-count-label">hours</div>`:'';
-        html+=`<div class="outreach-count-box" style="margin-top:8px"><div style="display:flex;gap:18px;align-items:flex-end"><div><div class="outreach-count-num">${_oc}</div><div class="outreach-count-label">students reached</div></div>${hoursStr}</div>${canEdit?`<button onclick="outreachViewed()" style="margin-left:auto;padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Edit</button>`:''}</div>`;
+      const isRec=ev.repeat&&ev.repeat!=='none';
+      const trackReach=ev.outreachTrackReach!==false,trackImpact=!!ev.outreachTrackImpact;
+      const _oc=trackReach?getOutreachCount(ev):null,_oh=getOutreachHours(ev);
+      const _oi=trackImpact?(ev.outreachImpactCount!=null?ev.outreachImpactCount:null):null;
+      const anyLogged=_oc!=null||_oi!=null;
+      if(anyLogged){
+        let statsHtml='';
+        if(trackReach)statsHtml+=`<div><div class="outreach-count-num">${_oc!=null?_oc:'—'}</div><div class="outreach-count-label">students reached${isRec?' (this visit)':''}</div></div>`;
+        if(trackImpact)statsHtml+=`<div><div class="outreach-count-num">${_oi!=null?_oi:'—'}</div><div class="outreach-count-label">students impacted${isRec?' (total)':''}</div></div>`;
+        const hoursStr=_oh!=null?`<div><div class="outreach-count-num" style="font-size:20px">${_oh}</div><div class="outreach-count-label">hours</div></div>`:'';
+        html+=`<div class="outreach-count-box" style="margin-top:8px"><div style="display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap">${statsHtml}${hoursStr}</div>${canEdit?`<button onclick="outreachViewed()" style="margin-left:auto;padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Edit</button>`:''}</div>`;
       } else if(canEdit){
         html+=`<div style="margin-top:8px;padding:10px 12px;background:var(--q-dark3);border:1px dashed rgba(0,232,122,.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:12px;color:var(--q-muted2)">No data logged yet</span><button onclick="outreachViewed()" style="padding:5px 12px;font-size:10px;font-weight:700;border-radius:7px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Log Data</button></div>`;
       } else {
@@ -6539,7 +6578,7 @@ window.deleteViewedEvent=async()=>{if(!viewingEv)return;if(viewingEv.uid!==cu?.u
 window.editViewedEvent=()=>{closeModal('view-modal');openEventModal(viewingEv);};
 window.duplicateViewedEvent=async()=>{
   if(!viewingEv)return;
-  const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,rsvpByDate,declineReasonsByDate,optionalOptOutByDate,outreachCount,outreachHours,outreachCountByDate,outreachHoursByDate,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
+  const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,rsvpByDate,declineReasonsByDate,optionalOptOutByDate,outreachCount,outreachHours,outreachCountByDate,outreachHoursByDate,outreachImpactCount,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
   data.title=(data.title||'')+(data.title?.endsWith(' (copy)')?'':' (copy)');
   data.completed=false;
   data.uid=cu.uid; // the duplicate is owned by whoever makes it
@@ -6610,7 +6649,25 @@ function openEventModal(ev=null,defDate=null,defType='meeting'){
   invitees=ev?.invitees?JSON.parse(JSON.stringify(ev.invitees)):[];
   assignees=ev?.assignees?JSON.parse(JSON.stringify(ev.assignees)):[];
   taskManagerUid=ev?.taskManagerUid||null;
+  document.getElementById('ev-repeat').value=ev?.repeat||'none';
+  document.getElementById('ev-repeat-end').value=ev?.repeatEnd||'';
+  document.getElementById('ev-repeat-end-wrap').style.display=(ev?.repeat&&ev.repeat!=='none')?'block':'none';
+
   const type=ev?.type||defType;currentType=type;switchType(type);
+  const trackReachCb=document.getElementById('ev-track-reach'),trackImpactCb=document.getElementById('ev-track-impact');
+  if(ev){
+    if(trackReachCb)trackReachCb.checked=ev.outreachTrackReach!==false;
+    if(trackImpactCb)trackImpactCb.checked=!!ev.outreachTrackImpact;
+  } else {
+    const repeatVal=document.getElementById('ev-repeat').value;
+    if(repeatVal!=='none'){
+      if(trackReachCb)trackReachCb.checked=false;
+      if(trackImpactCb)trackImpactCb.checked=true;
+    } else {
+      if(trackReachCb)trackReachCb.checked=true;
+      if(trackImpactCb)trackImpactCb.checked=false;
+    }
+  }
   document.getElementById('ev-title').value=ev?.title||'';
   // For recurring event occurrences, always edit the base event date, not the occurrence date
   document.getElementById('ev-date').value=(ev?._occurrenceDate?ev.date:ev?.date)||defDate||getTodayStr();
@@ -6621,9 +6678,6 @@ function openEventModal(ev=null,defDate=null,defType='meeting'){
   document.getElementById('ev-desc').value=ev?.description||'';
   document.getElementById('ev-post-notes').value=ev?.postNotes||'';
   updatePostNotesVisibility(ev?.date||document.getElementById('ev-date').value);
-  document.getElementById('ev-repeat').value=ev?.repeat||'none';
-  document.getElementById('ev-repeat-end').value=ev?.repeatEnd||'';
-  document.getElementById('ev-repeat-end-wrap').style.display=(ev?.repeat&&ev.repeat!=='none')?'block':'none';
   document.getElementById('ev-delete-btn').style.display=ev?'block':'none';
   document.getElementById('ev-week-schedule-wrap').style.display=ev?'none':'block';
   currentTaskPriority=ev?.priority||'important';
@@ -6654,7 +6708,22 @@ function openEventModal(ev=null,defDate=null,defType='meeting'){
   document.getElementById('ev-title').focus();
 }
 
-document.getElementById('ev-repeat').addEventListener('change',()=>{document.getElementById('ev-repeat-end-wrap').style.display=document.getElementById('ev-repeat').value!=='none'?'block':'none';});
+document.getElementById('ev-repeat').addEventListener('change',()=>{
+  const val=document.getElementById('ev-repeat').value;
+  document.getElementById('ev-repeat-end-wrap').style.display=val!=='none'?'block':'none';
+  if(currentType==='outreach'){
+    const reachCb=document.getElementById('ev-track-reach'),impactCb=document.getElementById('ev-track-impact');
+    if(reachCb&&impactCb){
+      if(val!=='none'){
+        reachCb.checked=false;
+        impactCb.checked=true;
+      }else{
+        reachCb.checked=true;
+        impactCb.checked=false;
+      }
+    }
+  }
+});
 window.toggleAllDay=()=>{document.getElementById('ev-time-row').style.display=document.getElementById('ev-allday').checked?'none':'grid';};
 
 window.switchType=(type)=>{
@@ -6678,6 +6747,8 @@ window.switchType=(type)=>{
   // sync the outreach checkbox with type
   const cb=document.getElementById('ev-is-outreach');
   if(cb){cb.checked=type==='outreach';document.getElementById('ev-outreach-toggle-wrap').classList.toggle('active',type==='outreach');}
+  const metricsWrap=document.getElementById('ev-outreach-metrics-wrap');
+  if(metricsWrap)metricsWrap.style.display=type==='outreach'?'block':'none';
   // people section: shown for meeting, event, outreach — hidden for task
   const hasPeople=type!=='task';
   document.getElementById('ev-people-section').style.display=hasPeople?'block':'none';
@@ -6932,6 +7003,7 @@ async function renderDashboard(){
   const outreachEvents=events.filter(e=>e.type==='outreach'&&(e.calendarId===calId||e.sharedCalId===calId));
   const _outreachEntries=outreachLoggedEntries(outreachEvents); // per-occurrence logged entries
   const totalStudents=outreachEvents.reduce((s,e)=>s+outreachSum(e).students,0);
+  const totalImpacted=outreachEvents.reduce((s,e)=>s+outreachSum(e).impact,0);
   const colsWrap=document.getElementById('dash-columns');
   // Outreach panel above the column area (use dash-summary area for this)
   let outreachPanel=document.getElementById('dash-outreach-panel');
@@ -6946,9 +7018,16 @@ async function renderDashboard(){
   if(outreachEvents.length>0){
     const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const recent=_outreachEntries.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
-    // Pending = non-recurring past outreach with no count. (Per-occurrence
-    // pending nudges for recurring events live on the Home page.)
-    const pending=outreachEvents.filter(e=>!(e.repeat&&e.repeat!=='none')&&e.outreachCount==null&&daysUntil(e.date)<0);
+    // Pending = non-recurring past outreach missing a value for a metric it
+    // tracks. (Per-occurrence pending nudges for recurring events live on the
+    // Home page.)
+    const pending=outreachEvents.filter(e=>{
+      if(e.repeat&&e.repeat!=='none')return false;
+      if(daysUntil(e.date)>=0)return false;
+      const reachMissing=e.outreachTrackReach!==false&&e.outreachCount==null;
+      const impactMissing=e.outreachTrackImpact&&e.outreachImpactCount==null;
+      return reachMissing||impactMissing;
+    });
     const totalHours=outreachEvents.reduce((s,e)=>s+outreachSum(e).hours,0);
     outreachPanel.innerHTML=`
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
@@ -6956,14 +7035,15 @@ async function renderDashboard(){
         <span style="font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--q-green)">Outreach Impact</span>
         ${pending.length?`<span style="margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(255,184,48,.12);color:var(--q-amber);border:1px solid rgba(255,184,48,.25)">${pending.length} report${pending.length!==1?'s':''} pending</span>`:''}
       </div>
-      <div style="display:flex;align-items:flex-end;gap:20px;margin-bottom:14px">
+      <div style="display:flex;align-items:flex-end;gap:20px;margin-bottom:14px;flex-wrap:wrap">
         <div style="display:flex;align-items:flex-end;gap:4px">
           <div class="dash-outreach-total">${totalStudents.toLocaleString()}</div>
           <div style="font-size:12px;color:var(--q-muted);margin-bottom:6px;padding-left:4px">students reached</div>
         </div>
+        ${totalImpacted>0?`<div style="display:flex;align-items:flex-end;gap:4px"><div class="dash-outreach-total" style="font-size:28px">${totalImpacted.toLocaleString()}</div><div style="font-size:12px;color:var(--q-muted);margin-bottom:6px;padding-left:4px">students impacted</div></div>`:''}
         ${totalHours>0?`<div style="display:flex;align-items:flex-end;gap:4px"><div class="dash-outreach-total" style="font-size:28px">${totalHours}</div><div style="font-size:12px;color:var(--q-muted);margin-bottom:6px;padding-left:4px">hours</div></div>`:''}
       </div>
-      ${recent.length?`<div>${recent.map(en=>{const e=en.ev;const d=new Date(en.date+'T12:00:00');const editBtn=canEditOutreachCount(e)?`<button onclick="openOutreachModal('${e.id}','${en.date}')" style="margin-left:8px;padding:3px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit</button>`:'';return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(e.title)}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0"><div style="font-size:13px;font-weight:800;color:var(--q-green)">${(en.count||0).toLocaleString()}</div>${en.hours!=null?`<div style="font-size:10px;color:var(--q-muted2)">${en.hours}h</div>`:''}</div>${editBtn}</div>`;}).join('')}</div>`:''}
+      ${recent.length?`<div>${recent.map(en=>{const e=en.ev;const d=new Date(en.date+'T12:00:00');const editBtn=canEditOutreachCount(e)?`<button onclick="openOutreachModal('${e.id}','${en.date}')" style="margin-left:8px;padding:3px 9px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid rgba(0,232,122,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body);flex-shrink:0">Edit</button>`:'';return`<div class="dash-outreach-event-row"><div style="width:6px;height:6px;border-radius:50%;background:var(--q-green);flex-shrink:0"></div><div style="flex:1;font-size:12px;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(e.title)}</div><div style="font-size:11px;color:var(--q-muted2);margin:0 8px;flex-shrink:0">${M[d.getMonth()]} ${d.getDate()}</div><div style="display:flex;gap:8px;align-items:center;flex-shrink:0">${en.isImpact?`<span style="font-size:9px;font-weight:700;color:var(--q-muted2);text-transform:uppercase">impact</span>`:''}<div style="font-size:13px;font-weight:800;color:var(--q-green)">${(en.count||0).toLocaleString()}</div>${en.hours!=null?`<div style="font-size:10px;color:var(--q-muted2)">${en.hours}h</div>`:''}</div>${editBtn}</div>`;}).join('')}</div>`:''}
       ${_outreachEntries.length===0?`<div style="font-size:12px;color:var(--q-muted2)">No data logged yet. Log from event detail after outreach events.</div>`:''}
 
     `;
@@ -7300,6 +7380,27 @@ window.toggleEventOutreach=()=>{
   const cb=document.getElementById('ev-is-outreach');if(!cb)return;
   document.getElementById('ev-outreach-toggle-wrap').classList.toggle('active',cb.checked);
   currentType=cb.checked?'outreach':'event';
+  const metricsWrap=document.getElementById('ev-outreach-metrics-wrap');
+  if(metricsWrap)metricsWrap.style.display=cb.checked?'block':'none';
+  if(cb.checked && !editEvId){
+    const val=document.getElementById('ev-repeat').value;
+    const reachCb=document.getElementById('ev-track-reach'),impactCb=document.getElementById('ev-track-impact');
+    if(reachCb&&impactCb){
+      if(val!=='none'){
+        reachCb.checked=false;
+        impactCb.checked=true;
+      }else{
+        reachCb.checked=true;
+        impactCb.checked=false;
+      }
+    }
+  }
+};
+// At least one of Reached / Impacted must stay checked for an outreach event.
+window.syncOutreachMetricChecks=(changed)=>{
+  const reachCb=document.getElementById('ev-track-reach'),impactCb=document.getElementById('ev-track-impact');
+  if(!reachCb||!impactCb)return;
+  if(!reachCb.checked&&!impactCb.checked){(changed===reachCb?impactCb:reachCb).checked=true;}
 };
 
 // FIX #5: task saving fixed — inviteeUids includes assignee uids so subscribeInvitedEvents works
@@ -7326,6 +7427,9 @@ window.saveEvent=async()=>{
   const hasPeople=currentType==='meeting'||currentType==='event'||currentType==='outreach';
   const inviteeUids=hasPeople?invitees.map(i=>i.uid):assignees.map(a=>a.uid);
   const isOutreach=currentType==='outreach';
+  const outreachTrackReach=isOutreach?document.getElementById('ev-track-reach').checked:null;
+  const outreachTrackImpact=isOutreach?document.getElementById('ev-track-impact').checked:null;
+  if(isOutreach&&!outreachTrackReach&&!outreachTrackImpact){toast('Pick at least one: Reached or Impacted');return;}
   const taskTime=currentType==='task'?(document.getElementById('ev-time').value||null):null;
   const data={
     uid:cu.uid,title,type:currentType,
@@ -7345,7 +7449,7 @@ window.saveEvent=async()=>{
     calendarId,color:_evColor||autoColor,
     description:document.getElementById('ev-desc').value.trim()||null,
     postNotes:currentType==='meeting'?(document.getElementById('ev-post-notes').value.trim()||null):null,
-    isOutreach,completed:editEvId?(events.find(e=>e.id===editEvId)?.completed||false):false,updatedAt:serverTimestamp()
+    isOutreach,outreachTrackReach,outreachTrackImpact,completed:editEvId?(events.find(e=>e.id===editEvId)?.completed||false):false,updatedAt:serverTimestamp()
   };
   const btn=document.getElementById('ev-save-btn');
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
@@ -8157,16 +8261,23 @@ function renderPendingOutreachReports(){
   const entries=[];
   events.forEach(e=>{
     if(e.type!=='outreach'||!canEditOutreachCount(e))return;
+    const trackReach=e.outreachTrackReach!==false,trackImpact=!!e.outreachTrackImpact;
+    // Impact is series-wide (logged once ever), so it's "done" globally —
+    // never re-nudged per occurrence once any entry has logged it.
+    const impactDone=!trackImpact||e.outreachImpactCount!=null;
     if(e.repeat&&e.repeat!=='none'){
       expandRec([e],weekAgo,now).forEach(occ=>{
         const dLeft=daysUntil(occ.date);
         if(dLeft>0||dLeft<-7)return;
-        if((e.outreachCountByDate||{})[occ._occurrenceDate]!=null)return;
+        const reachDone=!trackReach||(e.outreachCountByDate||{})[occ._occurrenceDate]!=null;
+        if(reachDone&&impactDone)return;
         entries.push({ev:e,date:occ._occurrenceDate});
       });
     } else {
       const dLeft=daysUntil(e.date);
-      if(dLeft>0||dLeft<-7||e.outreachCount!=null)return;
+      if(dLeft>0||dLeft<-7)return;
+      const reachDone=!trackReach||e.outreachCount!=null;
+      if(reachDone&&impactDone)return;
       entries.push({ev:e,date:e.date});
     }
   });
@@ -8201,46 +8312,80 @@ window.openOutreachModal=(evOrId,occDate=null)=>{
   const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   document.getElementById('outreach-modal-event-name').textContent=ev.title;
   document.getElementById('outreach-modal-event-date').textContent=`${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${ev.time?' · '+fmt12(ev.time):''}`;
+  const trackReach=ev.outreachTrackReach!==false,trackImpact=!!ev.outreachTrackImpact;
+  const reachWrap=document.getElementById('outreach-reach-wrap'),impactWrap=document.getElementById('outreach-impact-wrap');
+  reachWrap.style.display=trackReach?'block':'none';
+  impactWrap.style.display=trackImpact?'block':'none';
+  document.getElementById('outreach-reach-label').textContent=isRec?'How many students were reached at this occurrence?':'How many students were reached?';
+  document.getElementById('outreach-impact-hint').textContent=isRec?'Total for the whole series — logged once, not per occurrence':'Total students impacted by this event';
   const curCount=_outreachTargetOccDate?((ev.outreachCountByDate||{})[_outreachTargetOccDate]):ev.outreachCount;
   const curHours=_outreachTargetOccDate?((ev.outreachHoursByDate||{})[_outreachTargetOccDate]):ev.outreachHours;
+  const curImpact=ev.outreachImpactCount; // always flat/series-wide, never per-occurrence
   document.getElementById('outreach-count-input').value=curCount!=null?curCount:'';
+  document.getElementById('outreach-impact-input').value=curImpact!=null?curImpact:'';
   document.getElementById('outreach-hours-input').value=curHours!=null?curHours:'';
   const btn=document.getElementById('outreach-save-btn');
   if(btn){btn.disabled=false;btn.textContent='Save';}
   document.getElementById('outreach-modal').classList.add('open');
-  setTimeout(()=>document.getElementById('outreach-count-input').focus(),80);
+  setTimeout(()=>document.getElementById(trackReach?'outreach-count-input':'outreach-impact-input').focus(),80);
 };
 
 window.submitOutreachCount=async()=>{
   if(!_outreachTargetEvId){toast('No event selected');return;}
-  const raw=document.getElementById('outreach-count-input').value.trim();
-  if(raw===''||isNaN(Number(raw))||Number(raw)<0){toast('Enter a valid student count');return;}
-  const count=Math.round(Number(raw));
+  const ev=events.find(e=>e.id===_outreachTargetEvId);
+  const trackReach=ev?.outreachTrackReach!==false,trackImpact=!!ev?.outreachTrackImpact;
+  let count=null,impact=null;
+  if(trackReach){
+    const raw=document.getElementById('outreach-count-input').value.trim();
+    if(raw===''||isNaN(Number(raw))||Number(raw)<0){toast('Enter a valid student count');return;}
+    count=Math.round(Number(raw));
+  }
+  if(trackImpact){
+    const rawI=document.getElementById('outreach-impact-input').value.trim();
+    if(rawI===''||isNaN(Number(rawI))||Number(rawI)<0){toast('Enter a valid impact count');return;}
+    impact=Math.round(Number(rawI));
+  }
   const rawH=document.getElementById('outreach-hours-input').value.trim();
   if(rawH!==''&&(isNaN(Number(rawH))||Number(rawH)<0)){toast('Enter valid hours (e.g. 2.5)');return;}
   const hours=rawH===''?null:Math.round(Number(rawH)*2)/2; // round to nearest 0.5; null if not provided
   const btn=document.getElementById('outreach-save-btn');
   if(btn){btn.disabled=true;btn.textContent='Saving…';}
-  const key=_outreachTargetOccDate; // recurring → this occurrence only; else flat
+  const key=_outreachTargetOccDate; // recurring → "reached" applies to this occurrence only; else flat
   try{
-    const patch=key
-      ?{[`outreachCountByDate.${key}`]:count,[`outreachHoursByDate.${key}`]:hours,outreachCountUpdatedBy:cu.uid,outreachCountUpdatedAt:serverTimestamp()}
-      :{outreachCount:count,outreachHours:hours,outreachCountUpdatedBy:cu.uid,outreachCountUpdatedAt:serverTimestamp()};
+    const patch={outreachCountUpdatedBy:cu.uid,outreachCountUpdatedAt:serverTimestamp()};
+    if(trackReach){
+      if(key){patch[`outreachCountByDate.${key}`]=count;patch[`outreachHoursByDate.${key}`]=hours;}
+      else{patch.outreachCount=count;patch.outreachHours=hours;}
+    } else if(!key){
+      patch.outreachHours=hours;
+    }
+    // Impact is always series-wide — one flat field regardless of recurrence.
+    if(trackImpact)patch.outreachImpactCount=impact;
     await updateDoc(doc(db,'events',_outreachTargetEvId),patch);
     // Update local cache so UI reflects immediately
     const cached=events.find(e=>e.id===_outreachTargetEvId);
     if(cached){
-      if(key){cached.outreachCountByDate={...(cached.outreachCountByDate||{}),[key]:count};cached.outreachHoursByDate={...(cached.outreachHoursByDate||{}),[key]:hours};}
-      else{cached.outreachCount=count;cached.outreachHours=hours;}
+      if(trackReach){
+        if(key){cached.outreachCountByDate={...(cached.outreachCountByDate||{}),[key]:count};cached.outreachHoursByDate={...(cached.outreachHoursByDate||{}),[key]:hours};}
+        else{cached.outreachCount=count;cached.outreachHours=hours;}
+      } else if(!key){cached.outreachHours=hours;}
+      if(trackImpact)cached.outreachImpactCount=impact;
     }
-    toast(`Saved — ${count.toLocaleString()} students${hours!=null?', '+hours+'h':''}`);
+    const parts=[];
+    if(trackReach)parts.push(`${count.toLocaleString()} reached`);
+    if(trackImpact)parts.push(`${impact.toLocaleString()} impacted`);
+    if(hours!=null)parts.push(hours+'h');
+    toast(`Saved — ${parts.join(', ')}`);
     closeModal('outreach-modal');
     renderHomePage();
     if(currentPage==='dashboard')renderDashboard();
     // Refresh view modal if it's open on this event
     if(viewingEv&&viewingEv.id===_outreachTargetEvId&&document.getElementById('view-modal').classList.contains('open')){
-      if(key){viewingEv.outreachCountByDate={...(viewingEv.outreachCountByDate||{}),[key]:count};viewingEv.outreachHoursByDate={...(viewingEv.outreachHoursByDate||{}),[key]:hours};}
-      else{viewingEv.outreachCount=count;viewingEv.outreachHours=hours;}
+      if(trackReach){
+        if(key){viewingEv.outreachCountByDate={...(viewingEv.outreachCountByDate||{}),[key]:count};viewingEv.outreachHoursByDate={...(viewingEv.outreachHoursByDate||{}),[key]:hours};}
+        else{viewingEv.outreachCount=count;viewingEv.outreachHours=hours;}
+      } else if(!key){viewingEv.outreachHours=hours;}
+      if(trackImpact)viewingEv.outreachImpactCount=impact;
       openViewEvent(viewingEv);
     }
   }catch(e){
