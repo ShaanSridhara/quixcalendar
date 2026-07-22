@@ -6447,14 +6447,17 @@ function openViewEvent(ev){
   const myRsvpV=getMyRsvp(ev,cu?.uid);
   const _occV=occDateFor(ev,ev._occurrenceDate); // this occurrence's date
   const _startedV=hasMeetingStarted(ev,_occV);
-  const showOptout=ev.type==='meeting'&&myInvV?.attendance==='optional'&&!_startedV&&myRsvpV!=='declined';
+  // RSVP applies to any type that can carry invitees (meeting/event/outreach —
+  // same set as `hasPeople` when saving), not just meetings.
+  const _rsvpableType=ev.type==='meeting'||ev.type==='event'||ev.type==='outreach';
+  const showOptout=_rsvpableType&&myInvV?.attendance==='optional'&&!_startedV&&myRsvpV!=='declined';
   document.getElementById('view-optout-btn').style.display=showOptout?'block':'none';
   // "Going": let an invitee (re)confirm attendance whenever they're not already
   // marked accepted — this is how you switch back after declining.
-  const showAccept=ev.type==='meeting'&&myInvV&&myRsvpV!=='accepted'&&!_startedV;
+  const showAccept=_rsvpableType&&myInvV&&myRsvpV!=='accepted'&&!_startedV;
   document.getElementById('view-accept-btn').style.display=showAccept?'block':'none';
   const _daysToEv=daysUntil(_occV);
-  const showDeclineBtn=ev.type==='meeting'&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
+  const showDeclineBtn=_rsvpableType&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
   document.getElementById('view-decline-btn').style.display=showDeclineBtn?'block':'none';
   const showAttBtn=ev.type==='meeting'&&(isOwn||isAdm)&&daysUntil(ev.date)<0&&(ev.invitees||[]).length>0;
   document.getElementById('view-attendance-btn').style.display=showAttBtn?'block':'none';
