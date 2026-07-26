@@ -6119,8 +6119,10 @@ function renderHomePage(){
         const goingSpan=myRsvpU==='accepted'?'<span style="font-size:9px;color:var(--q-green);font-weight:700;padding:3px 6px">✓ Going</span>':'';
         const notGoingBtn=myRsvpU!=='declined'?`<button class="btn-decline" style="font-size:9px;padding:3px 7px" onclick="event.stopPropagation();optionalOptOut('${ev.id}','${ev._occurrenceDate||''}')">Not Going</button>`:'<span style="font-size:9px;color:var(--q-amber);padding:3px 6px">Not Attending</span>';
         rsvpHtml=`<div style="display:flex;gap:4px;flex-shrink:0">${goingSpan}${notGoingBtn}</div>`;
-      } else if(lockedU){
-        const lockedLabel=myRsvpU==='accepted'?'✓ Going':myRsvpU==='declined'?'✗ Declined':'🔒 Locked';
+      } else if(lockedU&&myRsvpU){
+        // Only show as locked once a response already exists — a first-time
+        // response is always allowed, even inside the 3-day window.
+        const lockedLabel=myRsvpU==='accepted'?'✓ Going':'✗ Declined';
         rsvpHtml=`<span style="font-size:9px;color:var(--q-muted2);padding:3px 7px;background:var(--q-dark4);border-radius:5px;white-space:nowrap">${lockedLabel}</span>`;
       } else {
         if(myRsvpU==='declined'){
