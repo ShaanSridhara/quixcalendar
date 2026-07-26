@@ -6272,10 +6272,14 @@ window.rsvpEvent=async(evId,action,occDate=null)=>{
   const myInv=(ev.invitees||[]).find(p=>p.uid===cu?.uid);
   const isOptional=myInv?.attendance==='optional';
   const _occ=occDateFor(ev,occDate); // the specific occurrence being acted on
-  // Optional invitees can always change RSVP until meeting starts; mandatory lock at 3 days
-  if(!isOptional&&daysUntil(_occ)<3&&daysUntil(_occ)>=0){toast('RSVP locked — within 3 days of event');return;}
   const isRec=ev.repeat&&ev.repeat!=='none';
   const key=isRec?(occDate||ev.date):null;
+  const perOccRsvp=key?(ev.rsvpByDate||{})[key]||{}:{};
+  const existingRsvp=key&&(cu?.uid in perOccRsvp)?perOccRsvp[cu.uid]:(ev.rsvp||{})[cu?.uid];
+  // Optional invitees can always change RSVP until meeting starts; mandatory can
+  // still give their FIRST response within 3 days (they never got a chance to
+  // respond earlier) — the lock only blocks CHANGING an already-given response.
+  if(!isOptional&&existingRsvp&&daysUntil(_occ)<3&&daysUntil(_occ)>=0){toast('RSVP locked — within 3 days of event');return;}
   if(action==='decline'){
     if(isOptional){
       // Optional: silent opt-out, no reason needed, no unexcused absence
