@@ -6075,6 +6075,16 @@ function hasMeetingStarted(ev,occDate){
 function occDateFor(ev,occDate){
   return (ev.repeat&&ev.repeat!=='none')?(occDate||ev.date):ev.date;
 }
+// The mandatory 3-day RSVP lock should only kick in when the invitee actually
+// HAD 3 days' notice — i.e. the event/series was created at least 3 days
+// before the (occurrence) date in question. If it was created inside that
+// window there was never a fair chance to respond earlier, so it's never locked.
+function hadFullNotice(ev,occDateStr){
+  const created=ev.createdAt?.toDate?ev.createdAt.toDate():null;
+  if(!created)return true; // unknown creation time (legacy doc) — fall back to normal lock behavior
+  const evDate=new Date((occDateStr||ev.date)+'T00:00:00');
+  return(evDate-created)/864e5>=3;
+}
 const priOrder={critical:0,important:1,optional:2};
 
 function renderHomePage(){
@@ -6111,7 +6121,9 @@ function renderHomePage(){
     const myInvU=(ev.invitees||[]).find(p=>p.uid===myUid||p.email===myEmail);
     const isOptionalU=myInvU?.attendance==='optional';
     const daysToEv=daysUntil(ev.date);
-    const lockedU=daysToEv>=0&&daysToEv<3;
+    // Only locked if the invitee actually had the standard 3-day notice window
+    // (event/series created >=3 days before this occurrence) — see hadFullNotice.
+    const lockedU=daysToEv>=0&&daysToEv<3&&hadFullNotice(ev,ev.date);
     let rsvpHtml='';
     if(isInvitedU){
       if(lockedU&&isOptionalU&&!hasMeetingStarted(ev)){
@@ -6119,10 +6131,8 @@ function renderHomePage(){
         const goingSpan=myRsvpU==='accepted'?'<span style="font-size:9px;color:var(--q-green);font-weight:700;padding:3px 6px">✓ Going</span>':'';
         const notGoingBtn=myRsvpU!=='declined'?`<button class="btn-decline" style="font-size:9px;padding:3px 7px" onclick="event.stopPropagation();optionalOptOut('${ev.id}','${ev._occurrenceDate||''}')">Not Going</button>`:'<span style="font-size:9px;color:var(--q-amber);padding:3px 6px">Not Attending</span>';
         rsvpHtml=`<div style="display:flex;gap:4px;flex-shrink:0">${goingSpan}${notGoingBtn}</div>`;
-      } else if(lockedU&&myRsvpU){
-        // Only show as locked once a response already exists — a first-time
-        // response is always allowed, even inside the 3-day window.
-        const lockedLabel=myRsvpU==='accepted'?'✓ Going':'✗ Declined';
+      } else if(lockedU){
+        const lockedLabel=myRsvpU==='accepted'?'✓ Going':myRsvpU==='declined'?'✗ Declined':'🔒 Locked';
         rsvpHtml=`<span style="font-size:9px;color:var(--q-muted2);padding:3px 7px;background:var(--q-dark4);border-radius:5px;white-space:nowrap">${lockedLabel}</span>`;
       } else {
         if(myRsvpU==='declined'){
@@ -6276,12 +6286,11 @@ window.rsvpEvent=async(evId,action,occDate=null)=>{
   const _occ=occDateFor(ev,occDate); // the specific occurrence being acted on
   const isRec=ev.repeat&&ev.repeat!=='none';
   const key=isRec?(occDate||ev.date):null;
-  const perOccRsvp=key?(ev.rsvpByDate||{})[key]||{}:{};
-  const existingRsvp=key&&(cu?.uid in perOccRsvp)?perOccRsvp[cu.uid]:(ev.rsvp||{})[cu?.uid];
-  // Optional invitees can always change RSVP until meeting starts; mandatory can
-  // still give their FIRST response within 3 days (they never got a chance to
-  // respond earlier) — the lock only blocks CHANGING an already-given response.
-  if(!isOptional&&existingRsvp&&daysUntil(_occ)<3&&daysUntil(_occ)>=0){toast('RSVP locked — within 3 days of event');return;}
+  // Optional invitees can always change RSVP until meeting starts; mandatory
+  // is locked within 3 days of the event, but only if the invitee actually
+  // HAD that 3-day notice (event/series created >=3 days before this
+  // occurrence) — see hadFullNotice.
+  if(!isOptional&&hadFullNotice(ev,_occ)&&daysUntil(_occ)<3&&daysUntil(_occ)>=0){toast('RSVP locked — within 3 days of event');return;}
   if(action==='decline'){
     if(isOptional){
       // Optional: silent opt-out, no reason needed, no unexcused absence
