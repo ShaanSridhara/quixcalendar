@@ -7006,7 +7006,13 @@ async function renderDashboard(){
   }
   if(outreachEvents.length>0){
     const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const recent=_outreachEntries.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+    // One row per event, not per occurrence — a repeating event's most
+    // recently logged visit represents the whole series here.
+    const _seenEv=new Set();
+    const recent=_outreachEntries.slice().sort((a,b)=>b.date.localeCompare(a.date)).filter(en=>{
+      if(_seenEv.has(en.ev.id))return false;
+      _seenEv.add(en.ev.id);return true;
+    }).slice(0,5);
     // Pending = non-recurring past outreach missing a value for a metric it
     // tracks. (Per-occurrence pending nudges for recurring events live on the
     // Home page.)
