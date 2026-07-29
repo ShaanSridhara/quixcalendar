@@ -1585,6 +1585,14 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .type-btn.active-outreach { background: var(--q-green-dim); color: var(--q-green); }
 .type-btn + .type-btn { border-left: 1px solid var(--q-border2); }
 
+/* Repeat-on day-of-week picker */
+.repeat-day-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--q-border2);
+  background: transparent; color: var(--q-muted); font-family: var(--font-body);
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+}
+.repeat-day-btn.active { background: var(--q-green-dim); color: var(--q-green); border-color: rgba(0,232,122,.4); }
+
 /* Member checklist */
 .member-checklist {
   background: var(--q-dark3); border: 1px solid var(--q-border2);
@@ -4498,6 +4506,18 @@ body.light-mode .month-grid-day:hover {
         <option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option>
       </select>
     </div>
+    <div class="form-group" id="ev-repeat-days-wrap" style="display:none">
+      <label class="form-label">Repeat on</label>
+      <div id="ev-repeat-days" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="repeat-day-btn" data-day="0" onclick="toggleRepeatDay(this)">S</button>
+        <button type="button" class="repeat-day-btn" data-day="1" onclick="toggleRepeatDay(this)">M</button>
+        <button type="button" class="repeat-day-btn" data-day="2" onclick="toggleRepeatDay(this)">T</button>
+        <button type="button" class="repeat-day-btn" data-day="3" onclick="toggleRepeatDay(this)">W</button>
+        <button type="button" class="repeat-day-btn" data-day="4" onclick="toggleRepeatDay(this)">T</button>
+        <button type="button" class="repeat-day-btn" data-day="5" onclick="toggleRepeatDay(this)">F</button>
+        <button type="button" class="repeat-day-btn" data-day="6" onclick="toggleRepeatDay(this)">S</button>
+      </div>
+    </div>
     <div class="form-group" id="ev-repeat-end-wrap" style="display:none"><label class="form-label">Repeat until</label><input class="form-input" id="ev-repeat-end" type="date"/></div>
     <div class="form-group"><label class="form-label">Calendar</label><select class="form-select" id="ev-calendar"></select></div>
 
@@ -5470,16 +5490,30 @@ function expandRec(evList,rs,re){
     const start=new Date(ev.date+'T12:00:00');
     const origDay=start.getDate();
     const until=ev.repeatEnd?new Date(ev.repeatEnd+'T23:59:59'):new Date(re);
+    // Weekly repeat can now recur on multiple chosen days-of-week (e.g.
+    // Mon/Wed/Fri), not just the single day the series started on. That
+    // means occurrences no longer land exactly 7 days apart, so walk day by
+    // day and keep only the picked weekdays — bounded to ~10 years out.
+    if(ev.repeat==='weekly'){
+      const days=(ev.repeatDays&&ev.repeatDays.length)?ev.repeatDays:[start.getDay()];
+      let cur=new Date(start);
+      const diffDays=Math.floor((rs-cur)/86400000);
+      if(diffDays>0)cur.setDate(cur.getDate()+diffDays);
+      let cnt=0;
+      while(cur<=until&&cur<=re&&cnt<3650){
+        if(cur>=rs&&cur>=start&&days.includes(cur.getDay()))res.push({...ev,date:localDateStr(cur),_occurrenceDate:localDateStr(cur)});
+        cur.setDate(cur.getDate()+1);cnt++;
+      }
+      return;
+    }
     // Fast-forward to the window start before iterating, to avoid the 500-cap on old events
     let cur=new Date(start);
     if(ev.repeat==='daily'){const diffDays=Math.floor((rs-cur)/86400000);if(diffDays>0)cur.setDate(cur.getDate()+diffDays);}
-    else if(ev.repeat==='weekly'){const diffWeeks=Math.floor((rs-cur)/(7*86400000));if(diffWeeks>0)cur.setDate(cur.getDate()+diffWeeks*7);}
     else if(ev.repeat==='monthly'){while(cur<rs){const ny=cur.getFullYear(),nm=cur.getMonth()+1;cur=new Date(ny,nm,1);cur.setDate(Math.min(origDay,new Date(ny,nm+1,0).getDate()));}}
     let cnt=0;
     while(cur<=until&&cur<=re&&cnt<500){
       if(cur>=rs)res.push({...ev,date:localDateStr(cur),_occurrenceDate:localDateStr(cur)});
       if(ev.repeat==='daily')cur.setDate(cur.getDate()+1);
-      else if(ev.repeat==='weekly')cur.setDate(cur.getDate()+7);
       else if(ev.repeat==='monthly'){const ny=cur.getFullYear(),nm=cur.getMonth()+1;cur=new Date(ny,nm,1);cur.setDate(Math.min(origDay,new Date(ny,nm+1,0).getDate()));}
       else break;cnt++;
     }
@@ -6668,6 +6702,9 @@ function openEventModal(ev=null,defDate=null,defType='meeting'){
   document.getElementById('ev-repeat').value=ev?.repeat||'none';
   document.getElementById('ev-repeat-end').value=ev?.repeatEnd||'';
   document.getElementById('ev-repeat-end-wrap').style.display=(ev?.repeat&&ev.repeat!=='none')?'block':'none';
+  document.getElementById('ev-repeat-days-wrap').style.display=(ev?.repeat==='weekly')?'block':'none';
+  const _repeatBaseDate=(ev?._occurrenceDate?ev.date:ev?.date)||defDate||getTodayStr();
+  setRepeatDaysUI(ev?.repeatDays&&ev.repeatDays.length?ev.repeatDays:[new Date(_repeatBaseDate+'T12:00:00').getDay()]);
 
   const type=ev?.type||defType;currentType=type;switchType(type);
   document.getElementById('ev-title').value=ev?.title||'';
@@ -6713,8 +6750,30 @@ function openEventModal(ev=null,defDate=null,defType='meeting'){
 document.getElementById('ev-repeat').addEventListener('change',()=>{
   const val=document.getElementById('ev-repeat').value;
   document.getElementById('ev-repeat-end-wrap').style.display=val!=='none'?'block':'none';
+  document.getElementById('ev-repeat-days-wrap').style.display=val==='weekly'?'block':'none';
+  if(val==='weekly'&&!document.querySelector('#ev-repeat-days .repeat-day-btn.active')){
+    const dateVal=document.getElementById('ev-date').value;
+    setRepeatDaysUI([dateVal?new Date(dateVal+'T12:00:00').getDay():getNow().getDay()]);
+  }
 });
 window.toggleAllDay=()=>{document.getElementById('ev-time-row').style.display=document.getElementById('ev-allday').checked?'none':'grid';};
+
+// Weekly "repeat on" day-of-week picker — lets a weekly-repeating item of
+// any type (meeting/task/event/outreach) recur on multiple chosen days
+// (e.g. Mon/Wed/Fri) instead of only the single day-of-week it started on.
+function setRepeatDaysUI(days){
+  document.querySelectorAll('#ev-repeat-days .repeat-day-btn').forEach(b=>{
+    b.classList.toggle('active',days.includes(Number(b.dataset.day)));
+  });
+}
+function getRepeatDaysUI(){
+  return[...document.querySelectorAll('#ev-repeat-days .repeat-day-btn.active')].map(b=>Number(b.dataset.day)).sort();
+}
+window.toggleRepeatDay=(btn)=>{
+  btn.classList.toggle('active');
+  // At least one day must stay selected
+  if(!document.querySelector('#ev-repeat-days .repeat-day-btn.active'))btn.classList.add('active');
+};
 
 window.switchType=(type)=>{
   currentType=type;
@@ -7383,6 +7442,7 @@ window.saveEvent=async()=>{
   const _dateVal=document.getElementById('ev-date').value;if(!_dateVal){toast('Select a date');return;}
   const allDay=document.getElementById('ev-allday').checked;
   const repeat=document.getElementById('ev-repeat').value;
+  const repeatDays=repeat==='weekly'?getRepeatDaysUI():null;
   const mgr=document.getElementById('ev-task-manager')?.value||null;
   let autoColor;
   const taskPriority=currentTaskPriority||'important';
@@ -7408,7 +7468,7 @@ window.saveEvent=async()=>{
     timeEnd:hasTimed?(document.getElementById('ev-time-end').value||null):null,
     allDay:hasTimed?allDay:false,
     location:document.getElementById('ev-location').value.trim()||null,
-    repeat,repeatEnd:repeat!=='none'?(document.getElementById('ev-repeat-end').value||null):null,
+    repeat,repeatDays,repeatEnd:repeat!=='none'?(document.getElementById('ev-repeat-end').value||null):null,
     invitees:hasPeople?invitees:[],
     assignees:currentType==='task'?assignees:[],
     inviteeUids,
