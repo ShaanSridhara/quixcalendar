@@ -4360,7 +4360,7 @@ body.light-mode .month-grid-day:hover {
         <div class="help-feature-list">
           <div class="help-feature">
             <div class="help-feature-name">Roles</div>
-            <div class="help-feature-body"><strong style="color:var(--q-text)">Captain</strong> — full control, can rename/delete the calendar and manage all events.<br><strong style="color:var(--q-text)">Co-Captain / Vice Captain</strong> — same admin access as Captain.<br><strong style="color:var(--q-text)">Leader</strong> — can create and edit events, manage attendance.<br><strong style="color:var(--q-text)">Co-Programming Lead</strong> — multiple members can hold this role; maps to the Programming section.<br><strong style="color:var(--q-text)">Member</strong> — can view events they're invited to.</div>
+            <div class="help-feature-body"><strong style="color:var(--q-text)">Captain</strong> — full control, can rename/delete the calendar and manage all events.<br><strong style="color:var(--q-text)">Co-Captain</strong> — same admin access as Captain; multiple members can hold this role.<br><strong style="color:var(--q-text)">Leader</strong> — can create and edit events, manage attendance.<br><strong style="color:var(--q-text)">Co-Programming Lead</strong> — multiple members can hold this role; maps to the Programming section.<br><strong style="color:var(--q-text)">Member</strong> — can view events they're invited to.</div>
           </div>
           <div class="help-feature">
             <div class="help-feature-name">Sharing a calendar</div>
@@ -4870,15 +4870,17 @@ function linkify(s){return escHtml(s).replace(/(https?:\/\/[^\s<]+)/g,'<a href="
 function jsStr(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,"\\'");}
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const LEADER_ROLES=['Captain','Co-Captain','Vice Captain','Outreach Lead','Co-Programming Lead','Mechanical Lead','Admin'];
+const LEADER_ROLES=['Captain','Co-Captain','Outreach Lead','Co-Programming Lead','Mechanical Lead','Admin'];
 const CHARLIE_UID='FFCcwj3440ZXFcDZVAZzXmGuRQw2';
-// 'Programming Lead' used to be a separate role from 'Co-Programming Lead',
-// even though both just led the Programming subsection and both allowed
-// multiple holders. Treated as an alias everywhere below so existing holders
-// of the old name keep working (and display/act as "Co-Programming Lead")
-// without needing a data migration — only 'Co-Programming Lead' is offered
-// for new assignments now.
-const ROLE_ALIASES={'Programming Lead':'Co-Programming Lead'};
+// 'Programming Lead'/'Co-Programming Lead' and 'Vice Captain'/'Co-Captain'
+// were each pairs of redundant labels for the same permission tier (see the
+// help text). Treated as aliases everywhere below so existing holders of the
+// old names keep working (and display/act as the canonical name) without
+// needing a data migration to land first — only the canonical name is
+// offered for new assignments now. migrateRoles() also rewrites the old
+// names in Firestore for calendars the current user owns, so this map is a
+// safety net for everyone else in the meantime.
+const ROLE_ALIASES={'Programming Lead':'Co-Programming Lead','Vice Captain':'Co-Captain'};
 function displayRole(role){return ROLE_ALIASES[role]||role;}
 // Roles helpers — roles map is {uid: ['Role1','Role2']} (supports multiple roles)
 // Backward compat: also handles old string format {uid: 'Role'}
@@ -4909,7 +4911,7 @@ function removeRoleFromMap(rolesMap,uid,role){
 function getPrimaryRole(rolesMap,uid){
   const roles=getRolesForUid(rolesMap,uid);
   // Priority: Admin > Captain > Co-Captain > leads
-  const priority=['Admin','Captain','Co-Captain','Vice Captain','Outreach Lead','Co-Programming Lead','Mechanical Lead'];
+  const priority=['Admin','Captain','Co-Captain','Outreach Lead','Co-Programming Lead','Mechanical Lead'];
   for(const p of priority){if(roles.some(r=>r===p||ROLE_ALIASES[r]===p))return p;}
   return roles[0]||null;
 }
@@ -4968,9 +4970,10 @@ async function initUserData(user){
         // Remove Charlie from Captain if he's there
         const charlieRoles=getRolesForUid(roles,CHARLIE_UID);
         if(!charlieRoles.includes('Admin')){
-          // Remove Captain/Co-Captain, add Admin
+          // Remove Captain/Co-Captain/Vice Captain, add Admin
           let updatedRoles=removeRoleFromMap(roles,CHARLIE_UID,'Captain');
           updatedRoles=removeRoleFromMap(updatedRoles,CHARLIE_UID,'Co-Captain');
+          updatedRoles=removeRoleFromMap(updatedRoles,CHARLIE_UID,'Vice Captain');
           updatedRoles=addRoleToMap(updatedRoles,CHARLIE_UID,'Admin');
           await updateDoc(doc(db,'calendars',calDoc.id),{roles:updatedRoles});
         }
@@ -4990,8 +4993,10 @@ async function migrateRoles(){
       const newRoles={};
       for(const [uid,val] of Object.entries(roles)){
         let arr=Array.isArray(val)?val:[val];
-        // Rename Captain 2 -> Co-Captain
-        arr=arr.map(r=>r==='Captain 2'?'Co-Captain':r);
+        // Rename Captain 2 -> Co-Captain, Vice Captain -> Co-Captain, and
+        // Programming Lead -> Co-Programming Lead (redundant duplicate labels
+        // for the same permission tier — see ROLE_ALIASES)
+        arr=arr.map(r=>r==='Captain 2'||r==='Vice Captain'?'Co-Captain':ROLE_ALIASES[r]||r);
         // Remove duplicates
         arr=[...new Set(arr)];
         newRoles[uid]=arr.length===1?arr[0]:arr;
@@ -5155,7 +5160,10 @@ function isLeader(calId){
 function isCaptain(calId){
   if(ownsCalendar(calId))return true;
   const roles=getMyRolesForCal(calId);
-  return roles.includes('Captain')||roles.includes('Co-Captain')||roles.includes('Vice Captain')||roles.includes('Admin');
+  // Alias-aware: a role holder stuck on the legacy 'Vice Captain' name (not
+  // yet migrated to 'Co-Captain' — migration only runs for calendars the
+  // signed-in user owns) must still get full Captain-tier permissions.
+  return roles.some(r=>r==='Captain'||r==='Co-Captain'||r==='Admin'||ROLE_ALIASES[r]==='Co-Captain');
 }
 function isAdmin(calId){return isLeader(calId);} // owner, Captain, Co-Captain, all leads, and Admin all count
 
@@ -6248,7 +6256,7 @@ function renderHomePage(){
     if(rsvpStatus==='accepted'||rsvpStatus==='declined')return false;
     _seenInvIds.add(seenKey);
     return true;
-  });
+  }).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
   if(!myMtgInvites.length)invEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">✉️</div><div class="empty-state-text">No pending invitations</div></div>';
   else myMtgInvites.forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId)||sharedCalendars.find(c=>c.id===ev.sharedCalId);
@@ -7946,8 +7954,8 @@ async function renderAdminPage(){
                 :`<div style="font-size:11px;color:var(--q-muted2);margin-top:2px">Unassigned</div>`;
             })()}
           </div>
-          ${currentHolderUid&&(!isSelfRole||!['Captain','Co-Captain','Vice Captain'].includes(role))?`<button onclick="removeRole('${adminCal.id}','${currentHolder}','${resolveHeldRole(calRoles,currentHolderUid,role)}')" style="padding:4px 10px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Remove</button>`:''}
-          ${isSelfRole&&['Captain','Co-Captain','Vice Captain'].includes(role)?`<span style="font-size:9px;color:var(--q-muted2);font-style:italic">You (cannot remove self)</span>`:''}
+          ${currentHolderUid&&(!isSelfRole||!['Captain','Co-Captain'].includes(role))?`<button onclick="removeRole('${adminCal.id}','${currentHolder}','${resolveHeldRole(calRoles,currentHolderUid,role)}')" style="padding:4px 10px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Remove</button>`:''}
+          ${isSelfRole&&['Captain','Co-Captain'].includes(role)?`<span style="font-size:9px;color:var(--q-muted2);font-style:italic">You (cannot remove self)</span>`:''}
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap" id="role-members-${role.replace(/\s/g,'_')}"></div>
       `;
@@ -7973,7 +7981,7 @@ async function renderAdminPage(){
             } else {
               if(!confirm(`Assign ${role} to ${escHtml(m.displayName)}?`))return;
               // For unique roles, remove from previous holder first
-              if(role!=='Captain'&&role!=='Co-Captain'&&role!=='Vice Captain'&&role!=='Co-Programming Lead'){
+              if(role!=='Captain'&&role!=='Co-Captain'&&role!=='Co-Programming Lead'){
                 Object.keys(newRoles).forEach(k=>{
                   if(k!==m.uid&&hasRole(newRoles,k,role))newRoles=removeRoleFromMap(newRoles,k,resolveHeldRole(newRoles,k,role));
                 });
@@ -8522,7 +8530,7 @@ function renderLeadSection(){
   for(const cal of allCals){
     const myRolesInCal=getRolesForUid(cal.roles||{},myUid);
     const primaryRole=getPrimaryRole(cal.roles||{},myUid);
-    if(primaryRole&&primaryRole!=='Captain'&&primaryRole!=='Co-Captain'&&primaryRole!=='Vice Captain'&&primaryRole!=='Admin'){
+    if(primaryRole&&primaryRole!=='Captain'&&primaryRole!=='Co-Captain'&&primaryRole!=='Admin'){
       // Map role to subsection name
       const roleToSub={'Outreach Lead':'Outreach','Co-Programming Lead':'Programming','Mechanical Lead':'Mechanical'};
       leadSub=roleToSub[primaryRole]||null;
