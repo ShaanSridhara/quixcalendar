@@ -1424,8 +1424,8 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 
 /* Roster */
 .roster-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr));
-  gap: 12px; padding: 20px 28px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr));
+  gap: 12px 14px; padding: 20px 28px 28px;
   overflow-y: auto; flex: 1; min-height: 0; align-content: start;
 }
 
@@ -4870,8 +4870,16 @@ function linkify(s){return escHtml(s).replace(/(https?:\/\/[^\s<]+)/g,'<a href="
 function jsStr(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,"\\'");}
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const LEADER_ROLES=['Captain','Co-Captain','Vice Captain','Outreach Lead','Programming Lead','Co-Programming Lead','Mechanical Lead','Admin'];
+const LEADER_ROLES=['Captain','Co-Captain','Vice Captain','Outreach Lead','Co-Programming Lead','Mechanical Lead','Admin'];
 const CHARLIE_UID='FFCcwj3440ZXFcDZVAZzXmGuRQw2';
+// 'Programming Lead' used to be a separate role from 'Co-Programming Lead',
+// even though both just led the Programming subsection and both allowed
+// multiple holders. Treated as an alias everywhere below so existing holders
+// of the old name keep working (and display/act as "Co-Programming Lead")
+// without needing a data migration — only 'Co-Programming Lead' is offered
+// for new assignments now.
+const ROLE_ALIASES={'Programming Lead':'Co-Programming Lead'};
+function displayRole(role){return ROLE_ALIASES[role]||role;}
 // Roles helpers — roles map is {uid: ['Role1','Role2']} (supports multiple roles)
 // Backward compat: also handles old string format {uid: 'Role'}
 function getRolesForUid(rolesMap,uid){
@@ -4879,7 +4887,13 @@ function getRolesForUid(rolesMap,uid){
   if(!val)return [];
   return Array.isArray(val)?val:[val]; // handle old string format
 }
-function hasRole(rolesMap,uid,role){return getRolesForUid(rolesMap,uid).includes(role);}
+function hasRole(rolesMap,uid,role){return getRolesForUid(rolesMap,uid).some(r=>r===role||ROLE_ALIASES[r]===role);}
+// The literal role string uid holds that aliases to canonicalRole (may be the
+// legacy name) — needed so remove/toggle actions clear the role they actually
+// have stored, not just the canonical name.
+function resolveHeldRole(rolesMap,uid,canonicalRole){
+  return getRolesForUid(rolesMap,uid).find(r=>r===canonicalRole||ROLE_ALIASES[r]===canonicalRole)||canonicalRole;
+}
 function addRoleToMap(rolesMap,uid,role){
   const current=getRolesForUid(rolesMap,uid);
   if(current.includes(role))return rolesMap;
@@ -4895,8 +4909,8 @@ function removeRoleFromMap(rolesMap,uid,role){
 function getPrimaryRole(rolesMap,uid){
   const roles=getRolesForUid(rolesMap,uid);
   // Priority: Admin > Captain > Co-Captain > leads
-  const priority=['Admin','Captain','Co-Captain','Vice Captain','Outreach Lead','Programming Lead','Co-Programming Lead','Mechanical Lead'];
-  for(const p of priority){if(roles.includes(p))return p;}
+  const priority=['Admin','Captain','Co-Captain','Vice Captain','Outreach Lead','Co-Programming Lead','Mechanical Lead'];
+  for(const p of priority){if(roles.some(r=>r===p||ROLE_ALIASES[r]===p))return p;}
   return roles[0]||null;
 }
 const PRIORITY_CYCLE=['critical','important','optional'];
@@ -6135,7 +6149,7 @@ function renderHomePage(){
 
   // Role display
   const roleRow=document.getElementById('home-role-row');
-  if(myRole)roleRow.innerHTML=`Your role: <span class="role-badge">${myRole}</span>`;
+  if(myRole)roleRow.innerHTML=`Your role: <span class="role-badge">${displayRole(myRole)}</span>`;
   else roleRow.textContent='';
 
   const now=getNow(),soon=new Date(now);soon.setDate(soon.getDate()+14);
@@ -7248,8 +7262,8 @@ async function renderTeamRoster(calId){
       <div class="member-avatar">${m.pfpUrl?`<img src="${m.pfpUrl}"/>`:`<span>${char}</span>`}</div>
       <div style="flex:1;min-width:0;overflow:hidden">
         <div style="font-size:13px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(m.displayName||"User")}</div>
-        <div style="display:flex;align-items:center;gap:4px;margin-top:3px;flex-wrap:wrap">
-          ${role?`<span class="role-badge ${role==='Admin'?'admin-role':''}" style="font-size:8px;padding:1px 6px">${role}</span>`:''}
+        <div style="display:flex;align-items:center;gap:5px;row-gap:4px;margin-top:4px;flex-wrap:wrap">
+          ${role?`<span class="role-badge ${role==='Admin'?'admin-role':''}" style="font-size:8px;padding:1px 6px;white-space:nowrap">${displayRole(role)}</span>`:''}
           ${sub?`<span class="subsection-tag" style="font-size:8px">${escHtml(sub)}</span>`:''}
           ${uxCount>0?`<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:6px;background:var(--q-red-dim);color:var(--q-red)">${uxCount}✗</span>`:''}
         </div>
@@ -7300,7 +7314,7 @@ async function openMemberModal(m,calId,calRoles){
       <div>
         <div style="font-size:18px;font-weight:700">${escHtml(m.displayName||"User")}</div>
         <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
-          ${allRoles.map(r=>`<span class="role-badge ${r==='Admin'?'admin-role':''}">${r}</span>`).join(' ')}
+          ${[...new Set(allRoles.map(displayRole))].map(r=>`<span class="role-badge ${r==='Admin'?'admin-role':''}">${r}</span>`).join(' ')}
           ${sub?`<span class="subsection-tag">${escHtml(sub)}</span>`:''}
           ${unexcused>0?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;background:var(--q-red-dim);color:var(--q-red)">${unexcused} unexcused absence${unexcused!==1?'s':''}</span>`:''}
         </div>
@@ -7854,7 +7868,7 @@ async function renderAdminPage(){
     row.innerHTML=`
       <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--q-blue-dim2),var(--q-blue-dim));border:1.5px solid var(--q-blue-border);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--q-blue2);font-size:13px;flex-shrink:0">${(m.displayName||'?').charAt(0).toUpperCase()}</div>
       <div style="flex:1;min-width:120px">
-        <div style="font-size:13px;font-weight:600;color:var(--q-text);display:flex;align-items:center;gap:5px;flex-wrap:wrap">${escHtml(m.displayName)} ${mRolesList.map(r=>`<span class="role-badge ${r==='Admin'?'admin-role':''}">${r}</span>`).join('')}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--q-text);display:flex;align-items:center;gap:5px;flex-wrap:wrap">${escHtml(m.displayName)} ${[...new Set(mRolesList.map(displayRole))].map(r=>`<span class="role-badge ${r==='Admin'?'admin-role':''}">${r}</span>`).join('')}</div>
         <div style="font-size:10px;color:var(--q-muted);margin-top:1px">${escHtml(m.email)}${m.subsection?` · <strong style="color:var(--q-text)">${escHtml(m.subsection)}</strong>`:''}</div>
       </div>
       <div style="display:flex;gap:5px;flex-shrink:0;align-items:center">`;
@@ -7932,7 +7946,7 @@ async function renderAdminPage(){
                 :`<div style="font-size:11px;color:var(--q-muted2);margin-top:2px">Unassigned</div>`;
             })()}
           </div>
-          ${currentHolderUid&&(!isSelfRole||!['Captain','Co-Captain','Vice Captain'].includes(role))?`<button onclick="removeRole('${adminCal.id}','${currentHolder}','${role}')" style="padding:4px 10px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Remove</button>`:''}
+          ${currentHolderUid&&(!isSelfRole||!['Captain','Co-Captain','Vice Captain'].includes(role))?`<button onclick="removeRole('${adminCal.id}','${currentHolder}','${resolveHeldRole(calRoles,currentHolderUid,role)}')" style="padding:4px 10px;font-size:10px;font-weight:600;border-radius:6px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Remove</button>`:''}
           ${isSelfRole&&['Captain','Co-Captain','Vice Captain'].includes(role)?`<span style="font-size:9px;color:var(--q-muted2);font-style:italic">You (cannot remove self)</span>`:''}
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap" id="role-members-${role.replace(/\s/g,'_')}"></div>
@@ -7955,13 +7969,13 @@ async function renderAdminPage(){
             const alreadyHas=hasRole(newRoles,m.uid,role);
             if(alreadyHas){
               if(!confirm(`Remove ${role} from ${escHtml(m.displayName)}?`))return;
-              newRoles=removeRoleFromMap(newRoles,m.uid,role);
+              newRoles=removeRoleFromMap(newRoles,m.uid,resolveHeldRole(newRoles,m.uid,role));
             } else {
               if(!confirm(`Assign ${role} to ${escHtml(m.displayName)}?`))return;
               // For unique roles, remove from previous holder first
               if(role!=='Captain'&&role!=='Co-Captain'&&role!=='Vice Captain'&&role!=='Co-Programming Lead'){
                 Object.keys(newRoles).forEach(k=>{
-                  if(k!==m.uid&&hasRole(newRoles,k,role))newRoles=removeRoleFromMap(newRoles,k,role);
+                  if(k!==m.uid&&hasRole(newRoles,k,role))newRoles=removeRoleFromMap(newRoles,k,resolveHeldRole(newRoles,k,role));
                 });
               }
               newRoles=addRoleToMap(newRoles,m.uid,role);
@@ -8029,7 +8043,7 @@ function renderProfilePage(){
   updateNotifToggle();
   // Role display
   const rd=document.getElementById('profile-role-display');
-  if(myRole)rd.innerHTML=`<span class="role-badge">${myRole}</span>`;else rd.innerHTML='';
+  if(myRole)rd.innerHTML=`<span class="role-badge">${displayRole(myRole)}</span>`;else rd.innerHTML='';
   const bigEl=document.getElementById('profile-avatar-big');const char=(name||email||'?').charAt(0).toUpperCase();
   if(userPfpUrl)bigEl.innerHTML=`<img src="${userPfpUrl}" alt="pfp"/><input type="file" id="pfp-input" accept="image/*" style="display:none" onchange="handlePfpChange(event)"/>`;
   else bigEl.innerHTML=`<span id="profile-avatar-char">${char}</span><input type="file" id="pfp-input" accept="image/*" style="display:none" onchange="handlePfpChange(event)"/>`;
@@ -8510,7 +8524,7 @@ function renderLeadSection(){
     const primaryRole=getPrimaryRole(cal.roles||{},myUid);
     if(primaryRole&&primaryRole!=='Captain'&&primaryRole!=='Co-Captain'&&primaryRole!=='Vice Captain'&&primaryRole!=='Admin'){
       // Map role to subsection name
-      const roleToSub={'Outreach Lead':'Outreach','Programming Lead':'Programming','Co-Programming Lead':'Programming','Mechanical Lead':'Mechanical'};
+      const roleToSub={'Outreach Lead':'Outreach','Co-Programming Lead':'Programming','Mechanical Lead':'Mechanical'};
       leadSub=roleToSub[primaryRole]||null;
       leadCalId=cal.id;
       break;
