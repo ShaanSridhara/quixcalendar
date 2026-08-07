@@ -4655,6 +4655,7 @@ body.light-mode .month-grid-day:hover {
       <button class="btn-secondary" id="view-accept-btn" onclick="rsvpViewed('accept')" style="display:none;color:var(--q-green);border-color:rgba(0,232,122,.35)">✓ Going</button>
       <button class="btn-secondary" id="view-optout-btn" onclick="optOutViewed()" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Not Attending</button>
       <button class="btn-secondary" id="view-decline-btn" onclick="rsvpViewed('decline')" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)">Can't Go</button>
+      <button class="btn-secondary" id="view-leaveearly-btn" onclick="leaveEarlyViewed()" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Leaving Early?</button>
       <button class="btn-secondary" id="view-attendance-btn" onclick="attendanceViewed()" style="display:none">Mark Attendance</button>
       <button class="btn-secondary" onclick="closeModal('view-modal')">Close</button>
     </div>
@@ -4741,6 +4742,22 @@ body.light-mode .month-grid-day:hover {
     <p style="font-size:12px;color:var(--q-muted);margin-bottom:14px">Provide a reason. This will be shared with the organizer.</p>
     <div class="form-group"><label class="form-label">Reason</label><textarea class="form-input" id="decline-reason" placeholder="e.g. I have a conflict at this time…"></textarea></div>
     <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('decline-modal')">Cancel</button><button class="btn-danger" onclick="submitDecline()">Decline</button></div>
+  </div>
+</div>
+
+<!-- LEAVING EARLY -->
+<div class="modal-overlay" id="leaveearly-modal">
+  <div class="modal modal-sm">
+    <button class="modal-close" onclick="closeModal('leaveearly-modal')">✕</button>
+    <div class="modal-title">Leaving Early</div>
+    <p style="font-size:12px;color:var(--q-muted);margin-bottom:14px">Let the organizer know you're attending but need to leave before 6:00 PM.</p>
+    <div class="form-group"><label class="form-label">What time do you need to leave?</label><input class="form-input" id="leaveearly-time" type="time" max="18:00"/></div>
+    <div class="form-group"><label class="form-label">Note (optional)</label><textarea class="form-input" id="leaveearly-note" placeholder="e.g. Ride is picking me up early"></textarea></div>
+    <div class="modal-actions" id="leaveearly-actions">
+      <button class="btn-secondary" onclick="closeModal('leaveearly-modal')">Cancel</button>
+      <button class="btn-secondary" id="leaveearly-clear-btn" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)" onclick="clearLeaveEarly()">Remove</button>
+      <button class="btn-primary-sm" onclick="submitLeaveEarly()">Save</button>
+    </div>
   </div>
 </div>
 
@@ -4928,7 +4945,7 @@ let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',currentTaskCompletionMode='group',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
 let _dashMeetings=[],_dashPeriodLabel='';
-let declineTargetEvId=null,declineTargetOccDate=null,unexcusedTarget=null,_outreachTargetEvId=null,_outreachTargetOccDate=null;
+let declineTargetEvId=null,declineTargetOccDate=null,unexcusedTarget=null,_outreachTargetEvId=null,_outreachTargetOccDate=null,leaveEarlyTargetEvId=null,leaveEarlyTargetOccDate=null;
 let viewTab='all',currentPage='home';
 let calTypeFilter='all';
 let enabledCalIds=new Set();
@@ -5572,6 +5589,15 @@ function getOptOut(ev,uid){
   if(!key) return (ev.optionalOptOut||{})[uid];
   const perOcc=(ev.optionalOptOutByDate||{})[key]||{};
   return uid in perOcc ? perOcc[uid] : (ev.optionalOptOut||{})[uid];
+}
+// Leaving-early notice: an invitee who's attending a meeting can flag that
+// they need to leave before 6 PM and give the time. Same series/occurrence
+// override pattern as the accessors above.
+function getEarlyLeave(ev,uid){
+  const key=occKey(ev);
+  if(!key) return (ev.earlyLeave||{})[uid];
+  const perOcc=(ev.earlyLeaveByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.earlyLeave||{})[uid];
 }
 // Outreach model: a single "impacted" student count is logged ONCE per
 // series — repeating events don't multiply headcount just because the same
@@ -6336,6 +6362,18 @@ async function loadAbsenceCount(){
 window.rsvpViewed=(action)=>{if(viewingEv)rsvpEvent(viewingEv.id,action,viewingEv._occurrenceDate||null);};
 window.optOutViewed=()=>{if(viewingEv)optionalOptOut(viewingEv.id,viewingEv._occurrenceDate||null);};
 window.attendanceViewed=()=>{if(viewingEv)openAttendanceModal(viewingEv);};
+window.leaveEarlyViewed=()=>{
+  if(!viewingEv)return;
+  const ev=viewingEv;
+  const isRec=ev.repeat&&ev.repeat!=='none';
+  leaveEarlyTargetEvId=ev.id;
+  leaveEarlyTargetOccDate=isRec?(ev._occurrenceDate||ev.date):null;
+  const existing=getEarlyLeave(ev,cu?.uid);
+  document.getElementById('leaveearly-time').value=existing?.time||'';
+  document.getElementById('leaveearly-note').value=existing?.note||'';
+  document.getElementById('leaveearly-clear-btn').style.display=existing?'block':'none';
+  document.getElementById('leaveearly-modal').classList.add('open');
+};
 window.outreachViewed=()=>{if(viewingEv)openOutreachModal(viewingEv,viewingEv._occurrenceDate||null);};
 window.rsvpEvent=async(evId,action,occDate=null)=>{
   const ev=events.find(e=>e.id===evId);if(!ev)return;
@@ -6404,6 +6442,35 @@ window.submitDecline=async()=>{
   }
   declineTargetEvId=null;declineTargetOccDate=null;
   toast('Declined');closeModal('decline-modal');closeModal('view-modal');renderHomePage();
+};
+window.submitLeaveEarly=async()=>{
+  const time=document.getElementById('leaveearly-time').value;
+  if(!time){toast('Please choose a time');return;}
+  if(time>'18:00'){toast('Leaving-early time must be before 6:00 PM');return;}
+  const note=document.getElementById('leaveearly-note').value.trim();
+  const key=leaveEarlyTargetOccDate;
+  const val={time,note:note||null};
+  const patch=key?{[`earlyLeaveByDate.${key}.${cu.uid}`]:val}:{[`earlyLeave.${cu.uid}`]:val};
+  await updateDoc(doc(db,'events',leaveEarlyTargetEvId),patch);
+  const _le=events.find(e=>e.id===leaveEarlyTargetEvId);
+  if(_le){
+    if(key){if(!_le.earlyLeaveByDate)_le.earlyLeaveByDate={};if(!_le.earlyLeaveByDate[key])_le.earlyLeaveByDate[key]={};_le.earlyLeaveByDate[key][cu.uid]=val;}
+    else{if(!_le.earlyLeave)_le.earlyLeave={};_le.earlyLeave[cu.uid]=val;}
+  }
+  leaveEarlyTargetEvId=null;leaveEarlyTargetOccDate=null;
+  toast('Leaving-early time saved');closeModal('leaveearly-modal');renderViewPeople();renderHomePage();
+};
+window.clearLeaveEarly=async()=>{
+  const key=leaveEarlyTargetOccDate;
+  const patch=key?{[`earlyLeaveByDate.${key}.${cu.uid}`]:null}:{[`earlyLeave.${cu.uid}`]:null};
+  await updateDoc(doc(db,'events',leaveEarlyTargetEvId),patch);
+  const _le=events.find(e=>e.id===leaveEarlyTargetEvId);
+  if(_le){
+    if(key){if(_le.earlyLeaveByDate?.[key])_le.earlyLeaveByDate[key][cu.uid]=null;}
+    else{if(_le.earlyLeave)_le.earlyLeave[cu.uid]=null;}
+  }
+  leaveEarlyTargetEvId=null;leaveEarlyTargetOccDate=null;
+  toast('Removed');closeModal('leaveearly-modal');renderViewPeople();renderHomePage();
 };
 
 // ── View modal ─────────────────────────────────────────────────────────────
@@ -6528,6 +6595,11 @@ function openViewEvent(ev){
   const _daysToEv=daysUntil(_occV);
   const showDeclineBtn=_rsvpableType&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
   document.getElementById('view-decline-btn').style.display=showDeclineBtn?'block':'none';
+  // Leaving early: only meaningful once you're actually going to a meeting.
+  const showLeaveEarly=ev.type==='meeting'&&myInvV&&myRsvpV==='accepted'&&!_startedV;
+  const leBtn=document.getElementById('view-leaveearly-btn');
+  leBtn.style.display=showLeaveEarly?'block':'none';
+  if(showLeaveEarly){const _myEarlyLeave=getEarlyLeave(ev,cu?.uid);leBtn.textContent=_myEarlyLeave?`🕒 Leaving @ ${fmt12(_myEarlyLeave.time)}`:'Leaving Early?';}
   const showAttBtn=ev.type==='meeting'&&(isOwn||isAdm)&&daysUntil(ev.date)<0&&(ev.invitees||[]).length>0;
   document.getElementById('view-attendance-btn').style.display=showAttBtn?'block':'none';
   document.getElementById('view-modal').classList.add('open');
@@ -6609,13 +6681,15 @@ function renderViewPeople(){
       else rsvpB='<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:var(--q-dark4);color:var(--q-muted2)">Pending</span>';
     }
     const uxB=ux?`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span>`:'';
+    const earlyLeave=(!isTask&&rsvp==='accepted')?getEarlyLeave(ev,p.uid):null;
+    const elB=earlyLeave?`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(245,158,11,.15);color:var(--q-amber)"${earlyLeave.note?` title="${escHtml(earlyLeave.note)}"`:''}>🕒 Leaving @ ${fmt12(earlyLeave.time)}</span>`:'';
     let adminBtn='';
     // Don't allow marking optional attendees or opt-outs as unexcused
     if(isAdm&&!isTask&&rsvp==='declined'&&!isOptOut&&p.attendance!=='optional'){
       if(!ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
       else adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
     }
-    row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${uxB} ${adminBtn}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:var(--q-red)">Reason:</strong> ${escHtml(dr)}</div>`:''}`;
+    row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${elB} ${uxB} ${adminBtn}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:var(--q-red)">Reason:</strong> ${escHtml(dr)}</div>`:''}`;
     if(hasDr&&!isOptOut)row.onclick=()=>row.querySelector('.decline-reason-box').classList.toggle('open');
     el.appendChild(row);
   });
@@ -6650,7 +6724,7 @@ window.deleteViewedEvent=async()=>{if(!viewingEv)return;if(viewingEv.uid!==cu?.u
 window.editViewedEvent=()=>{closeModal('view-modal');openEventModal(viewingEv);};
 window.duplicateViewedEvent=async()=>{
   if(!viewingEv)return;
-  const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,rsvpByDate,declineReasonsByDate,optionalOptOutByDate,outreachCount,outreachHours,outreachCountByDate,outreachHoursByDate,outreachImpactCount,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
+  const {id,_invited,isShared,sharedCalId,sharedCalName,_occurrenceDate,rsvp,declineReasons,unexcusedAbsences,unexcusedNotes,optionalOptOut,rsvpByDate,declineReasonsByDate,optionalOptOutByDate,earlyLeave,earlyLeaveByDate,outreachCount,outreachHours,outreachCountByDate,outreachHoursByDate,outreachImpactCount,outreachCountUpdatedBy,outreachCountUpdatedAt,postNotes,completedAt,...data}=viewingEv;
   data.title=(data.title||'')+(data.title?.endsWith(' (copy)')?'':' (copy)');
   data.completed=false;
   data.uid=cu.uid; // the duplicate is owned by whoever makes it
@@ -7532,6 +7606,7 @@ async function execDeleteCal(calId,calName){
   closeModal('confirm-delete-cal-modal');
   if(viewingEv&&(viewingEv.calendarId===calId||viewingEv.sharedCalId===calId)){closeModal('view-modal');viewingEv=null;}
   if(declineTargetEvId){const dte=events.find(e=>e.id===declineTargetEvId);if(dte&&(dte.calendarId===calId||dte.sharedCalId===calId)){declineTargetEvId=null;declineTargetOccDate=null;closeModal('decline-modal');}}
+  if(leaveEarlyTargetEvId){const lte=events.find(e=>e.id===leaveEarlyTargetEvId);if(lte&&(lte.calendarId===calId||lte.sharedCalId===calId)){leaveEarlyTargetEvId=null;leaveEarlyTargetOccDate=null;closeModal('leaveearly-modal');}}
   enabledCalIds.delete(calId);
   if(activeCalId===calId)activeCalId=calendars.filter(c=>c.id!==calId)[0]?.id||null;
   events=events.filter(e=>e.calendarId!==calId&&e.sharedCalId!==calId);
@@ -8124,13 +8199,13 @@ function showAuth(){document.getElementById('app-screen').classList.remove('visi
 window.toggleUserMenu=()=>document.getElementById('user-dropdown').classList.toggle('open');
 document.addEventListener('click',e=>{
   if(!document.getElementById('user-pill').contains(e.target))document.getElementById('user-dropdown').classList.remove('open');
-  ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal','shortcuts-modal','outreach-modal','member-modal','dash-meetings-modal'].forEach(id=>{if(e.target===document.querySelector(`#${id}.open`))closeModal(id);});
+  ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','leaveearly-modal','unexcused-modal','search-modal','attendance-modal','shortcuts-modal','outreach-modal','member-modal','dash-meetings-modal'].forEach(id=>{if(e.target===document.querySelector(`#${id}.open`))closeModal(id);});
   if(e.target===document.getElementById('onboarding-modal'))closeModal('onboarding-modal');
 });
 document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();openSearch();return;}
   if(e.key==='Escape'){
-    ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','unexcused-modal','search-modal','attendance-modal','member-modal','dash-meetings-modal','shortcuts-modal','onboarding-modal','outreach-modal'].forEach(closeModal);
+    ['event-modal','view-modal','share-modal','newcal-modal','rename-cal-modal','confirm-delete-cal-modal','decline-modal','leaveearly-modal','unexcused-modal','search-modal','attendance-modal','member-modal','dash-meetings-modal','shortcuts-modal','onboarding-modal','outreach-modal'].forEach(closeModal);
     document.getElementById('user-dropdown')?.classList.remove('open');
     return;
   }
