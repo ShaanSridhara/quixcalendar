@@ -1213,9 +1213,21 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .btn-decline:hover { background: rgba(255,59,92,0.2); transform: translateY(-1px); }
 .btn-decline:active { transform: scale(0.97); }
 
+.btn-leaveearly {
+  padding: 5px 14px; font-size: 11px; font-weight: 700;
+  background: rgba(167,139,250,0.12);
+  border: 1px solid rgba(167,139,250,0.35);
+  border-radius: 7px; color: #a78bfa;
+  cursor: pointer; font-family: var(--font-body);
+  transition: all 0.18s; position: relative; overflow: hidden;
+}
+.btn-leaveearly:hover { background: rgba(167,139,250,0.22); transform: translateY(-1px); }
+.btn-leaveearly:active { transform: scale(0.97); }
+
 .invite-status { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 7px; font-family: var(--font-mono); }
 .invite-status.accepted { background: var(--q-green-dim); color: var(--q-green); }
 .invite-status.declined { background: var(--q-red-dim); color: var(--q-red); }
+.invite-status.leaving_early { background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
 
 /* Upcoming rows */
 .upcoming-row {
@@ -1659,6 +1671,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 }
 .rsvp-tab.active-all { background: var(--q-dark4); color: var(--q-text); }
 .rsvp-tab.active-accepted { background: var(--q-green-dim); color: var(--q-green); }
+.rsvp-tab.active-leaving_early { background: rgba(167,139,250,0.15); color: #a78bfa; }
 .rsvp-tab.active-declined { background: var(--q-red-dim); color: var(--q-red); }
 .rsvp-tab.active-pending { background: var(--q-amber-dim); color: var(--q-amber); }
 .rsvp-tab + .rsvp-tab { border-left: 1px solid var(--q-border2); }
@@ -4641,6 +4654,7 @@ body.light-mode .month-grid-day:hover {
       <div class="rsvp-tabs">
         <button class="rsvp-tab active-all" id="vtab-all" onclick="setViewTab('all')">All</button>
         <button class="rsvp-tab" id="vtab-accepted" onclick="setViewTab('accepted')">Accepted</button>
+        <button class="rsvp-tab" id="vtab-leaving_early" onclick="setViewTab('leaving_early')">Leaving Early</button>
         <button class="rsvp-tab" id="vtab-declined" onclick="setViewTab('declined')">Declined</button>
         <button class="rsvp-tab" id="vtab-pending" onclick="setViewTab('pending')">Pending</button>
       </div>
@@ -4653,6 +4667,7 @@ body.light-mode .month-grid-day:hover {
       <button class="btn-secondary" id="view-edit-btn" onclick="editViewedEvent()" style="display:none">Edit</button>
       <button class="complete-btn" id="view-complete-btn" onclick="markTaskComplete()" style="display:none">Mark Complete</button>
       <button class="btn-secondary" id="view-accept-btn" onclick="rsvpViewed('accept')" style="display:none;color:var(--q-green);border-color:rgba(0,232,122,.35)">✓ Going</button>
+      <button class="btn-secondary" id="view-leaveearly-btn" onclick="rsvpViewed('leave_early')" style="display:none;color:#a78bfa;border-color:rgba(167,139,250,.35)">🏃 Leave Early</button>
       <button class="btn-secondary" id="view-optout-btn" onclick="optOutViewed()" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Not Attending</button>
       <button class="btn-secondary" id="view-decline-btn" onclick="rsvpViewed('decline')" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)">Can't Go</button>
       <button class="btn-secondary" id="view-leaveearly-btn" onclick="leaveEarlyViewed()" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Leaving Early?</button>
@@ -4734,14 +4749,14 @@ body.light-mode .month-grid-day:hover {
   </div>
 </div>
 
-<!-- DECLINE -->
+<!-- DECLINE / RSVP RESPONSE -->
 <div class="modal-overlay" id="decline-modal">
   <div class="modal modal-sm">
     <button class="modal-close" onclick="closeModal('decline-modal')">✕</button>
-    <div class="modal-title">Decline Invitation</div>
-    <p style="font-size:12px;color:var(--q-muted);margin-bottom:14px">Provide a reason. This will be shared with the organizer.</p>
-    <div class="form-group"><label class="form-label">Reason</label><textarea class="form-input" id="decline-reason" placeholder="e.g. I have a conflict at this time…"></textarea></div>
-    <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('decline-modal')">Cancel</button><button class="btn-danger" onclick="submitDecline()">Decline</button></div>
+    <div class="modal-title" id="decline-modal-title">Decline Invitation</div>
+    <p style="font-size:12px;color:var(--q-muted);margin-bottom:14px" id="decline-modal-desc">Provide a reason. This will be shared with the organizer.</p>
+    <div class="form-group"><label class="form-label" id="decline-modal-label">Reason</label><textarea class="form-input" id="decline-reason" placeholder="e.g. I have a conflict at this time…"></textarea></div>
+    <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('decline-modal')">Cancel</button><button class="btn-danger" id="decline-modal-submit" onclick="submitDecline()">Decline</button></div>
   </div>
 </div>
 
@@ -4945,7 +4960,7 @@ let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',currentTaskCompletionMode='group',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
 let _dashMeetings=[],_dashPeriodLabel='';
-let declineTargetEvId=null,declineTargetOccDate=null,unexcusedTarget=null,_outreachTargetEvId=null,_outreachTargetOccDate=null,leaveEarlyTargetEvId=null,leaveEarlyTargetOccDate=null;
+let declineTargetEvId=null,declineTargetOccDate=null,declineTargetAction='decline',unexcusedTarget=null,_outreachTargetEvId=null,_outreachTargetOccDate=null,leaveEarlyTargetEvId=null,leaveEarlyTargetOccDate=null;
 let viewTab='all',currentPage='home';
 let calTypeFilter='all';
 let enabledCalIds=new Set();
@@ -6216,15 +6231,18 @@ function renderHomePage(){
         const notGoingBtn=myRsvpU!=='declined'?`<button class="btn-decline" style="font-size:9px;padding:3px 7px" onclick="event.stopPropagation();optionalOptOut('${ev.id}','${ev._occurrenceDate||''}')">Not Going</button>`:'<span style="font-size:9px;color:var(--q-amber);padding:3px 6px">Not Attending</span>';
         rsvpHtml=`<div style="display:flex;gap:4px;flex-shrink:0">${goingSpan}${notGoingBtn}</div>`;
       } else if(lockedU){
-        const lockedLabel=myRsvpU==='accepted'?'✓ Going':myRsvpU==='declined'?'✗ Declined':'🔒 Locked';
+        const lockedLabel=myRsvpU==='accepted'?'✓ Going':myRsvpU==='leaving_early'?'🏃 Leaving Early':myRsvpU==='declined'?'✗ Declined':'🔒 Locked';
         rsvpHtml=`<span style="font-size:9px;color:var(--q-muted2);padding:3px 7px;background:var(--q-dark4);border-radius:5px;white-space:nowrap">${lockedLabel}</span>`;
       } else {
         if(myRsvpU==='declined'){
           rsvpHtml=`<span style="font-size:9px;color:var(--q-red);font-weight:700;padding:3px 6px">✗ Declined</span>`;
+        } else if(myRsvpU==='leaving_early'){
+          rsvpHtml=`<span style="font-size:9px;color:#a78bfa;font-weight:700;padding:3px 6px">🏃 Leaving Early</span>`;
         } else {
           const goingBtn=myRsvpU==='accepted'?'<span style="font-size:10px;color:var(--q-green);font-weight:700;padding:3px 6px">✓ Going</span>':`<button class="btn-accept" style="font-size:9px;padding:3px 8px" onclick="event.stopPropagation();rsvpEvent('${ev.id}','accept','${ev._occurrenceDate||''}')">Going</button>`;
+          const leaveEarlyBtn=myRsvpU==='leaving_early'?'<span style="font-size:10px;color:#a78bfa;font-weight:700;padding:3px 6px">🏃 Leaving Early</span>':`<button class="btn-leaveearly" style="font-size:9px;padding:3px 8px" onclick="event.stopPropagation();rsvpEvent('${ev.id}','leave_early','${ev._occurrenceDate||''}')">Leave Early</button>`;
           const cantBtn=`<button class="btn-decline" style="font-size:9px;padding:3px 8px" onclick="event.stopPropagation();rsvpEvent('${ev.id}','decline','${ev._occurrenceDate||''}')">Can't</button>`;
-          rsvpHtml=`<div style="display:flex;gap:4px;flex-shrink:0">${goingBtn}${cantBtn}</div>`;
+          rsvpHtml=`<div style="display:flex;gap:4px;flex-shrink:0">${goingBtn}${leaveEarlyBtn}${cantBtn}</div>`;
         }
       }
     }
@@ -6277,9 +6295,9 @@ function renderHomePage(){
     const ppl=e.invitees||[];
     const isInvited=ppl.some(p=>p.uid===myUid||p.email===myEmail);
     if(!isInvited)return false;
-    // Hide if already accepted or declined
+    // Hide if already accepted, leaving early, or declined
     const rsvpStatus=getMyRsvp(e,myUid);
-    if(rsvpStatus==='accepted'||rsvpStatus==='declined')return false;
+    if(rsvpStatus==='accepted'||rsvpStatus==='leaving_early'||rsvpStatus==='declined')return false;
     _seenInvIds.add(seenKey);
     return true;
   }).sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
@@ -6297,9 +6315,10 @@ function renderHomePage(){
     const occArg=ev._occurrenceDate||'';
     let statusHtml='';
     if(rsvp==='accepted')statusHtml=`<div class="invite-actions"><span class="invite-status accepted">Accepted</span>${days3?`<button class="btn-decline" style="font-size:10px;padding:3px 9px" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Change</button>`:''}</div>`;
+    else if(rsvp==='leaving_early')statusHtml=`<div class="invite-actions"><span class="invite-status leaving_early">Leaving Early</span>${days3?`<button class="btn-decline" style="font-size:10px;padding:3px 9px" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Change</button>`:''}</div>`;
     else if(rsvp==='declined')statusHtml=`<div class="invite-actions"><span class="invite-status declined">Declined</span>${days3?`<button class="btn-accept" style="font-size:10px;padding:3px 9px" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Change</button>`:''}</div>`;
     else if(isOptionalInv)statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Accept</button><button class="btn-decline" style="color:var(--q-amber);border-color:rgba(245,158,11,.35)" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Not Attending</button></div>`;
-    else statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Accept</button><button class="btn-decline" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Decline</button></div>`;
+    else statusHtml=`<div class="invite-actions"><button class="btn-accept" onclick="rsvpEvent('${ev.id}','accept','${occArg}')">Accept</button><button class="btn-leaveearly" onclick="rsvpEvent('${ev.id}','leave_early','${occArg}')">Leave Early</button><button class="btn-decline" onclick="rsvpEvent('${ev.id}','decline','${occArg}')">Decline</button></div>`;
     card.innerHTML=`<div class="invite-card-title">${escHtml(ev.title)}</div><div class="invite-card-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}<br>${escHtml(cal?.name||"Calendar")}${me?` · <span style="color:${me.attendance==='mandatory'?'var(--q-red)':'var(--q-green)'}">${me.attendance==='mandatory'?'Mandatory':'Optional'}</span>`:''}</div>${statusHtml}`;
     invEl.appendChild(card);
   });
@@ -6387,8 +6406,8 @@ window.rsvpEvent=async(evId,action,occDate=null)=>{
   // HAD that 3-day notice (event/series created >=3 days before this
   // occurrence) — see hadFullNotice.
   if(!isOptional&&hadFullNotice(ev,_occ)&&daysUntil(_occ)<3&&daysUntil(_occ)>=0){toast('RSVP locked — within 3 days of event');return;}
-  if(action==='decline'){
-    if(isOptional){
+  if(action==='decline'||action==='leave_early'){
+    if(isOptional&&action==='decline'){
       // Optional: silent opt-out, no reason needed, no unexcused absence
       if(hasMeetingStarted(ev,_occ)){toast('Meeting has already started');return;}
       const patch=key
@@ -6408,6 +6427,24 @@ window.rsvpEvent=async(evId,action,occDate=null)=>{
     } else {
       declineTargetEvId=evId;
       declineTargetOccDate=key;
+      declineTargetAction=action;
+      const modalTitle=document.getElementById('decline-modal-title');
+      const modalDesc=document.getElementById('decline-modal-desc');
+      const modalLabel=document.getElementById('decline-modal-label');
+      const modalSubmit=document.getElementById('decline-modal-submit');
+      if(action==='leave_early'){
+        if(modalTitle)modalTitle.textContent='Leaving Early';
+        if(modalDesc)modalDesc.textContent='Provide a departure time or reason for leaving early.';
+        if(modalLabel)modalLabel.textContent='Departure Note / Reason';
+        if(document.getElementById('decline-reason'))document.getElementById('decline-reason').placeholder='e.g. Need to leave at 4:30 PM for an appointment…';
+        if(modalSubmit){modalSubmit.textContent='Confirm Leaving Early';modalSubmit.className='btn-leaveearly';}
+      } else {
+        if(modalTitle)modalTitle.textContent='Decline Invitation';
+        if(modalDesc)modalDesc.textContent='Provide a reason. This will be shared with the organizer.';
+        if(modalLabel)modalLabel.textContent='Reason';
+        if(document.getElementById('decline-reason'))document.getElementById('decline-reason').placeholder='e.g. I have a conflict at this time…';
+        if(modalSubmit){modalSubmit.textContent='Decline';modalSubmit.className='btn-danger';}
+      }
       document.getElementById('decline-reason').value=getDeclineReason(ev,cu.uid)||'';
       document.getElementById('decline-modal').classList.add('open');
     }
@@ -6429,19 +6466,26 @@ window.rsvpEvent=async(evId,action,occDate=null)=>{
 };
 window.submitDecline=async()=>{
   const reason=document.getElementById('decline-reason').value.trim();
-  if(!reason){toast('Please provide a reason');return;}
+  const act=declineTargetAction||'decline';
+  if(!reason&&act==='decline'){toast('Please provide a reason');return;}
   const key=declineTargetOccDate;
+  const statusVal=act==='leave_early'?'leaving_early':'declined';
   const patch=key
-    ?{[`rsvpByDate.${key}.${cu.uid}`]:'declined',[`declineReasonsByDate.${key}.${cu.uid}`]:reason}
-    :{[`rsvp.${cu.uid}`]:'declined',[`declineReasons.${cu.uid}`]:reason};
+    ?{[`rsvpByDate.${key}.${cu.uid}`]:statusVal,[`declineReasonsByDate.${key}.${cu.uid}`]:reason||null}
+    :{[`rsvp.${cu.uid}`]:statusVal,[`declineReasons.${cu.uid}`]:reason||null};
   await updateDoc(doc(db,'events',declineTargetEvId),patch);
   const _de=events.find(e=>e.id===declineTargetEvId);
   if(_de){
-    if(key){if(!_de.rsvpByDate)_de.rsvpByDate={};if(!_de.rsvpByDate[key])_de.rsvpByDate[key]={};_de.rsvpByDate[key][cu.uid]='declined';}
-    else{if(!_de.rsvp)_de.rsvp={};_de.rsvp[cu.uid]='declined';}
+    if(key){
+      if(!_de.rsvpByDate)_de.rsvpByDate={};if(!_de.rsvpByDate[key])_de.rsvpByDate[key]={};_de.rsvpByDate[key][cu.uid]=statusVal;
+      if(reason){if(!_de.declineReasonsByDate)_de.declineReasonsByDate={};if(!_de.declineReasonsByDate[key])_de.declineReasonsByDate[key]={};_de.declineReasonsByDate[key][cu.uid]=reason;}
+    } else {
+      if(!_de.rsvp)_de.rsvp={};_de.rsvp[cu.uid]=statusVal;
+      if(reason){if(!_de.declineReasons)_de.declineReasons={};_de.declineReasons[cu.uid]=reason;}
+    }
   }
-  declineTargetEvId=null;declineTargetOccDate=null;
-  toast('Declined');closeModal('decline-modal');closeModal('view-modal');renderHomePage();
+  declineTargetEvId=null;declineTargetOccDate=null;declineTargetAction='decline';
+  toast(act==='leave_early'?'Marked as Leaving Early':'Declined');closeModal('decline-modal');closeModal('view-modal');renderHomePage();
 };
 window.submitLeaveEarly=async()=>{
   const time=document.getElementById('leaveearly-time').value;
@@ -6476,7 +6520,7 @@ window.clearLeaveEarly=async()=>{
 // ── View modal ─────────────────────────────────────────────────────────────
 window.setViewTab=(tab)=>{
   viewTab=tab;
-  ['all','accepted','declined','pending'].forEach(t=>{const b=document.getElementById(`vtab-${t}`);if(b)b.className='rsvp-tab'+(t===tab?` active-${t}`:'');});
+  ['all','accepted','leaving_early','declined','pending'].forEach(t=>{const b=document.getElementById(`vtab-${t}`);if(b)b.className='rsvp-tab'+(t===tab?` active-${t}`:'');});
   renderViewPeople();
 };
 
@@ -6593,6 +6637,9 @@ function openViewEvent(ev){
   const showAccept=_rsvpableType&&myInvV&&myRsvpV!=='accepted'&&!_startedV;
   document.getElementById('view-accept-btn').style.display=showAccept?'block':'none';
   const _daysToEv=daysUntil(_occV);
+  const showLeaveEarlyBtn=_rsvpableType&&myInvV&&myRsvpV!=='leaving_early'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
+  const leaveEarlyEl=document.getElementById('view-leaveearly-btn');
+  if(leaveEarlyEl)leaveEarlyEl.style.display=showLeaveEarlyBtn?'block':'none';
   const showDeclineBtn=_rsvpableType&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
   document.getElementById('view-decline-btn').style.display=showDeclineBtn?'block':'none';
   // Leaving early: only meaningful once you're actually going to a meeting.
@@ -6655,14 +6702,14 @@ function renderViewPeople(){
   document.getElementById('view-modal').querySelector('.rsvp-tabs').style.display='flex';
   if(!ppl||!ppl.length){tabsCon.style.display='none';return;}
   tabsCon.style.display='block';
-  const filtered=viewTab==='all'?ppl:ppl.filter(p=>{const r=getMyRsvp(ev,p.uid);return viewTab==='accepted'?r==='accepted':viewTab==='declined'?r==='declined':!r;});
-  if(!filtered.length){el.innerHTML=`<div style="font-size:12px;color:var(--q-muted2);padding:7px 4px">No ${viewTab} responses</div>`;return;}
+  const filtered=viewTab==='all'?ppl:ppl.filter(p=>{const r=getMyRsvp(ev,p.uid);return viewTab==='accepted'?r==='accepted':viewTab==='leaving_early'?r==='leaving_early':viewTab==='declined'?r==='declined':!r;});
+  if(!filtered.length){el.innerHTML=`<div style="font-size:12px;color:var(--q-muted2);padding:7px 4px">No ${viewTab.replace('_',' ')} responses</div>`;return;}
   const isAdm=isAdmin(ev.calendarId);
   filtered.forEach(p=>{
     const rsvp=getMyRsvp(ev,p.uid);
     const dr=getDeclineReason(ev,p.uid);
     const ux=(ev.unexcusedAbsences||{})[p.uid];
-    const hasDr=rsvp==='declined'&&dr;
+    const hasDr=(rsvp==='declined'||rsvp==='leaving_early')&&dr;
     const row=document.createElement('div');row.className=`view-invitee-row${hasDr?' has-decline':''}`;
     let attBadge='';
     if(isTask){
@@ -6676,6 +6723,7 @@ function renderViewPeople(){
     let rsvpB='';
     if(!isTask){
       if(rsvp==='accepted')rsvpB=`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:var(--q-green-dim);color:var(--q-green)">Accepted</span>`;
+      else if(rsvp==='leaving_early')rsvpB=`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.25)">Leaving Early</span>`;
       else if(rsvp==='declined'&&isOptOut)rsvpB=`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(245,158,11,.15);color:var(--q-amber)">Not Attending</span>`;
       else if(rsvp==='declined')rsvpB=`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:var(--q-red-dim);color:var(--q-red)">Declined</span>`;
       else rsvpB='<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:var(--q-dark4);color:var(--q-muted2)">Pending</span>';
@@ -6689,7 +6737,8 @@ function renderViewPeople(){
       if(!ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
       else adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
     }
-    row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${elB} ${uxB} ${adminBtn}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:var(--q-red)">Reason:</strong> ${escHtml(dr)}</div>`:''}`;
+    const drLabel=rsvp==='leaving_early'?'Departure Note':'Reason';
+    row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${uxB} ${adminBtn}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:${rsvp==='leaving_early'?'#a78bfa':'var(--q-red)'}">${drLabel}:</strong> ${escHtml(dr)}</div>`:''}`;
     if(hasDr&&!isOptOut)row.onclick=()=>row.querySelector('.decline-reason-box').classList.toggle('open');
     el.appendChild(row);
   });
@@ -7418,8 +7467,8 @@ async function openMemberModal(m,calId,calRoles){
   myMeetings.forEach(ev=>{
     const d=new Date(ev.date+'T12:00:00');
     const rsvp=getMyRsvp(ev,m.uid);
-    const rsvpColor=rsvp==='accepted'?'var(--q-green)':rsvp==='declined'?'var(--q-red)':'var(--q-muted2)';
-    const rsvpLabel=rsvp==='accepted'?'✓':rsvp==='declined'?'✗':'?';
+    const rsvpColor=rsvp==='accepted'?'var(--q-green)':rsvp==='leaving_early'?'#a78bfa':rsvp==='declined'?'var(--q-red)':'var(--q-muted2)';
+    const rsvpLabel=rsvp==='accepted'?'✓':rsvp==='leaving_early'?'🏃':rsvp==='declined'?'✗':'?';
     const row=document.createElement('div');row.className='member-ev-row';
     row.style.borderLeft=`3px solid ${ev.color||'var(--q-blue2)'}`;
     row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+ev.time:''}</div></div><span style="font-size:11px;font-weight:700;color:${rsvpColor}">${rsvpLabel}</span>`;
@@ -7995,12 +8044,14 @@ async function renderAdminPage(){
   calEvents.forEach(ev=>{
     const ppl=ev.type==='task'?ev.assignees:ev.invitees;if(!ppl)return;
     ppl.forEach(p=>{
-      const rsvp=getMyRsvp(ev,p.uid);if(rsvp!=='declined')return;
+      const rsvp=getMyRsvp(ev,p.uid);if(rsvp!=='declined'&&rsvp!=='leaving_early')return;
       if(p.attendance==='optional'||getOptOut(ev,p.uid))return;
       hasAny=true;
       const ux=(ev.unexcusedAbsences||{})[p.uid];const reason=getDeclineReason(ev,p.uid);const uxNote=(ev.unexcusedNotes||{})[p.uid];
+      const isLeavingEarly=rsvp==='leaving_early';
+      const rsvpText=isLeavingEarly?'leaving early from':'declined';
       const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--q-dark3);border-radius:7px;margin-bottom:5px;font-size:12px;flex-wrap:wrap';
-      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">declined "${escHtml(ev.title)}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">Reason: ${escHtml(reason)}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${escHtml(uxNote)}</div>`:''}</div>${ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
+      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">${rsvpText} "${escHtml(ev.title)}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">${isLeavingEarly?'Departure note':'Reason'}: ${escHtml(reason)}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${escHtml(uxNote)}</div>`:''}</div>${isLeavingEarly?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.25);color:#a78bfa;font-weight:700">LEAVING EARLY</span>`:ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
       al.appendChild(row);
     });
   });
