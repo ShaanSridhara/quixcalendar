@@ -7837,7 +7837,7 @@ window.copyCode=()=>{const cal=calendars.find(c=>c.id===activeCalId);const code=
 
 window.joinCalendar=async()=>{
   const code=document.getElementById('join-code-input').value.trim().toUpperCase();if(code.length<4){toast('Enter a valid code');return;}
-  const cSnap=await getDocs(query(collection(db,'calendars'),where('inviteCode','==',code)));if(cSnap.empty){toast('No calendar found');return;}
+  const cSnap=await getDocs(query(collection(db,'calendars'),where('inviteCode','==',code),limit(1)));if(cSnap.empty){toast('No calendar found');return;}
   const cDoc=cSnap.docs[0],cData=cDoc.data(),calId=cDoc.id;
   if(cData.uid===cu.uid){toast("That's your own calendar!");return;}
   const uref=doc(db,'users',cu.uid),usnap=await getDoc(uref);
