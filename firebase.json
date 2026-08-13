@@ -13,6 +13,16 @@
         "**/node_modules/**"
       ],
       "headers": [
+        {
+          "source": "/**",
+          "headers": [
+            { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://*.googleapis.com wss://*.firebaseio.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';" },
+            { "key": "X-Frame-Options", "value": "DENY" },
+            { "key": "X-Content-Type-Options", "value": "nosniff" },
+            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+            { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
+          ]
+        },
         { "source": "/index.html", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] },
         { "source": "/manifest.json", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] },
         { "source": "/sw.js", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] }
@@ -27,6 +37,16 @@
         "**/node_modules/**"
       ],
       "headers": [
+        {
+          "source": "/**",
+          "headers": [
+            { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://*.googleapis.com wss://*.firebaseio.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';" },
+            { "key": "X-Frame-Options", "value": "DENY" },
+            { "key": "X-Content-Type-Options", "value": "nosniff" },
+            { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+            { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
+          ]
+        },
         { "source": "/index.html", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] },
         { "source": "/manifest.json", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] },
         { "source": "/sw.js", "headers": [ { "key": "Cache-Control", "value": "no-cache" } ] }

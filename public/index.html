@@ -4706,16 +4706,18 @@ body.light-mode .month-grid-day:hover {
       <textarea class="form-input" id="bug-message" rows="5" placeholder="What happened? What did you expect? The more detail, the faster we can fix it."></textarea>
     </div>
     <div class="form-group">
-      <label class="form-label">Screenshot <span style="color:var(--q-muted2);font-weight:400">(optional)</span></label>
-      <input type="file" id="bug-image" accept="image/*" style="display:none" onchange="onBugImagePick(this)"/>
-      <button type="button" class="btn-secondary" style="width:100%;cursor:pointer" onclick="document.getElementById('bug-image').click()">📎 Attach an image</button>
-      <div id="bug-image-preview" style="display:none;margin-top:10px;position:relative">
-        <img id="bug-image-thumb" style="width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid var(--q-border2);background:var(--q-dark3)"/>
-        <button type="button" onclick="clearBugImage()" title="Remove image" style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,0.6);color:#fff;cursor:pointer;font-size:13px;line-height:1">✕</button>
+      <div class="form-group">
+        <label class="form-label">Screenshot <span style="color:var(--q-muted2);font-weight:400">(optional)</span></label>
+        <input type="file" id="bug-image" accept="image/*" style="display:none" onchange="onBugImagePick(this)"/>
+        <button type="button" class="btn-secondary" style="width:100%;cursor:pointer" onclick="document.getElementById('bug-image').click()">📎 Attach an image</button>
+        <div id="bug-image-preview" style="display:none;margin-top:10px;position:relative">
+          <img id="bug-image-thumb" style="width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid var(--q-border2);background:var(--q-dark3)"/>
+          <button type="button" onclick="clearBugImage()" title="Remove image" style="position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,0.6);color:#fff;cursor:pointer;font-size:13px;line-height:1">✕</button>
+        </div>
       </div>
+      <div style="font-size:11px;color:var(--q-muted2);margin-bottom:12px">We'll include your name, the page you're on, and your device info so we can reproduce it.</div>
+      <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('bug-modal')">Cancel</button><button class="btn-primary-sm" id="bug-submit-btn" onclick="submitBugReport()">Send report</button></div>
     </div>
-    <div style="font-size:11px;color:var(--q-muted2);margin-bottom:12px">We'll include your name, the page you're on, and your device info so we can reproduce it.</div>
-    <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('bug-modal')">Cancel</button><button class="btn-primary-sm" id="bug-submit-btn" onclick="submitBugReport()">Send report</button></div>
   </div>
 </div>
 
@@ -4985,7 +4987,7 @@ async function initUserData(user){
     await setDoc(uref,{displayName:user.displayName||'User',email:user.email,joinedCalendars:[],pfpUrl:null,unexcusedCount:0,role:null});
     const code=Math.random().toString(36).substring(2,8).toUpperCase();
     // Every new user owns a personal calendar and is its Captain from day one.
-    await addDoc(collection(db,'calendars'),{uid:user.uid,name:'My Calendar',color:'#00b4ff',inviteCode:code,roles:{[user.uid]:'Captain'},subsections:[],personal:true,createdAt:serverTimestamp()});
+    await addDoc(collection(db,'calendars'),{uid:user.uid,name:'My Calendar',color:'#00b4ff',inviteCode:code,roles:{[user.uid]:'Captain'},members:[user.uid],subsections:[],personal:true,createdAt:serverTimestamp()});
   } else {
     userPfpUrl=snap.data().pfpUrl||null;
     myRole=snap.data().role||null;
@@ -6967,7 +6969,7 @@ async function loadCalMembers(calId){
   try{
     // For own calendars: query users who joined this cal
     // For shared calendars: also query — works the same way
-    const snap=await getDocs(query(collection(db,'users'),where('joinedCalendars','array-contains',calId)));
+    const snap=await getDocs(query(collection(db,'users'),where('joinedCalendars','array-contains',calId),limit(200)));
     snap.docs.forEach(d=>{if(d.id!==cu.uid)calMembers.push({uid:d.id,displayName:d.data().displayName||d.data().email?.split('@')[0]||'User',email:d.data().email||'',subsection:d.data()[`subsection_${calId}`]||''});});
     // Include the owner of any calendar (own or shared) if not already in list
     const allCals=[...calendars,...sharedCalendars];
@@ -7377,7 +7379,7 @@ async function renderTeamRoster(calId){
   const memberMap={};
   if(ownerSnap.exists())memberMap[cal.uid]={uid:cal.uid,...ownerSnap.data()};
   // joined members
-  const snap=await getDocs(query(collection(db,'users'),where('joinedCalendars','array-contains',calId)));
+  const snap=await getDocs(query(collection(db,'users'),where('joinedCalendars','array-contains',calId),limit(200)));
   snap.docs.forEach(d=>{memberMap[d.id]={uid:d.id,...d.data()};});
   const members=Object.values(memberMap);
   colsEl.innerHTML='';
@@ -7390,7 +7392,7 @@ async function renderTeamRoster(calId){
     const char=(m.displayName||'?').charAt(0).toUpperCase();
     const uxCount=m.unexcusedCount||0;
     card.innerHTML=`
-      <div class="member-avatar">${m.pfpUrl?`<img src="${m.pfpUrl}"/>`:`<span>${char}</span>`}</div>
+      <div class="member-avatar">${safeUrl(m.pfpUrl)?`<img src="${safeUrl(m.pfpUrl)}"/>`:`<span>${char}</span>`}</div>
       <div style="flex:1;min-width:0;overflow:hidden">
         <div style="font-size:13px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(m.displayName||"User")}</div>
         <div style="display:flex;align-items:center;gap:5px;row-gap:4px;margin-top:4px;flex-wrap:wrap">
@@ -7441,7 +7443,7 @@ async function openMemberModal(m,calId,calRoles){
 
   el.innerHTML=`
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
-      <div class="member-avatar" style="width:48px;height:48px;font-size:18px">${m.pfpUrl?`<img src="${m.pfpUrl}"/>`:`<span>${char}</span>`}</div>
+      <div class="member-avatar" style="width:48px;height:48px;font-size:18px">${safeUrl(m.pfpUrl)?`<img src="${safeUrl(m.pfpUrl)}"/>`:`<span>${char}</span>`}</div>
       <div>
         <div style="font-size:18px;font-weight:700">${escHtml(m.displayName||"User")}</div>
         <div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">
@@ -7471,7 +7473,7 @@ async function openMemberModal(m,calId,calRoles){
     const rsvpLabel=rsvp==='accepted'?'✓':rsvp==='leaving_early'?'🏃':rsvp==='declined'?'✗':'?';
     const row=document.createElement('div');row.className='member-ev-row';
     row.style.borderLeft=`3px solid ${ev.color||'var(--q-blue2)'}`;
-    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+ev.time:''}</div></div><span style="font-size:11px;font-weight:700;color:${rsvpColor}">${rsvpLabel}</span>`;
+    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+escHtml(ev.time):''}</div></div><span style="font-size:11px;font-weight:700;color:${rsvpColor}">${rsvpLabel}</span>`;
     row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
     mmEl.appendChild(row);
   });
@@ -7681,7 +7683,7 @@ window.saveNewCalendar=async()=>{
   const name=document.getElementById('newcal-name').value.trim();if(!name){toast('Enter a name');return;}
   try{
     const code=Math.random().toString(36).substring(2,8).toUpperCase();
-    await addDoc(collection(db,'calendars'),{uid:cu.uid,name,color:'#00b4ff',inviteCode:code,roles:{[cu.uid]:'Captain'},subsections:[],createdAt:serverTimestamp()});
+    await addDoc(collection(db,'calendars'),{uid:cu.uid,name,color:'#00b4ff',inviteCode:code,roles:{[cu.uid]:'Captain'},members:[cu.uid],subsections:[],createdAt:serverTimestamp()});
     toast(`"${name}" created`);closeModal('newcal-modal');
   }catch(e){toast('Error');}
 };
@@ -7842,6 +7844,7 @@ window.joinCalendar=async()=>{
   if(cData.uid===cu.uid){toast("That's your own calendar!");return;}
   const uref=doc(db,'users',cu.uid),usnap=await getDoc(uref);
   const joined=usnap.data().joinedCalendars||[];if(joined.includes(calId)){toast('Already joined');return;}
+  await updateDoc(doc(db,'calendars',calId),{members:arrayUnion(cu.uid)}).catch(()=>{});
   await updateDoc(uref,{joinedCalendars:arrayUnion(calId)});
   const oSnap=await getDoc(doc(db,'users',cData.uid));
   const oName=oSnap.data()?.displayName||'Someone';
@@ -7862,7 +7865,7 @@ async function loadJoinedCalendars(){
     const cDoc=await getDoc(doc(db,'calendars',calId));if(!cDoc.exists())continue;
     const cData=cDoc.data();const oDoc=await getDoc(doc(db,'users',cData.uid));const oName=oDoc.data()?.displayName||'Unknown';
     const div=document.createElement('div');div.style.cssText='display:flex;align-items:center;gap:7px;font-size:12px;color:var(--q-muted);margin-bottom:7px';
-    div.innerHTML=`<div style="width:7px;height:7px;border-radius:50%;background:${cData.color||'#00b4ff'};flex-shrink:0"></div><span style="flex:1">${escHtml(cData.name)} <span style="color:var(--q-muted2);font-size:10px">by ${oName}</span></span><button onclick="leaveCalendar('${calId}')" style="background:none;border:none;color:var(--q-red);cursor:pointer;font-size:11px">Leave</button>`;
+    div.innerHTML=`<div style="width:7px;height:7px;border-radius:50%;background:${escColor(cData.color||'#00b4ff')};flex-shrink:0"></div><span style="flex:1">${escHtml(cData.name)} <span style="color:var(--q-muted2);font-size:10px">by ${escHtml(oName)}</span></span><button onclick="leaveCalendar('${calId}')" style="background:none;border:none;color:var(--q-red);cursor:pointer;font-size:11px">Leave</button>`;
     listEl.appendChild(div);
     subscribeSharedCal(calId,cData.uid,cData.name,oName,cData.color||'#00b4ff',cData.roles||{},cData.subsections||[]);
     enabledCalIds.add(calId);
@@ -7929,6 +7932,7 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
 window.leaveCalendar=async(calId)=>{
   if(_sharedCalUnsubs.has(calId)){_sharedCalUnsubs.get(calId).forEach(u=>u());_sharedCalUnsubs.delete(calId);}
   const uref=doc(db,'users',cu.uid);
+  await updateDoc(doc(db,'calendars',calId),{members:arrayRemove(cu.uid)}).catch(()=>{});
   await updateDoc(uref,{joinedCalendars:arrayRemove(calId)});
   if(viewingEv&&(viewingEv.calendarId===calId||viewingEv.sharedCalId===calId)){closeModal('view-modal');viewingEv=null;}
   events=events.filter(e=>!(e.isShared&&e.sharedCalId===calId));sharedCalendars=sharedCalendars.filter(c=>c.id!==calId);
@@ -7982,7 +7986,7 @@ async function renderAdminPage(){
 
   // Members
   const ml=document.getElementById('admin-members-list');ml.innerHTML='<div style="font-size:11px;color:var(--q-muted2)">Loading…</div>';
-  const snap=await getDocs(query(collection(db,'users'),where('joinedCalendars','array-contains',adminCal.id)));
+  const snap=await getDocs(query(collection(db,'users'),where('joinedCalendars','array-contains',adminCal.id),limit(200)));
   // For shared cals, uid is stored in sharedCalendars; for own cals it's cal.uid
   const calOwnerUid=adminCal.uid||cu.uid;
   const ownerSnap=await getDoc(doc(db,'users',calOwnerUid));
@@ -8015,7 +8019,7 @@ async function renderAdminPage(){
       if(m.uid!==cu.uid){
         const kickBtn=document.createElement('button');kickBtn.style.cssText='padding:3px 8px;font-size:10px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)';
         kickBtn.textContent='Kick';
-        kickBtn.onclick=async()=>{if(!confirm(`Remove ${escHtml(m.displayName)}?`))return;await updateDoc(doc(db,'users',m.uid),{joinedCalendars:arrayRemove(adminCal.id)});toast(`${escHtml(m.displayName)} removed`);renderAdminPage();};
+        kickBtn.onclick=async()=>{if(!confirm(`Remove ${escHtml(m.displayName)}?`))return;await updateDoc(doc(db,'calendars',adminCal.id),{members:arrayRemove(m.uid)}).catch(()=>{});await updateDoc(doc(db,'users',m.uid),{joinedCalendars:arrayRemove(adminCal.id)});toast(`${escHtml(m.displayName)} removed`);renderAdminPage();};
         row.querySelector('div:last-child').appendChild(kickBtn);
       }
     }
@@ -8572,7 +8576,7 @@ window.runSearch=(q)=>{
     const ppl=[...(e.invitees||[]),...(e.assignees||[])];
     return ppl.some(p=>(p.name||p.displayName||'').toLowerCase().includes(lower));
   });
-  if(!allResults.length){el.innerHTML='<div style="font-size:12px;color:var(--q-muted2);padding:20px 4px;text-align:center">No results for "<strong style="color:var(--q-text)">'+q+'</strong>"</div>';return;}
+  if(!allResults.length){el.innerHTML='<div style="font-size:12px;color:var(--q-muted2);padding:20px 4px;text-align:center">No results for "<strong style="color:var(--q-text)">'+escHtml(q)+'</strong>"</div>';return;}
   el.innerHTML='';
   const meetings=allResults.filter(e=>e.type==='meeting').slice(0,6);
   const tasks=allResults.filter(e=>e.type==='task').slice(0,6);
@@ -8590,7 +8594,7 @@ window.runSearch=(q)=>{
       const sameYear=d.getFullYear()===getNow().getFullYear();
       const dateStr=d.toLocaleDateString('en-US',sameYear?{weekday:'short',month:'short',day:'numeric'}:{weekday:'short',month:'short',day:'numeric',year:'numeric'});
       const row=document.createElement('div');row.className='search-result-row';
-      row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;margin-top:2px"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--q-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${dateStr}${cal?" · "+escHtml(cal.name):""}${ev.location?' · 📍'+ev.location.slice(0,30):''}</div></div>${ev.completed?'<span style="font-size:9px;color:var(--q-muted2);background:var(--q-dark4);padding:2px 6px;border-radius:5px;flex-shrink:0">Done</span>':''}`;
+      row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:${escColor(color)};flex-shrink:0;margin-top:2px"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--q-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${dateStr}${cal?" · "+escHtml(cal.name):""}${ev.location?' · 📍'+escHtml(ev.location.slice(0,30)):''}</div></div>${ev.completed?'<span style="font-size:9px;color:var(--q-muted2);background:var(--q-dark4);padding:2px 6px;border-radius:5px;flex-shrink:0">Done</span>':''}`;
       row.onclick=()=>{
         closeModal('search-modal');
         const evD=new Date(ev.date+'T12:00:00');

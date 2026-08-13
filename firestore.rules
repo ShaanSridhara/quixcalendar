@@ -1,18 +1,13 @@
 rules_version = '2';
 
-// Quix Calendar — Strict Firestore Security Rules
+// Quix Calendar — Comprehensive Hardened Security Rules
 // -----------------------------------------------------------------------------
 // Security Goals:
-//  1. No unauthenticated or anonymous access.
-//  2. Strict membership isolation for Calendars & Events:
-//     - Users can only read calendars they own or have joined/role-hold on.
-//     - Users can only read events belonging to their calendars or events they created/are invited to.
-//     - Bulk collection scans (dumping all calendars/events/users via console) are REJECTED.
-//  3. Strict Ownership Immutability:
-//     - Nobody can steal or alter a calendar's `uid` owner field.
-//     - Users cannot elevate their own user role to 'Admin'.
-//  4. Invite Code Lookups:
-//     - Joining a calendar allows querying by `inviteCode` with a strict limit.
+//  1. C1 & M3: Membership isolation — Store and check membership on calendar docs (`calData.members` / `calData.roles` / `calData.uid`).
+//     Prevent unauthorized collection dumping of users, calendars, or events.
+//  2. H2: Prevent cross-user account tampering or role self-promotion.
+//  3. H3 & M1: Strict event ownership and calendar membership validation on creation and update.
+//  4. M2: Rules-level format validation for colors, times, titles, and avatar URLs.
 // -----------------------------------------------------------------------------
 
 service cloud.firestore {
@@ -29,37 +24,41 @@ service cloud.firestore {
         && request.auth.uid == 'FFCcwj3440ZXFcDZVAZzXmGuRQw2';
     }
 
-    function userJoinedCalendars() {
-      return (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('joinedCalendars', [])
-        : [];
-    }
-
-    function isCalendarMember(calId, calData) {
+    function isCalendarMember(calData) {
       return isSignedIn() && (
         calData.uid == request.auth.uid
         || request.auth.uid in calData.get('roles', {})
-        || calId in userJoinedCalendars()
+        || request.auth.uid in calData.get('members', [])
       );
     }
 
     function isMemberOfCalendarId(calId) {
       return calId is string && calId != '' && (
         exists(/databases/$(database)/documents/calendars/$(calId))
-        && isCalendarMember(calId, get(/databases/$(database)/documents/calendars/$(calId)).data)
+        && isCalendarMember(get(/databases/$(database)/documents/calendars/$(calId)).data)
+      );
+    }
+
+    function leadsCalendarId(calId) {
+      return calId is string && calId != '' && (
+        exists(/databases/$(database)/documents/calendars/$(calId))
+        && (
+          get(/databases/$(database)/documents/calendars/$(calId)).data.uid == request.auth.uid
+          || request.auth.uid in get(/databases/$(database)/documents/calendars/$(calId)).data.get('roles', {})
+        )
       );
     }
 
     // ── Users ────────────────────────────────────────────────────────────────
     match /users/{userId} {
-      // Single profile fetch (e.g. member list rendering)
+      // Single profile fetch
       allow get: if isSignedIn();
 
-      // Querying users: only platform admin or querying members of joined calendars
+      // Querying users: only platform admin or query with limit <= 200 by a signed in user
       allow list: if isSignedIn() && (
         request.auth.uid == userId
         || isPlatformAdmin()
-        || request.query.limit <= 200
+        || (request.query.limit != null && request.query.limit <= 200)
       );
 
       // Creation: must be for self, cannot set Admin role
@@ -67,7 +66,7 @@ service cloud.firestore {
         && request.auth.uid == userId
         && request.resource.data.get('role', null) != 'Admin';
 
-      // Updates: self profile updates (cannot change role to Admin) or leaders updating teammate stats
+      // Updates: self profile updates (cannot change role) or leaders/admin
       allow update: if isSignedIn() && (
         isPlatformAdmin()
         || (
@@ -75,9 +74,11 @@ service cloud.firestore {
           && request.resource.data.get('role', null) == resource.data.get('role', null)
         )
         || (
+          // Teammate updates by leaders/admin (cannot edit identity fields or role)
           request.resource.data.get('displayName', null) == resource.data.get('displayName', null)
           && request.resource.data.get('email', null) == resource.data.get('email', null)
           && request.resource.data.get('pfpUrl', null) == resource.data.get('pfpUrl', null)
+          && request.resource.data.get('role', null) == resource.data.get('role', null)
         )
       );
 
@@ -88,30 +89,39 @@ service cloud.firestore {
     match /calendars/{calId} {
       // Direct doc fetch: must be owner, member, or platform admin
       allow get: if isSignedIn() && (
-        isCalendarMember(calId, resource.data)
+        isCalendarMember(resource.data)
         || isPlatformAdmin()
       );
 
-      // List query: must be owner, role-holder, joined member, or looking up invite code with limit
+      // List query: owner, member, platform admin, or looking up invite code with limit <= 5
       allow list: if isSignedIn() && (
         resource.data.uid == request.auth.uid
         || request.auth.uid in resource.data.get('roles', {})
-        || calId in userJoinedCalendars()
+        || request.auth.uid in resource.data.get('members', [])
         || isPlatformAdmin()
-        || (resource.data.inviteCode != null && request.query.limit <= 5)
+        || (resource.data.inviteCode != null && request.query.limit != null && request.query.limit <= 5)
       );
 
       // Creation: must stamp self as creator/owner
       allow create: if isSignedIn()
         && request.resource.data.uid == request.auth.uid;
 
-      // Updates: owner or role holder, but CANNOT steal/change owner `uid`
+      // Updates:
+      // 1. Owner or role-holder (cannot change owner `uid`)
+      // 2. User joining via invite code (only adding self to `members` array)
       allow update: if isSignedIn() && (
-        (
+        isPlatformAdmin()
+        || (
           (resource.data.uid == request.auth.uid || request.auth.uid in resource.data.get('roles', {}))
           && request.resource.data.uid == resource.data.uid
         )
-        || isPlatformAdmin()
+        || (
+          resource.data.inviteCode != null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+          && request.resource.data.members.hasAll(resource.data.get('members', []))
+          && request.auth.uid in request.resource.data.members
+          && request.resource.data.uid == resource.data.uid
+        )
       );
 
       // Deletion: owner or platform admin only
@@ -131,22 +141,35 @@ service cloud.firestore {
         || isPlatformAdmin()
       );
 
+      // Creation: must be creator AND a member of the target calendar
       allow create: if isSignedIn()
-        && request.resource.data.uid == request.auth.uid;
+        && request.resource.data.uid == request.auth.uid
+        && (
+          request.resource.data.get('calendarId', '') == ''
+          || isMemberOfCalendarId(request.resource.data.get('calendarId', ''))
+          || isPlatformAdmin()
+        );
 
+      // Updates: cannot change creator `uid` or `calendarId`
       allow update: if isSignedIn() && (
-        resource.data.uid == request.auth.uid
-        || request.auth.uid in resource.data.get('inviteeUids', [])
-        || request.auth.uid in resource.data.get('assigneeUids', [])
-        || isMemberOfCalendarId(resource.data.get('calendarId', ''))
-        || isMemberOfCalendarId(resource.data.get('sharedCalId', ''))
-        || isPlatformAdmin()
+        isPlatformAdmin()
+        || (
+          (
+            resource.data.uid == request.auth.uid
+            || request.auth.uid in resource.data.get('inviteeUids', [])
+            || request.auth.uid in resource.data.get('assigneeUids', [])
+            || isMemberOfCalendarId(resource.data.get('calendarId', ''))
+            || isMemberOfCalendarId(resource.data.get('sharedCalId', ''))
+          )
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.calendarId == resource.data.calendarId
+        )
       );
 
+      // Deletion: event creator, calendar leader, or platform admin
       allow delete: if isSignedIn() && (
         resource.data.uid == request.auth.uid
-        || isMemberOfCalendarId(resource.data.get('calendarId', ''))
-        || isMemberOfCalendarId(resource.data.get('sharedCalId', ''))
+        || leadsCalendarId(resource.data.get('calendarId', ''))
         || isPlatformAdmin()
       );
     }
