@@ -4898,6 +4898,10 @@ function fmt12(t){
 // ── HTML escape helper — use for all user-generated content in innerHTML ──
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function linkify(s){return escHtml(s).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--q-blue2);text-decoration:underline;word-break:break-all">$1</a>');}
+// Color sanitizer — only allow hex colors (blocks style-attribute breakout via attacker-set colors)
+function escColor(c){return /^#[0-9a-fA-F]{6}$/.test(String(c||''))?c:'#2979ff';}
+// Avatar URL sanitizer — only allow base64 image data-URLs (blocks javascript:/onerror injection)
+function safeUrl(u){return (typeof u==='string'&&/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u))?u:null;}
 // Escape user text placed inside a single-quoted JS string within a double-quoted
 // HTML attribute (e.g. onclick="fn('${jsStr(name)}')"). Neutralises attribute and
 // JS-string breakouts so a name like O'Brien or `"><script>` can't inject.
@@ -5333,7 +5337,7 @@ function renderAgendaView(){
     const row=document.createElement('div');row.className='agenda-row'+(ev.completed?' done':'');
     const timeTxt=ev.type==='task'?(ev.time?fmt12(ev.time):'Task'):(ev.allDay?'All day':(ev.time?fmt12(ev.time):'—'));
     const meta=`${typeLabel[ev.type]||'Item'}${cal?.name?' · '+escHtml(cal.name):''}`;
-    row.innerHTML=`<div class="agenda-time">${escHtml(timeTxt)}</div><div class="agenda-bar" style="background:${color}"></div><div class="agenda-body"><div class="agenda-title">${escHtml(ev.title)}</div><div class="agenda-meta">${meta}${ev.location?' · 📍 '+escHtml(ev.location):''}</div></div>`;
+    row.innerHTML=`<div class="agenda-time">${escHtml(timeTxt)}</div><div class="agenda-bar" style="background:${escColor(color)}"></div><div class="agenda-body"><div class="agenda-title">${escHtml(ev.title)}</div><div class="agenda-meta">${meta}${ev.location?' · 📍 '+escHtml(ev.location):''}</div></div>`;
     row.onclick=()=>openViewEvent(ev);
     return row;
   };
@@ -5386,7 +5390,7 @@ function updateTopbar(){
 function updateAvatarDisplay(){
   const char=(cu?.displayName||cu?.email||'?').charAt(0).toUpperCase();
   const el=document.getElementById('user-avatar-el');if(!el)return;
-  el.innerHTML=userPfpUrl?`<img src="${userPfpUrl}" alt="pfp"/>`:`<span>${char}</span>`;
+  el.innerHTML=safeUrl(userPfpUrl)?`<img src="${safeUrl(userPfpUrl)}" alt="pfp"/>`:`<span>${char}</span>`;
 }
 
 function updateCalHeader(){
@@ -5872,7 +5876,7 @@ function renderSidebarAgenda(){
     const d=new Date(ev.date+'T12:00:00');
     const dateStr=ev.date===todayStr?'Today':(d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()?`${M[d.getMonth()]} ${d.getDate()}`:`${M[d.getMonth()]} ${d.getDate()}`);
     const item=document.createElement('div');item.className='agenda-item';
-    item.innerHTML=`<div class="agenda-dot" style="background:${color}"></div><div class="agenda-info"><div class="agenda-date">${dateStr}${ev.time?' · '+fmt12(ev.time):''}</div><div class="agenda-name">${escHtml(ev.title)}</div></div>`;
+    item.innerHTML=`<div class="agenda-dot" style="background:${escColor(color)}"></div><div class="agenda-info"><div class="agenda-date">${dateStr}${ev.time?' · '+fmt12(ev.time):''}</div><div class="agenda-name">${escHtml(ev.title)}</div></div>`;
     item.onclick=()=>{currentDate=new Date(ev.date+'T12:00:00');miniDate=new Date(currentDate);enabledCalIds.add(ev.calendarId||ev.sharedCalId);showPage('calendar');setTimeout(()=>openViewEvent(ev),80);};
     el.appendChild(item);
   });
@@ -6109,7 +6113,7 @@ function showHoverCard(ev,cal,color,e){
     hideHoverCard();
     const d=new Date(ev.date+'T12:00:00');
     const card=document.createElement('div');card.className='ev-hover-card';
-    card.innerHTML=`<div class="ev-hover-card-title" style="color:${color}">${escHtml(ev.title)}</div><div class="ev-hover-card-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.allDay?' · All day':ev.time?' · '+fmt12(ev.time)+(ev.timeEnd?' – '+fmt12(ev.timeEnd):''):''}${cal?' · '+escHtml(cal.name):''}${ev.type==='task'?' · '+((ev.priority||'important')[0].toUpperCase()+(ev.priority||'important').slice(1)):''}${ev.description?'<br><span style="color:var(--q-muted2)">'+escHtml(ev.description).slice(0,80)+(ev.description.length>80?'…':'')+'</span>':''}</div>`;
+    card.innerHTML=`<div class="ev-hover-card-title" style="color:${escColor(color)}">${escHtml(ev.title)}</div><div class="ev-hover-card-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.allDay?' · All day':ev.time?' · '+fmt12(ev.time)+(ev.timeEnd?' – '+fmt12(ev.timeEnd):''):''}${cal?' · '+escHtml(cal.name):''}${ev.type==='task'?' · '+((ev.priority||'important')[0].toUpperCase()+(ev.priority||'important').slice(1)):''}${ev.description?'<br><span style="color:var(--q-muted2)">'+escHtml(ev.description).slice(0,80)+(ev.description.length>80?'…':'')+'</span>':''}</div>`;
     document.body.appendChild(card);_hoverCard=card;
     const r=e.target.getBoundingClientRect();
     let left=r.right+10,top=r.top;
@@ -6133,7 +6137,7 @@ function showOverflowPopup(evs,anchor,ds){
     if(ev.type==='task'){const pri=ev.priority||'important';color=pri==='critical'?'#ef4444':pri==='important'?'#f59e0b':'#22c55e';}
     if(ev.completed)color='#94a3b8';
     const row=document.createElement('div');row.className='overflow-popup-pill';
-    row.innerHTML=`<div class="overflow-popup-pill-dot" style="background:${color}"></div><span class="overflow-popup-pill-text" style="color:${color}">${escHtml(ev.title)}</span>${ev.time?`<span class="overflow-popup-pill-time">${fmt12(ev.time)}</span>`:''}`;
+    row.innerHTML=`<div class="overflow-popup-pill-dot" style="background:${escColor(color)}"></div><span class="overflow-popup-pill-text" style="color:${escColor(color)}">${escHtml(ev.title)}</span>${ev.time?`<span class="overflow-popup-pill-time">${fmt12(ev.time)}</span>`:''}`;
     row.onclick=()=>{closeOverflowPopup();openViewEvent(ev);};
     popup.appendChild(row);
   });
@@ -6248,7 +6252,7 @@ function renderHomePage(){
         }
       }
     }
-    row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div>${rsvpHtml}`;
+    row.innerHTML=`<div class="upcoming-dot" style="background:${escColor(color)}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div>${rsvpHtml}`;
     row.onclick=()=>openViewEvent(ev);upEl.appendChild(row);
   });
 
@@ -6272,9 +6276,9 @@ function renderHomePage(){
         const color=isOutreach?'var(--q-green)':'#a78bfa';
         const d=new Date(ev.date+'T12:00:00');
         const row=document.createElement('div');row.className='upcoming-row';
-        const badge=`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;background:${isOutreach?'rgba(0,232,122,0.12)':'rgba(167,139,250,0.12)'};color:${color};border:1px solid ${isOutreach?'rgba(0,232,122,0.25)':'rgba(167,139,250,0.25)'}">${isOutreach?'Outreach':'Event'}</span>`;
+        const badge=`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;background:${isOutreach?'rgba(0,232,122,0.12)':'rgba(167,139,250,0.12)'};color:${escColor(color)};border:1px solid ${isOutreach?'rgba(0,232,122,0.25)':'rgba(167,139,250,0.25)'}">${isOutreach?'Outreach':'Event'}</span>`;
         const invCount=(ev.invitees||[]).length;
-        row.innerHTML=`<div class="upcoming-dot" style="background:${color}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''} · ${escHtml(cal?.name||"Calendar")}</div></div>${badge}`;
+        row.innerHTML=`<div class="upcoming-dot" style="background:${escColor(color)}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}${invCount?' · '+invCount+' attendee'+(invCount!==1?'s':''):''} · ${escHtml(cal?.name||"Calendar")}</div></div>${badge}`;
         row.onclick=()=>openViewEvent(ev);
         homeEvEl.appendChild(row);
       });
@@ -6532,7 +6536,7 @@ function openViewEvent(ev){
   const color=ev.completed?'#6b7280':(ev.color||cal?.color||'#2979ff');
   const typeBadge=ev.type==='task'?`<span class="event-type-badge" style="background:var(--q-amber-dim);color:var(--q-amber)">TASK</span>`:ev.type==='event'?`<span class="event-type-badge" style="background:var(--q-violet-dim);color:var(--q-violet)">EVENT</span>`:ev.type==='outreach'?`<span class="event-type-badge" style="background:var(--q-green-dim);color:var(--q-green);border:1px solid rgba(0,232,122,.2)">🌱 OUTREACH</span>`:`<span class="event-type-badge" style="background:var(--q-blue-dim);color:var(--q-blue2)">MEETING</span>`;
   const completedBadge=ev.completed?`<span class="event-type-badge" style="background:rgba(156,163,175,.15);color:var(--q-muted)">COMPLETED</span>`:'';
-  document.getElementById('view-title').innerHTML=`<span class="event-view-color" style="background:${color}"></span>${escHtml(ev.title)}${typeBadge}${completedBadge}`;
+  document.getElementById('view-title').innerHTML=`<span class="event-view-color" style="background:${escColor(color)}"></span>${escHtml(ev.title)}${typeBadge}${completedBadge}`;
   const dateObj=new Date(ev.date+'T12:00:00');
   document.getElementById('view-date').textContent=dateObj.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   if(ev.allDay){document.getElementById('view-time').textContent='All day';document.getElementById('view-time-row').style.display='flex';}
@@ -7499,7 +7503,7 @@ async function openMemberModal(m,calId,calRoles){
       const color=ev.type==='outreach'?'var(--q-green)':'#8b5cf6';
       const row=document.createElement('div');row.className='member-ev-row';
       row.style.borderLeft=`3px solid ${color}`;
-      row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:5px;background:${color}22;color:${color}">${ev.type==='outreach'?'Outreach':'Event'}</span>`;
+      row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div><span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:5px;background:${escColor(color)}22;color:${escColor(color)}">${ev.type==='outreach'?'Outreach':'Event'}</span>`;
       row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
       meEl.appendChild(row);
     });
@@ -7844,7 +7848,7 @@ window.joinCalendar=async()=>{
   if(cData.uid===cu.uid){toast("That's your own calendar!");return;}
   const uref=doc(db,'users',cu.uid),usnap=await getDoc(uref);
   const joined=usnap.data().joinedCalendars||[];if(joined.includes(calId)){toast('Already joined');return;}
-  await updateDoc(doc(db,'calendars',calId),{members:arrayUnion(cu.uid)}).catch(()=>{});
+  await updateDoc(doc(db,'calendars',calId),{members:arrayUnion(cu.uid),joinCode:code}).catch(()=>{});
   await updateDoc(uref,{joinedCalendars:arrayUnion(calId)});
   const oSnap=await getDoc(doc(db,'users',cData.uid));
   const oName=oSnap.data()?.displayName||'Someone';
@@ -8183,7 +8187,7 @@ function renderProfilePage(){
   const rd=document.getElementById('profile-role-display');
   if(myRole)rd.innerHTML=`<span class="role-badge">${displayRole(myRole)}</span>`;else rd.innerHTML='';
   const bigEl=document.getElementById('profile-avatar-big');const char=(name||email||'?').charAt(0).toUpperCase();
-  if(userPfpUrl)bigEl.innerHTML=`<img src="${userPfpUrl}" alt="pfp"/><input type="file" id="pfp-input" accept="image/*" style="display:none" onchange="handlePfpChange(event)"/>`;
+  if(safeUrl(userPfpUrl))bigEl.innerHTML=`<img src="${safeUrl(userPfpUrl)}" alt="pfp"/><input type="file" id="pfp-input" accept="image/*" style="display:none" onchange="handlePfpChange(event)"/>`;
   else bigEl.innerHTML=`<span id="profile-avatar-char">${char}</span><input type="file" id="pfp-input" accept="image/*" style="display:none" onchange="handlePfpChange(event)"/>`;
   const ns=document.getElementById('notif-status');
   if(ns){
