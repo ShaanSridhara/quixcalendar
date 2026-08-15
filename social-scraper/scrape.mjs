@@ -195,6 +195,14 @@ async function fetchInstagramStats(cfg, cutoffMs) {
         `a[href^="/${handle}/p/"], a[href^="/${handle}/reel/"]`,
         (els) => [...new Set(els.map((e) => e.href))]
       );
+      if (!links.length) {
+        // Diagnostic aid — CI runner IPs (datacenter ranges) sometimes get a
+        // different response than a residential/dev IP would (login wall,
+        // rate limit, etc.), which is otherwise indistinguishable from
+        // "wrong handle" in the logs.
+        const title = await page.title().catch(() => '?');
+        console.log(`[instagram] profile grid returned 0 links for @${handle} — page title was: "${title}"`);
+      }
       links.slice(0, 15).forEach((l) => postUrls.add(l));
     }
 
