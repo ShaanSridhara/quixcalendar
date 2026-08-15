@@ -11,20 +11,29 @@
  *    includes a view count per video. Auto-discovers new uploads (last 15).
  *  - Instagram: a plain HTTP fetch gets nothing at all (Instagram serves an
  *    empty JS app-shell to non-browser requests), but a real headless
- *    browser (Playwright/Chromium) does render the public profile grid —
- *    confirmed working: auto-discovers recent post/reel URLs, and each
- *    post page yields an exact publish date plus likes+comments via the
- *    og:description meta tag. View/play counts are NOT available even this
- *    way — Instagram hides that number from logged-out viewers entirely, so
- *    it's simply omitted rather than faked.
+ *    browser (Playwright/Chromium) renders the public profile grid — from a
+ *    normal dev machine. From GitHub Actions specifically, Instagram blocks
+ *    even the full browser from loading the profile grid (confirmed —
+ *    it comes back as the same empty "Instagram"-titled shell), likely
+ *    because Actions runners sit on well-known Azure datacenter IP ranges.
+ *    So auto-discovery is still attempted every run (harmless if it keeps
+ *    failing there, and it'll pick up automatically if that ever changes),
+ *    but the reliable path today is the same as TikTok's: visiting a
+ *    *specific known* post URL directly (confirmed working even from
+ *    Actions, unlike crawling the whole profile) still yields an exact
+ *    publish date plus likes+comments via the og:description meta tag —
+ *    so new posts need to be added to config.json by URL, same as TikTok.
+ *    View/play counts are NOT available on Instagram even this way —
+ *    Instagram hides that number from logged-out viewers entirely, so it's
+ *    simply omitted rather than faked.
  *  - TikTok: per-video page HTML embeds a JSON blob
  *    (__UNIVERSAL_DATA_FOR_REHYDRATION__) with playCount/diggCount/
  *    shareCount/commentCount — confirmed working via plain fetch, no
  *    browser needed. But TikTok actively blocks even a real headless
  *    browser from loading a profile's video grid (tested — it renders a
- *    "Something went wrong / Log in" wall specifically there), so unlike
- *    YouTube/Instagram there's no way to auto-discover new videos. They
- *    must be added to config.json by URL as the team posts them.
+ *    "Something went wrong / Log in" wall specifically there), so like
+ *    Instagram there's no way to auto-discover new videos from Actions —
+ *    they must be added to config.json by URL as the team posts them.
  *
  * Every fetch is read-only, against publicly-visible pages, with a normal
  * browser User-Agent — no login, no credentials, no bypassing any access

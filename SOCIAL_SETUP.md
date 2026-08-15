@@ -24,24 +24,27 @@ Today the panel shows mock "Preview data" until step 1 below is configured.
    feed. **Note:** the feed only returns the 15 most recent uploads; if the
    channel posts more than 15 times between the cutoff date and now, older
    ones in that window will be missed.
-2. **Instagram** — also auto-discovers on its own. Set `instagram.handle`
-   in `social-scraper/config.json` to the account's `@username` (no `@`).
-   A plain HTTP request gets nothing from Instagram (empty JS app-shell),
-   so this launches a real (still free, still headless) browser instead,
-   which does render the public profile grid — verified working: it reads
-   the account's recent posts/reels, their exact publish dates, and their
-   likes + comments. **View counts are the one thing that's genuinely not
-   available** — Instagram hides that number from logged-out visitors even
-   in a full browser — so the Social page shows "—" for Instagram's views
-   and shows total likes in that stat's place instead, rather than a
-   misleading 0. `instagram.videoUrls` is optional, for adding specific
-   posts the auto-discovery grid might miss.
-3. **TikTok** — the one platform that can't auto-discover. TikTok actively
-   blocks even a real headless browser from loading a profile's video grid
-   (tested — it renders a "Something went wrong / Log in" wall specifically
-   there), so there's no way around adding each video's URL to the
-   `tiktok.videoUrls` array in `social-scraper/config.json` by hand as the
-   team posts. Once given a URL, per-video scraping itself is solid,
+2. **Instagram** — set `instagram.handle` in `social-scraper/config.json`
+   to the account's `@username` (no `@`) — the scraper always attempts to
+   auto-discover new posts from the profile grid, and it's harmless to
+   leave that on. But in practice, **from GitHub Actions specifically,
+   Instagram blocks that profile-grid crawl** (confirmed — same empty
+   app-shell a plain request gets), most likely because Actions runners sit
+   on well-known Azure datacenter IPs. So the reliable path today is the
+   same as TikTok: add each new post's URL to `instagram.videoUrls` in
+   `social-scraper/config.json` by hand. Confirmed working even from
+   Actions: reads that post's exact publish date and its likes + comments
+   via the `og:description` meta tag. **View counts are the one thing
+   that's genuinely not available** — Instagram hides that number from
+   logged-out visitors even in a full browser — so the Social page shows
+   "—" for Instagram's views and shows total likes in that stat's place
+   instead, rather than a misleading 0.
+3. **TikTok** — same manual-URL model as Instagram above, and for the same
+   underlying reason: TikTok actively blocks even a real headless browser
+   from loading a profile's video grid (tested — it renders a "Something
+   went wrong / Log in" wall specifically there). Add each video's URL to
+   the `tiktok.videoUrls` array in `social-scraper/config.json` by hand as
+   the team posts. Once given a URL, per-video scraping itself is solid,
    verified working: pulls views, likes, shares, and comments straight from
    that video's page.
 4. **Firestore write access** — create a Firebase service account:
