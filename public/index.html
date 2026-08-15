@@ -8390,9 +8390,9 @@ function renderSocialLinkManager(platform){
   return `
     <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--q-border)">
       <div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--q-muted2);margin-bottom:8px">Manage ${SOCIAL_PLATFORM_META[platform].label} links (admin)</div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <input class="form-input" id="social-link-input-${platform}" type="text" placeholder="Paste a ${SOCIAL_PLATFORM_META[platform].label} video URL…" style="flex:1"/>
-        <button class="btn-primary" style="flex-shrink:0;padding:8px 14px" onclick="addSocialLink('${platform}')">Add</button>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px">
+        <input class="form-input" id="social-link-input-${platform}" type="text" placeholder="Paste a ${SOCIAL_PLATFORM_META[platform].label} video URL…" style="min-width:0"/>
+        <button class="btn-primary" style="padding:8px 14px;white-space:nowrap" onclick="addSocialLink('${platform}')">Add</button>
       </div>
       <div>${rows}</div>
     </div>`;
