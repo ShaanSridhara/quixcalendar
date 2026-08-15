@@ -59,6 +59,23 @@ Today the panel shows mock "Preview data" until step 1 below is configured.
         API instead of scraping for Instagram — real views included. If
         the API call ever fails (expired token, etc.), it falls back to
         the scraping path above rather than losing data entirely.
+   - **Logged-in session (alternative to the API, also gets real views)**:
+     reuses a session *you* create by logging in normally in a browser — the
+     script never sees a password and never performs a login itself, which
+     is meaningfully different from (and lower-risk than) an automated
+     login bot. Still not risk-free: the session is created wherever you
+     log in but gets *used* from GitHub Actions' servers instead, which
+     Instagram might notice as a mismatch, and sessions expire and need
+     periodically re-extracting (not a "log in once forever" thing). To set
+     it up: log into Instagram in Chrome → DevTools (F12) → **Application**
+     → **Cookies** → `instagram.com` → copy the `sessionid` cookie's value
+     → add it as the GitHub Actions secret `IG_SESSION_ID` (**never** paste
+     it in chat or commit it anywhere — it's equivalent to your password).
+     The exact page markup for reading a logged-in view count hasn't been
+     tested against a real session (there's no test account available for
+     this), so the first real run may need a look at the logs
+     (`social-scraper/scrape.mjs`, search for "no view-count pattern
+     matched") to confirm or adjust the detection.
 3. **TikTok** — same manual-URL model as Instagram above, and for the same
    underlying reason: TikTok actively blocks even a real headless browser
    from loading a profile's video grid (tested — it renders a "Something

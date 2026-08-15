@@ -293,9 +293,21 @@ async function fetchInstagramStats(cfg, cutoffMs) {
     return null;
   }
 
+  // IG_SESSION_ID (optional): a sessionid cookie value from a normal,
+  // human login — the script itself never logs in or sees a password. Not
+  // risk-free (the session was created wherever you logged in, but gets
+  // used from this runner's IP instead, which Instagram might flag; and
+  // sessions expire and need periodically re-extracting), but a real step
+  // down from storing actual credentials or running automated logins.
+  const sessionId = process.env.IG_SESSION_ID;
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage({ userAgent: UA });
+    const context = await browser.newContext({ userAgent: UA });
+    if (sessionId) {
+      await context.addCookies([{ name: 'sessionid', value: sessionId, domain: '.instagram.com', path: '/' }]);
+      console.log('[instagram] using a logged-in session — attempting to read real view counts');
+    }
+    const page = await context.newPage();
 
     if (handle) {
       await page.goto(`https://www.instagram.com/${handle}/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
@@ -332,10 +344,23 @@ async function fetchInstagramStats(cfg, cutoffMs) {
         const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch(() => null);
         const likeMatch = desc && /^([\d,.]+[KMB]?) [Ll]ikes/.exec(desc);
         const commentMatch = desc && /,\s*([\d,.]+[KMB]?) [Cc]omments/.exec(desc);
+        // View/play counts only ever render on a logged-in session — this is
+        // untested against a real session (no test account available), so
+        // it tries a couple of likely text patterns and logs plainly if none
+        // match, rather than silently returning nothing.
+        let views = null;
+        if (sessionId) {
+          const viewsText = await page.evaluate(() => {
+            const m = /([\d,.]+[KMB]?)\s*(?:plays|views)/i.exec(document.body.innerText);
+            return m ? m[1] : null;
+          }).catch(() => null);
+          if (viewsText) views = parseAbbreviatedNumber(viewsText);
+          else console.log(`[instagram] logged-in session set but no view-count pattern matched on ${url} — page structure may differ from what was assumed, needs a look`);
+        }
         recentVideos.push({
           title: decodeXmlEntities(desc || '').slice(0, 100) || 'Untitled',
           thumbnail: null,
-          views: null,
+          views,
           likes: likeMatch ? parseAbbreviatedNumber(likeMatch[1]) : null,
           comments: commentMatch ? parseAbbreviatedNumber(commentMatch[1]) : null,
           date: datetime ? datetime.slice(0, 10) : null,
@@ -352,7 +377,9 @@ async function fetchInstagramStats(cfg, cutoffMs) {
     }
     const totalLikes = recentVideos.reduce((s, v) => s + (v.likes || 0), 0);
     const totalComments = recentVideos.reduce((s, v) => s + (v.comments || 0), 0);
-    return { connected: true, totalViews: null, totalLikes, totalComments, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
+    const anyViews = recentVideos.some((v) => v.views != null);
+    const totalViews = anyViews ? recentVideos.reduce((s, v) => s + (v.views || 0), 0) : null;
+    return { connected: true, totalViews, totalLikes, totalComments, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
   } finally {
     await browser.close();
   }
