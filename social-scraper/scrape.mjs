@@ -180,9 +180,17 @@ async function fetchTikTokStats(cfg, cutoffMs) {
 // og:description meta tag. View/play counts are never available this way —
 // Instagram hides that number from logged-out viewers entirely — so
 // totalViews stays null rather than a misleading 0.
+// Instagram post URLs are the same post whether written as
+// /{username}/reel/{code}/, /reel/{code}/, or /p/{code}/?img_index=1 — key
+// on the shortcode alone so auto-discovered and manually-added URLs for the
+// same post dedupe instead of getting counted twice.
+function instagramShortcode(url) {
+  return (/\/(?:p|reel)\/([A-Za-z0-9_-]+)/.exec(url) || [])[1] || url;
+}
+
 async function fetchInstagramStats(cfg, cutoffMs) {
   const handle = (cfg.handle || '').replace(/^@/, '');
-  const postUrls = new Set(cfg.videoUrls || []);
+  const postUrls = new Map((cfg.videoUrls || []).map((u) => [instagramShortcode(u), u]));
   if (!handle && !postUrls.size) {
     console.log('[instagram] no handle or post URLs configured — skipping (see social-scraper/config.json)');
     return null;
@@ -211,11 +219,14 @@ async function fetchInstagramStats(cfg, cutoffMs) {
         const title = await page.title().catch(() => '?');
         console.log(`[instagram] profile grid returned 0 links for @${handle} — page title was: "${title}"`);
       }
-      links.slice(0, 15).forEach((l) => postUrls.add(l));
+      links.slice(0, 15).forEach((l) => {
+        const code = instagramShortcode(l);
+        if (!postUrls.has(code)) postUrls.set(code, l);
+      });
     }
 
     const recentVideos = [];
-    for (const url of postUrls) {
+    for (const url of postUrls.values()) {
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
         await page.waitForTimeout(1200);

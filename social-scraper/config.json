@@ -8,7 +8,17 @@
   "instagram": {
     "_comment": "Auto-discovers recent posts/reels on its own — just set handle to the account's @username (no @). View counts aren't available (Instagram hides that from logged-out visitors), but likes/comments/dates are. videoUrls below is optional, for adding specific posts the auto-discovery might miss.",
     "handle": "ftc8404",
-    "videoUrls": []
+    "videoUrls": [
+      "https://www.instagram.com/reel/DcEI0fqyv_1/",
+      "https://www.instagram.com/reel/DcChNqKS8Il/",
+      "https://www.instagram.com/reel/DcCf6UNSBo5/",
+      "https://www.instagram.com/reel/Db9_eGlyzjX/",
+      "https://www.instagram.com/p/Db_9abOGc8C/",
+      "https://www.instagram.com/p/Db7Y28SG_s5/",
+      "https://www.instagram.com/p/DaMTbWIJSIG/",
+      "https://www.instagram.com/p/DXK94ibkhmA/",
+      "https://www.instagram.com/p/DT831G1Evjf/"
+    ]
   },
   "tiktok": {
     "_comment": "TikTok blocks even a real browser from loading a profile's video list while logged out, so unlike the other two this can't auto-discover — add each new video's URL here after posting it.",
