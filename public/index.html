@@ -3843,6 +3843,7 @@ body.light-mode .month-grid-day:hover {
       <button class="nav-pill-btn active" id="nav-home" onclick="showPage('home')">Home</button>
       <button class="nav-pill-btn" id="nav-cal" onclick="showPage('calendar')">Calendar</button>
       <button class="nav-pill-btn" id="nav-dash" onclick="showPage('dashboard')">Dashboard</button>
+      <button class="nav-pill-btn" id="nav-outreach" onclick="showPage('outreach')">Outreach</button>
       <button class="nav-pill-btn" id="nav-admin" onclick="showPage('admin')" style="display:none">Admin</button>
       <button class="nav-pill-btn" id="nav-profile" onclick="showPage('profile')">Profile</button>
       <button class="nav-pill-btn" id="nav-help" onclick="showPage('help')" title="Help guide">Help</button>
@@ -4287,6 +4288,37 @@ body.light-mode .month-grid-day:hover {
     </div>
   </div>
 
+  <!-- OUTREACH (social media — YouTube/Instagram/TikTok view stats + composer.
+       Not to be confused with the existing in-app "outreach event" student-impact
+       tracker (ev-is-outreach / outreach-modal) — different feature, same word. -->
+  <div class="page" id="page-outreach">
+    <div class="admin-page">
+      <div class="admin-header">Outreach</div>
+      <div class="admin-sub">Reach across YouTube, Instagram, and TikTok — videos posted since Jan 1, 2026</div>
+
+      <div id="outreach-hero"></div>
+
+      <div class="outreach-platform-grid" id="outreach-cards"></div>
+
+      <div class="admin-card" style="margin-top:20px;max-width:640px">
+        <div class="admin-card-title">Compose post</div>
+        <div class="form-group">
+          <label class="form-label">Caption</label>
+          <textarea class="form-input" id="outreach-caption" rows="3" placeholder="Write a caption…"></textarea>
+        </div>
+        <div class="form-group" style="display:flex;gap:18px">
+          <label class="form-checkbox"><input type="checkbox" id="outreach-plat-yt" checked/><span>YouTube</span></label>
+          <label class="form-checkbox"><input type="checkbox" id="outreach-plat-ig" checked/><span>Instagram</span></label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Media URL</label>
+          <input class="form-input" id="outreach-media-url" type="text" placeholder="Link to a photo/video (upload isn't wired up yet)"/>
+        </div>
+        <button class="btn-primary" id="outreach-post-btn" onclick="submitOutreachPost()">Post</button>
+      </div>
+    </div>
+  </div>
+
   <!-- HELP PAGE -->
   <div class="page" id="page-help">
     <div style="max-width:760px;margin:0 auto;padding:32px 24px 64px">
@@ -4467,6 +4499,10 @@ body.light-mode .month-grid-day:hover {
     <button class="bottom-nav-btn" id="bnav-dash" onclick="showPage('dashboard')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span>Board</span>
+    </button>
+    <button class="bottom-nav-btn" id="bnav-outreach" onclick="showPage('outreach')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      <span>Outreach</span>
     </button>
     <button class="bottom-nav-btn" id="bnav-profile" onclick="showPage('profile')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
