@@ -227,6 +227,15 @@ service cloud.firestore {
       allow read, update, delete: if isPlatformAdmin();
     }
 
+    // ── Social (social media stats) ─────────────────────────────────────────
+    // Written only by the Admin SDK (Cloud Functions — refreshSocialStats /
+    // publishPost), which bypasses these rules entirely. Clients only ever
+    // read; no client write path is allowed for any doc in this collection.
+    match /social/{docId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if false;
+    }
+
     // ── Default Deny ─────────────────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;

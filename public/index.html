@@ -1790,6 +1790,10 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 @media(max-width:1000px){ .admin-grid { grid-template-columns: 1fr; } }
 
+/* ── Social — platform card grid ──────────────────────────────────── */
+.social-platform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media(max-width:1000px){ .social-platform-grid { grid-template-columns: 1fr; } }
+
 .admin-card {
   background: var(--q-dark);
   border: 1px solid var(--q-border);
@@ -3843,7 +3847,7 @@ body.light-mode .month-grid-day:hover {
       <button class="nav-pill-btn active" id="nav-home" onclick="showPage('home')">Home</button>
       <button class="nav-pill-btn" id="nav-cal" onclick="showPage('calendar')">Calendar</button>
       <button class="nav-pill-btn" id="nav-dash" onclick="showPage('dashboard')">Dashboard</button>
-      <button class="nav-pill-btn" id="nav-outreach" onclick="showPage('outreach')">Outreach</button>
+      <button class="nav-pill-btn" id="nav-social" onclick="showPage('social')">Social</button>
       <button class="nav-pill-btn" id="nav-admin" onclick="showPage('admin')" style="display:none">Admin</button>
       <button class="nav-pill-btn" id="nav-profile" onclick="showPage('profile')">Profile</button>
       <button class="nav-pill-btn" id="nav-help" onclick="showPage('help')" title="Help guide">Help</button>
@@ -4288,33 +4292,34 @@ body.light-mode .month-grid-day:hover {
     </div>
   </div>
 
-  <!-- OUTREACH (social media — YouTube/Instagram/TikTok view stats + composer.
+  <!-- SOCIAL (social media — YouTube/Instagram/TikTok view stats + composer.
        Not to be confused with the existing in-app "outreach event" student-impact
-       tracker (ev-is-outreach / outreach-modal) — different feature, same word. -->
-  <div class="page" id="page-outreach">
+       tracker (ev-is-outreach / outreach-modal) — different feature, deliberately
+       named differently to avoid colliding with that already-loaded term. -->
+  <div class="page" id="page-social">
     <div class="admin-page">
-      <div class="admin-header">Outreach</div>
+      <div class="admin-header">Social</div>
       <div class="admin-sub">Reach across YouTube, Instagram, and TikTok — videos posted since Jan 1, 2026</div>
 
-      <div id="outreach-hero"></div>
+      <div id="social-hero"></div>
 
-      <div class="outreach-platform-grid" id="outreach-cards"></div>
+      <div class="social-platform-grid" id="social-cards"></div>
 
       <div class="admin-card" style="margin-top:20px;max-width:640px">
         <div class="admin-card-title">Compose post</div>
         <div class="form-group">
           <label class="form-label">Caption</label>
-          <textarea class="form-input" id="outreach-caption" rows="3" placeholder="Write a caption…"></textarea>
+          <textarea class="form-input" id="social-caption" rows="3" placeholder="Write a caption…"></textarea>
         </div>
         <div class="form-group" style="display:flex;gap:18px">
-          <label class="form-checkbox"><input type="checkbox" id="outreach-plat-yt" checked/><span>YouTube</span></label>
-          <label class="form-checkbox"><input type="checkbox" id="outreach-plat-ig" checked/><span>Instagram</span></label>
+          <label class="form-checkbox"><input type="checkbox" id="social-plat-yt" checked/><span>YouTube</span></label>
+          <label class="form-checkbox"><input type="checkbox" id="social-plat-ig" checked/><span>Instagram</span></label>
         </div>
         <div class="form-group">
           <label class="form-label">Media URL</label>
-          <input class="form-input" id="outreach-media-url" type="text" placeholder="Link to a photo/video (upload isn't wired up yet)"/>
+          <input class="form-input" id="social-media-url" type="text" placeholder="Link to a photo/video (upload isn't wired up yet)"/>
         </div>
-        <button class="btn-primary" id="outreach-post-btn" onclick="submitOutreachPost()">Post</button>
+        <button class="btn-primary" id="social-post-btn" onclick="submitSocialPost()">Post</button>
       </div>
     </div>
   </div>
@@ -4500,9 +4505,9 @@ body.light-mode .month-grid-day:hover {
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span>Board</span>
     </button>
-    <button class="bottom-nav-btn" id="bnav-outreach" onclick="showPage('outreach')">
+    <button class="bottom-nav-btn" id="bnav-social" onclick="showPage('social')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-      <span>Outreach</span>
+      <span>Social</span>
     </button>
     <button class="bottom-nav-btn" id="bnav-profile" onclick="showPage('profile')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -5009,7 +5014,8 @@ const REPEAT_LABELS={none:'Does not repeat',daily:'Daily',weekly:'Weekly',monthl
 let cu=null,events=[],calendars=[],sharedCalendars=[];
 let currentDate=getNow(),miniDate=getNow();
 let editEvId=null,viewingEv=null;
-let unsubEv=null,unsubCals=null;
+let unsubEv=null,unsubCals=null,unsubSocial=null;
+let socialSummary=null; // Firestore social/summary doc — null until first snapshot (or if missing)
 let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',currentTaskCompletionMode='group',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
@@ -5114,6 +5120,17 @@ function subscribeData(uid){
 
   subscribeInvitedEvents(uid);
   loadJoinedCalendars();
+  subscribeSocial();
+}
+
+// Social summary doc is the same for every signed-in user (not per-uid), so
+// this just needs auth — read-only per firestore.rules.
+function subscribeSocial(){
+  if(unsubSocial)unsubSocial();
+  unsubSocial=onSnapshot(doc(db,'social','summary'),snap=>{
+    socialSummary=snap.exists()?snap.data():null;
+    if(currentPage==='social')renderSocialPage();
+  },err=>console.error(err));
 }
 
 const _invitedUnsubs=[];
@@ -5201,7 +5218,7 @@ window.handleForgotPassword=async()=>{
     if(btn)btn.disabled=false;
   }
 };
-window.signOut=async()=>{if(unsubEv)unsubEv();if(unsubCals)unsubCals();_invitedUnsubs.forEach(u=>u());_invitedUnsubs.length=0;_sharedCalUnsubs.forEach(unsubs=>unsubs.forEach(u=>u()));_sharedCalUnsubs.clear();await fbSignOut(auth);};
+window.signOut=async()=>{if(unsubEv)unsubEv();if(unsubCals)unsubCals();if(unsubSocial)unsubSocial();_invitedUnsubs.forEach(u=>u());_invitedUnsubs.length=0;_sharedCalUnsubs.forEach(unsubs=>unsubs.forEach(u=>u()));_sharedCalUnsubs.clear();await fbSignOut(auth);};
 function friendlyErr(c){return({'auth/user-not-found':'No account with that email.','auth/wrong-password':'Incorrect password. Use "Forgot password?" if needed.','auth/email-already-in-use':'Email already in use. Try signing in or resetting your password.','auth/weak-password':'Password needs 6+ chars.','auth/invalid-email':'Invalid email.','auth/invalid-credential':'Incorrect email or password. Use "Forgot password?" if needed.'})[c]||'Something went wrong.';}
 
 // ── Google sign-in ───────────────────────────────────────────────────────────
@@ -5277,7 +5294,7 @@ function isAdmin(calId){return isLeader(calId);} // owner, Captain, Co-Captain, 
 // ── Page nav ───────────────────────────────────────────────────────────────
 window.showPage=(page)=>{
   currentPage=page;
-  ['home','calendar','profile','admin','dashboard','help'].forEach(p=>{
+  ['home','calendar','profile','admin','dashboard','social','help'].forEach(p=>{
     document.getElementById(`page-${p}`)?.classList.toggle('active',p===page);
     const nid=p==='calendar'?'nav-cal':p==='admin'?'nav-admin':p==='dashboard'?'nav-dash':`nav-${p}`;
     document.getElementById(nid)?.classList.toggle('active',p===page);
@@ -5292,7 +5309,7 @@ window.showPage=(page)=>{
   // Close sidebar drawer on mobile when navigating
   if(window.innerWidth<=768){closeSidebar();}
   // Update bottom nav active state
-  ['home','cal','dash','profile','help','admin'].forEach(id=>{
+  ['home','cal','dash','social','profile','help','admin'].forEach(id=>{
     const btn=document.getElementById(`bnav-${id}`);
     if(btn){
       const btnPage=id==='cal'?'calendar':id==='dash'?'dashboard':id;
@@ -5318,6 +5335,7 @@ window.showPage=(page)=>{
   if(page==='profile')renderProfilePage();
   if(page==='admin'){renderAdminPage();}
   if(page==='dashboard')renderDashboard();
+  if(page==='social')renderSocialPage();
 };
 
 function updateAdminUI(){
@@ -8267,6 +8285,121 @@ window.saveProfile=async()=>{
   const msgEl=document.getElementById('profile-save-msg');msgEl.style.display='block';msgEl.style.color='var(--q-muted)';msgEl.textContent='Saving…';
   try{if(name!==cu.displayName)await updateProfile(cu,{displayName:name||null});if(email&&email!==cu.email)await updateEmail(cu,email);if(pwd)await updatePassword(cu,pwd);await updateDoc(doc(db,'users',cu.uid),{displayName:name||null,email:email||cu.email});msgEl.style.color='var(--q-green)';msgEl.textContent='Saved!';updateTopbar();renderProfilePage();if(currentPage==='home')renderHomePage();setTimeout(()=>{msgEl.style.display='none';},2500);}
   catch(e){msgEl.style.color='var(--q-red)';msgEl.textContent=e.message||'Error';}
+};
+
+// ── Social (social media) ─────────────────────────────────────────────────
+// Reads Firestore `social/summary` (written server-side by the
+// refreshSocialStats Cloud Function — see functions/index.js). That
+// function isn't deployed yet (Spark plan, no secrets configured), so this
+// falls back to small, clearly-labeled preview numbers per platform so the
+// panel isn't empty. Real data simply appears once the doc exists.
+const SOCIAL_ICONS={
+  youtube:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="4" fill="#ef4444"/><path d="M10 9l6 3-6 3V9z" fill="#fff"/></svg>',
+  instagram:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="igGrad" x1="0" y1="0" x2="24" y2="24"><stop offset="0" stop-color="#f9ce34"/><stop offset=".5" stop-color="#ee2a7b"/><stop offset="1" stop-color="#6228d7"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="6" fill="url(#igGrad)"/><circle cx="12" cy="12" r="5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.3" fill="#fff"/></svg>',
+  tiktok:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="6" fill="#111827"/><circle cx="10" cy="16" r="2.6" fill="#25F4EE"/><circle cx="10.6" cy="15.6" r="2.6" fill="#FE2C55" opacity="0.85"/><path d="M10.6 15.6V6c1 2.4 3 3.8 5.4 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>'
+};
+const SOCIAL_PLATFORM_META={
+  youtube:{label:'YouTube',connectLabel:'Connect YouTube'},
+  instagram:{label:'Instagram',connectLabel:'Connect Instagram'},
+  tiktok:{label:'TikTok',connectLabel:null} // view-stats only — no posting, no connect flow yet
+};
+// Small, round, obviously-fake numbers — never invent fake precision.
+const SOCIAL_MOCK={
+  youtube:{totalViews:12400,postCount:6,recentVideos:[
+    {title:'Sample video — connect account to see real posts',views:3100,date:'2026-02-10'},
+    {title:'Sample video — connect account to see real posts',views:2200,date:'2026-01-18'}]},
+  instagram:{totalViews:8200,postCount:9,recentVideos:[
+    {title:'Sample reel — connect account to see real posts',views:1400,date:'2026-02-05'},
+    {title:'Sample reel — connect account to see real posts',views:900,date:'2026-01-22'}]},
+  tiktok:{totalViews:15000,postCount:4,recentVideos:[
+    {title:'Sample video — TikTok stats aren\'t connected yet',views:6000,date:'2026-02-01'},
+    {title:'Sample video — TikTok stats aren\'t connected yet',views:4500,date:'2026-01-12'}]}
+};
+function getSocialPlatform(platform){
+  const real=socialSummary?.[platform];
+  if(real&&typeof real==='object')return {...real,preview:false};
+  return {...SOCIAL_MOCK[platform],connected:false,preview:true};
+}
+function socialConnPill(connected){
+  return connected
+    ?'<span class="admin-badge" style="background:rgba(0,232,122,.15);color:var(--q-green)">Connected</span>'
+    :'<span class="admin-badge" style="background:rgba(255,59,92,.12);color:var(--q-red)">Not connected</span>';
+}
+function renderSocialPlatformCard(platform,d){
+  const meta=SOCIAL_PLATFORM_META[platform];
+  const avg=d.postCount?Math.round((d.totalViews||0)/d.postCount):0;
+  const videos=(d.recentVideos||[]).slice(0,3);
+  const videoRows=videos.length?videos.map(v=>`
+    <div class="admin-member-row" style="align-items:center">
+      ${v.thumbnail?`<img src="${escHtml(v.thumbnail)}" alt="" style="width:48px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0"/>`:'<div style="width:48px;height:36px;border-radius:6px;background:var(--q-dark4);flex-shrink:0"></div>'}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(v.title||'Untitled')}</div>
+        <div style="font-size:10px;color:var(--q-muted2)">${v.date?new Date(v.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''}</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--q-blue2);flex-shrink:0">${(v.views||0).toLocaleString()}</div>
+    </div>`).join(''):'<div style="font-size:11px;color:var(--q-muted2)">No videos yet</div>';
+  return `
+    <div class="admin-card">
+      <div class="admin-card-title" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:8px">${SOCIAL_ICONS[platform]}${meta.label}</span>
+        ${socialConnPill(!!d.connected)}
+      </div>
+      ${d.preview?'<div style="margin-bottom:10px"><span class="admin-badge" style="background:rgba(255,184,48,.15);color:var(--q-amber)">Preview data — connect account to see real stats</span></div>':''}
+      <div style="display:flex;gap:18px;margin-bottom:14px;flex-wrap:wrap">
+        <div><div class="dash-stat-num" style="font-size:20px">${(d.totalViews||0).toLocaleString()}</div><div class="dash-stat-label">Views</div></div>
+        <div><div class="dash-stat-num" style="font-size:20px">${d.postCount||0}</div><div class="dash-stat-label">Posts</div></div>
+        <div><div class="dash-stat-num" style="font-size:20px">${avg.toLocaleString()}</div><div class="dash-stat-label">Avg/Post</div></div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--q-muted2);margin-bottom:8px">Recent videos</div>
+      <div>${videoRows}</div>
+      ${meta.connectLabel?`<button class="btn-secondary" style="margin-top:14px;width:100%" onclick="connectSocialPlatform('${platform}')">${meta.connectLabel}</button>`:'<div style="margin-top:14px;font-size:10px;color:var(--q-muted2)">View-stats only — TikTok posting is out of scope, and live stats aren\'t wired up yet.</div>'}
+    </div>`;
+}
+function renderSocialPage(){
+  const plats=['youtube','instagram','tiktok'];
+  const data={};let anyPreview=false;
+  plats.forEach(p=>{data[p]=getSocialPlatform(p);if(data[p].preview)anyPreview=true;});
+  const total=plats.reduce((s,p)=>s+(data[p].totalViews||0),0);
+  const hero=document.getElementById('social-hero');
+  if(hero)hero.innerHTML=`
+    <div class="dash-stat-card" style="padding:28px 32px;display:flex;flex-direction:column;gap:6px;margin-bottom:22px">
+      <span class="dash-stat-icon">📈</span>
+      <div class="dash-stat-value" style="font-size:42px">${total.toLocaleString()}</div>
+      <div class="dash-stat-label">Combined views · YouTube + Instagram + TikTok · since Jan 1, 2026</div>
+      ${anyPreview?'<div style="margin-top:4px"><span class="admin-badge" style="background:rgba(255,184,48,.15);color:var(--q-amber)">Preview data — connect accounts to see real stats</span></div>':''}
+    </div>`;
+  const cardsEl=document.getElementById('social-cards');
+  if(cardsEl)cardsEl.innerHTML=plats.map(p=>renderSocialPlatformCard(p,data[p])).join('');
+}
+window.connectSocialPlatform=(platform)=>{
+  // TODO: once OAuth credentials exist, replace with: location.href='/api/oauth/start?platform='+platform;
+  toast('Not yet configured — see SOCIAL_SETUP.md');
+};
+window.submitSocialPost=async()=>{
+  const caption=document.getElementById('social-caption').value.trim();
+  const platforms=[];
+  if(document.getElementById('social-plat-yt')?.checked)platforms.push('youtube');
+  if(document.getElementById('social-plat-ig')?.checked)platforms.push('instagram');
+  if(!caption){toast('Write a caption first');return;}
+  if(!platforms.length){toast('Pick at least one platform');return;}
+  const mediaUrl=document.getElementById('social-media-url').value.trim();
+  const btn=document.getElementById('social-post-btn');
+  if(btn){btn.disabled=true;btn.textContent='Posting…';}
+  try{
+    const token=await cu.getIdToken();
+    const res=await fetch('/api/publish-post',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({platforms,caption,mediaUrl})});
+    if(res.ok){
+      toast('Posted!');
+      document.getElementById('social-caption').value='';
+    } else {
+      toast("Social posting isn't connected yet — ask an admin to finish API setup (see SOCIAL_SETUP.md)");
+    }
+  }catch(e){
+    // Expected today: no Cloud Function is deployed yet (Spark plan / no secrets).
+    toast("Social posting isn't connected yet — ask an admin to finish API setup (see SOCIAL_SETUP.md)");
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Post';}
+  }
 };
 
 // ── Utilities ──────────────────────────────────────────────────────────────

@@ -3,6 +3,12 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default"
+    }
+  ],
   "hosting": [
     {
       "site": "quixcalendar",
@@ -11,6 +17,10 @@
         "firebase.json",
         "**/.*",
         "**/node_modules/**"
+      ],
+      "rewrites": [
+        { "source": "/api/publish-post", "function": "publishPost" },
+        { "source": "/api/refresh-social-now", "function": "refreshSocialStatsNow" }
       ],
       "headers": [
         {

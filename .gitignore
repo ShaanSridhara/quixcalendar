@@ -73,3 +73,9 @@ node_modules/
 test/
 package.json
 package-lock.json
+
+# ...except the Cloud Functions scaffold, which is a real Node project that
+# needs its manifest + lockfile committed (functions/node_modules/ itself is
+# still ignored via the blanket node_modules/ rule above).
+!functions/package.json
+!functions/package-lock.json
