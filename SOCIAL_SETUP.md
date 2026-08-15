@@ -24,21 +24,41 @@ Today the panel shows mock "Preview data" until step 1 below is configured.
    feed. **Note:** the feed only returns the 15 most recent uploads; if the
    channel posts more than 15 times between the cutoff date and now, older
    ones in that window will be missed.
-2. **Instagram** — set `instagram.handle` in `social-scraper/config.json`
-   to the account's `@username` (no `@`) — the scraper always attempts to
-   auto-discover new posts from the profile grid, and it's harmless to
-   leave that on. But in practice, **from GitHub Actions specifically,
-   Instagram blocks that profile-grid crawl** (confirmed — same empty
-   app-shell a plain request gets), most likely because Actions runners sit
-   on well-known Azure datacenter IPs. So the reliable path today is the
-   same as TikTok: add each new post's URL to `instagram.videoUrls` in
-   `social-scraper/config.json` by hand. Confirmed working even from
-   Actions: reads that post's exact publish date and its likes + comments
-   via the `og:description` meta tag. **View counts are the one thing
-   that's genuinely not available** — Instagram hides that number from
-   logged-out visitors even in a full browser — so the Social page shows
-   "—" for Instagram's views and shows total likes in that stat's place
-   instead, rather than a misleading 0.
+2. **Instagram** — two ways to get data, and both can run at once (the
+   official API is tried first when configured; scraping is always the
+   fallback):
+   - **Scraping (already active, no setup)**: set `instagram.handle` in
+     `social-scraper/config.json` to the account's `@username`, and/or add
+     specific post URLs to `instagram.videoUrls`. Gets real likes + comments
+     + exact publish dates. **Cannot get view counts, ever** — confirmed
+     thoroughly (grid thumbnails, post pages, every aria-label, meta tags,
+     JSON-LD — nothing exposes that number to a logged-out visitor, by
+     Instagram's design, not a scraping gap). Auto-discovery from the
+     profile grid is attempted every run but is blocked specifically from
+     GitHub Actions' IPs, so in practice new posts need their URL added by
+     hand to `instagram.videoUrls`, same habit as TikTok below.
+   - **Official Graph API (optional, gets real view counts)**: set up once
+     per the steps below, then set two **GitHub Actions secrets** (not
+     Firebase secrets — this runs from the same free scraper, no billing
+     plan needed):
+     1. Create a Meta Developer app at developers.facebook.com, add the
+        **Instagram Graph API** product.
+     2. Convert the Quixilver Instagram account to a **Business** or
+        **Creator** account (Instagram app → Settings → Account type) and
+        link it to a Facebook Page.
+     3. Generate a long-lived access token for that Instagram Business
+        account with `instagram_basic` and `instagram_manage_insights`
+        permissions (add `instagram_content_publish` too only if you're
+        also setting up posting — see part 2 of this doc).
+     4. Note the Instagram **Business Account ID** (via
+        `GET /{page-id}?fields=instagram_business_account` on the Graph
+        API).
+     5. In the GitHub repo → **Settings → Secrets and variables →
+        Actions**, add `IG_ACCESS_TOKEN` and `IG_BUSINESS_ACCOUNT_ID`.
+     6. Once both secrets exist, every scraper run automatically uses the
+        API instead of scraping for Instagram — real views included. If
+        the API call ever fails (expired token, etc.), it falls back to
+        the scraping path above rather than losing data entirely.
 3. **TikTok** — same manual-URL model as Instagram above, and for the same
    underlying reason: TikTok actively blocks even a real headless browser
    from loading a profile's video grid (tested — it renders a "Something
@@ -69,26 +89,24 @@ The Social page's "Compose post" UI was removed for now (to be re-added
 later) — this backend is dormant scaffolding with no caller today. Only
 relevant once that UI comes back and you want it to actually publish.
 
+If you already did the Instagram Graph API setup in step 1.2 above
+(Meta app, Business account, access token with `instagram_content_publish`
+included, Business Account ID), you already have everything except the
+Blaze upgrade — the same token/ID just need to be set again here, since
+Cloud Functions secrets (Firebase Secret Manager) are a separate store from
+the GitHub Actions secrets used in step 1.
+
 1. Firebase Console → quixcalendar-fc708 → ⚙️ → **Usage and billing** →
    upgrade to **Blaze** (pay-as-you-go — required for Cloud Functions to
    make any outbound network call, but this workload is tiny and low-
    traffic, so expect to stay within Blaze's own free tier).
-2. Create a Meta Developer app at developers.facebook.com, add the
-   **Instagram Graph API** product.
-3. Convert the Quixilver Instagram account to a **Business** or **Creator**
-   account (Instagram app → Settings → Account type) and link it to a
-   Facebook Page.
-4. Generate a long-lived access token for that Instagram Business account
-   with `instagram_basic`, `instagram_manage_insights`, and
-   `instagram_content_publish` permissions.
-5. Note the Instagram **Business Account ID** (via
-   `GET /{page-id}?fields=instagram_business_account` on the Graph API).
-6. Set the two secrets:
+2. Set the two secrets (same values as `IG_ACCESS_TOKEN` /
+   `IG_BUSINESS_ACCOUNT_ID` from step 1.2, just in a different place):
    ```
    firebase functions:secrets:set IG_ACCESS_TOKEN
    firebase functions:secrets:set IG_BUSINESS_ACCOUNT_ID
    ```
-7. Deploy: `firebase deploy --only functions,hosting:quixcalendar,firestore:rules`
+3. Deploy: `firebase deploy --only functions,hosting:quixcalendar,firestore:rules`
    — don't run a bare `firebase deploy` or omit the scoping, and don't
    touch the legacy `quixcalendar-fc708` hosting site (no `/api/*` rewrites
    there, and it shouldn't need any).

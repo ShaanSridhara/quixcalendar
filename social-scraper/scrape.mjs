@@ -209,7 +209,83 @@ function instagramShortcode(url) {
   return (/\/(?:p|reel)\/([A-Za-z0-9_-]+)/.exec(url) || [])[1] || url;
 }
 
+// ── Instagram: official Graph API (real view counts) ─────────────────────
+// Only used if IG_ACCESS_TOKEN + IG_BUSINESS_ACCOUNT_ID are set (GitHub
+// Actions secrets — see SOCIAL_SETUP.md). This is the one path that can
+// actually get view/play counts, since Instagram never exposes that number
+// to a logged-out visitor no matter how it's fetched. No Firebase billing
+// plan needed for this either — it's a plain HTTPS call, same as
+// everything else here, just running from GitHub Actions instead of a paid
+// Cloud Function.
+const IG_GRAPH_API_BASE = 'https://graph.facebook.com/v19.0';
+
+async function fetchInstagramStatsViaAPI(accessToken, businessAccountId, cutoffMs) {
+  let totalViews = 0, totalLikes = 0, totalComments = 0, anyViews = false;
+  const recentVideos = [];
+  let url = `${IG_GRAPH_API_BASE}/${businessAccountId}/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count&access_token=${encodeURIComponent(accessToken)}`;
+
+  while (url) {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (!res.ok) throw new Error(`Instagram Graph API error: ${json?.error?.message || res.status}`);
+
+    let hitCutoff = false;
+    for (const media of json.data || []) {
+      // Media list is newest-first, so once we cross the cutoff we can stop
+      // paging entirely rather than fetching insights for posts we'll discard.
+      if (!(Date.parse(media.timestamp) >= cutoffMs)) { hitCutoff = true; continue; }
+
+      let views = null;
+      if (media.media_type === 'VIDEO' || media.media_type === 'REELS') {
+        try {
+          const metric = media.media_type === 'REELS' ? 'plays' : 'video_views';
+          const insRes = await fetch(`${IG_GRAPH_API_BASE}/${media.id}/insights?metric=${metric}&access_token=${encodeURIComponent(accessToken)}`);
+          const insJson = await insRes.json();
+          if (insRes.ok) views = Number(insJson?.data?.[0]?.values?.[0]?.value ?? 0);
+        } catch (e) {
+          console.error(`[instagram] insights fetch failed for ${media.id}:`, e.message);
+        }
+      }
+      if (views != null) { totalViews += views; anyViews = true; }
+      const likes = Number(media.like_count || 0);
+      const comments = Number(media.comments_count || 0);
+      totalLikes += likes;
+      totalComments += comments;
+      recentVideos.push({
+        title: (media.caption || '').slice(0, 100) || 'Untitled',
+        thumbnail: media.thumbnail_url || media.media_url || null,
+        views,
+        likes,
+        comments,
+        date: (media.timestamp || '').slice(0, 10),
+        url: media.permalink || null,
+      });
+    }
+    url = hitCutoff ? null : (json.paging?.next || null);
+  }
+
+  recentVideos.sort((a, b) => (a.date < b.date ? 1 : -1));
+  return {
+    connected: true,
+    totalViews: anyViews ? totalViews : null,
+    totalLikes,
+    totalComments,
+    postCount: recentVideos.length,
+    recentVideos: recentVideos.slice(0, 10),
+  };
+}
+
 async function fetchInstagramStats(cfg, cutoffMs) {
+  const accessToken = process.env.IG_ACCESS_TOKEN;
+  const businessAccountId = process.env.IG_BUSINESS_ACCOUNT_ID;
+  if (accessToken && businessAccountId) {
+    try {
+      return await fetchInstagramStatsViaAPI(accessToken, businessAccountId, cutoffMs);
+    } catch (e) {
+      console.error('[instagram] official API failed, falling back to scraping (no view counts that way):', e.message);
+    }
+  }
+
   const handle = (cfg.handle || '').replace(/^@/, '');
   const postUrls = new Map((cfg.videoUrls || []).map((u) => [instagramShortcode(u), u]));
   if (!handle && !postUrls.size) {
