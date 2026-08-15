@@ -416,6 +416,14 @@ textarea.form-input { resize: vertical; min-height: 72px; }
   margin-bottom: 14px; display: none;
   border-left: 3px solid var(--q-red);
 }
+.auth-success {
+  background: var(--q-green-dim);
+  border: 1px solid rgba(0,230,118,0.3);
+  border-radius: var(--r); padding: 10px 14px;
+  font-size: 13px; color: var(--q-green);
+  margin-bottom: 14px; display: none;
+  border-left: 3px solid var(--q-green);
+}
 
 /* ── App Shell ────────────────────────────────────────────────── */
 #app-screen {
@@ -3786,6 +3794,7 @@ body.light-mode .month-grid-day:hover {
     </div>
     <div class="auth-team-tag">Team scheduling, done right</div>
     <div id="auth-error" class="auth-error"></div>
+    <div id="auth-success" class="auth-success"></div>
     <button id="btn-google" onclick="handleGoogle()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:11px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:#fff;color:#1f2328;font-family:var(--font-body);font-weight:600;font-size:14px;cursor:pointer;transition:filter .15s">
       <svg width="18" height="18" viewBox="0 0 48 48" style="display:block"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.6 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C41.8 35.6 44 30.3 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>
       <span>Continue with Google</span>
@@ -3802,6 +3811,9 @@ body.light-mode .month-grid-day:hover {
     <div id="form-signin">
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="si-email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
       <div class="form-group"><label class="form-label">Password</label><input class="form-input" id="si-password" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:-6px;margin-bottom:12px">
+        <button type="button" id="btn-forgot" onclick="handleForgotPassword()" style="background:none;border:none;color:var(--q-blue2);font-size:12px;font-weight:500;cursor:pointer;padding:0;text-decoration:underline">Forgot password?</button>
+      </div>
       <button class="btn-primary" id="btn-signin" onclick="handleSignIn()">Sign in</button>
     </div>
     <div id="form-signup" style="display:none">
@@ -4864,7 +4876,7 @@ body.light-mode .month-grid-day:hover {
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, updateProfile, updateEmail, updatePassword, browserLocalPersistence, setPersistence, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, updateProfile, updateEmail, updatePassword, sendPasswordResetEmail, browserLocalPersistence, setPersistence, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs, writeBatch, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:"AIzaSyCPbBj5WUGWduOLw1hmA761nawPxUbLRyA",authDomain:"quixcalendar-fc708.firebaseapp.com",projectId:"quixcalendar-fc708",storageBucket:"quixcalendar-fc708.firebasestorage.app",messagingSenderId:"1066637408084",appId:"1:1066637408084:web:8f0655f4a089696319fac1"};
@@ -5120,20 +5132,41 @@ function checkForNewInvites(invitedEvents){
 // ── Auth ───────────────────────────────────────────────────────────────────
 window.handleSignIn=async()=>{
   const email=document.getElementById('si-email').value.trim(),pwd=document.getElementById('si-password').value;
-  setAuthError('');document.getElementById('btn-signin').disabled=true;
+  setAuthError('');setAuthSuccess('');document.getElementById('btn-signin').disabled=true;
   try{await signInWithEmailAndPassword(auth,email,pwd);}
   catch(e){setAuthError(friendlyErr(e.code));document.getElementById('btn-signin').disabled=false;}
 };
 window.handleSignUp=async()=>{
   const name=document.getElementById('su-name').value.trim(),email=document.getElementById('su-email').value.trim(),pwd=document.getElementById('su-password').value;
   if(!name)return setAuthError('Please enter your name.');
-  setAuthError('');document.getElementById('btn-signup').disabled=true;
+  setAuthError('');setAuthSuccess('');document.getElementById('btn-signup').disabled=true;
   try{const c=await createUserWithEmailAndPassword(auth,email,pwd);await updateProfile(c.user,{displayName:name});}
   catch(e){setAuthError(friendlyErr(e.code));}
   finally{document.getElementById('btn-signup').disabled=false;}
 };
+window.handleForgotPassword=async()=>{
+  const email=(document.getElementById('si-email').value||document.getElementById('su-email').value||'').trim();
+  if(!email)return setAuthError('Please enter your email above, then click Forgot password.');
+  setAuthError('');setAuthSuccess('');
+  const btn=document.getElementById('btn-forgot');
+  if(btn)btn.disabled=true;
+  try{
+    await sendPasswordResetEmail(auth,email);
+    setAuthSuccess(`Password reset email sent to ${email}! Check your inbox and spam folder.`);
+  }catch(e){
+    if(e.code==='auth/user-not-found'){
+      setAuthError('No account found with that email.');
+    }else if(e.code==='auth/invalid-email'){
+      setAuthError('Invalid email format.');
+    }else{
+      setAuthError(friendlyErr(e.code));
+    }
+  }finally{
+    if(btn)btn.disabled=false;
+  }
+};
 window.signOut=async()=>{if(unsubEv)unsubEv();if(unsubCals)unsubCals();_invitedUnsubs.forEach(u=>u());_invitedUnsubs.length=0;_sharedCalUnsubs.forEach(unsubs=>unsubs.forEach(u=>u()));_sharedCalUnsubs.clear();await fbSignOut(auth);};
-function friendlyErr(c){return({'auth/user-not-found':'No account with that email.','auth/wrong-password':'Incorrect password.','auth/email-already-in-use':'Email already in use.','auth/weak-password':'Password needs 6+ chars.','auth/invalid-email':'Invalid email.','auth/invalid-credential':'Incorrect email or password.'})[c]||'Something went wrong.';}
+function friendlyErr(c){return({'auth/user-not-found':'No account with that email.','auth/wrong-password':'Incorrect password. Use "Forgot password?" if needed.','auth/email-already-in-use':'Email already in use. Try signing in or resetting your password.','auth/weak-password':'Password needs 6+ chars.','auth/invalid-email':'Invalid email.','auth/invalid-credential':'Incorrect email or password. Use "Forgot password?" if needed.'})[c]||'Something went wrong.';}
 
 // ── Google sign-in ───────────────────────────────────────────────────────────
 function googleErr(e){
@@ -8248,8 +8281,9 @@ document.addEventListener('click',e=>{
   btn.appendChild(dot);
   dot.addEventListener('animationend',()=>dot.remove(),{once:true});
 });
-window.switchTab=(tab)=>{document.getElementById('tab-signin').classList.toggle('active',tab==='signin');document.getElementById('tab-signup').classList.toggle('active',tab==='signup');document.getElementById('form-signin').style.display=tab==='signin'?'block':'none';document.getElementById('form-signup').style.display=tab==='signup'?'block':'none';setAuthError('');};
-function setAuthError(msg){const el=document.getElementById('auth-error');el.style.display=msg?'block':'none';el.textContent=msg;}
+window.switchTab=(tab)=>{document.getElementById('tab-signin').classList.toggle('active',tab==='signin');document.getElementById('tab-signup').classList.toggle('active',tab==='signup');document.getElementById('form-signin').style.display=tab==='signin'?'block':'none';document.getElementById('form-signup').style.display=tab==='signup'?'block':'none';setAuthError('');setAuthSuccess('');};
+function setAuthError(msg){const el=document.getElementById('auth-error');if(el){el.style.display=msg?'block':'none';el.textContent=msg;}}
+function setAuthSuccess(msg){const el=document.getElementById('auth-success');if(el){el.style.display=msg?'block':'none';el.textContent=msg;}}
 function showApp(){document.getElementById('auth-screen').style.display='none';document.getElementById('app-screen').classList.add('visible');
   // Phones default to the readable Agenda list instead of a cramped month grid.
   if(window.innerWidth<=768&&currentView==='month')setView('agenda');
