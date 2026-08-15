@@ -2,12 +2,12 @@
   "cutoffDate": "2026-01-01",
   "youtube": {
     "_comment": "Auto-discovers new uploads on its own via the channel's public RSS feed. Either field works: set channelId to the UC... ID (Channel > About > Share channel > Copy channel ID), or just set handle and the script resolves the ID itself.",
-    "channelId": "PUT_UC_CHANNEL_ID_HERE",
-    "handle": ""
+    "channelId": "",
+    "handle": "Quixilver-8404"
   },
   "instagram": {
     "_comment": "Auto-discovers recent posts/reels on its own — just set handle to the account's @username (no @). View counts aren't available (Instagram hides that from logged-out visitors), but likes/comments/dates are. videoUrls below is optional, for adding specific posts the auto-discovery might miss.",
-    "handle": "",
+    "handle": "ftc8404",
     "videoUrls": []
   },
   "tiktok": {
