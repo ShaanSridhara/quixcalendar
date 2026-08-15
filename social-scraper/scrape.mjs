@@ -334,6 +334,34 @@ async function fetchInstagramStats(cfg, cutoffMs) {
       });
     }
 
+    // Logged-in only: the Reels tab grid (/{handle}/reels/) overlays a view
+    // count directly on each thumbnail — confirmed from a real screenshot
+    // (a logged-out visitor, or the general profile grid, never shows this;
+    // it's specific to this tab while authenticated). One page load reads
+    // every reel's view count at once, keyed by shortcode, rather than
+    // guessing at text patterns on each individual post page.
+    const reelViews = new Map();
+    if (sessionId && handle) {
+      try {
+        await page.goto(`https://www.instagram.com/${handle}/reels/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        await page.waitForTimeout(2500);
+        const items = await page.$$eval(
+          `a[href^="/${handle}/reel/"]`,
+          (els) => els.map((e) => ({ href: e.href, text: e.innerText.trim() }))
+        );
+        for (const item of items) {
+          const m = /^([\d,.]+[KMB]?)$/.exec(item.text);
+          if (m) reelViews.set(instagramShortcode(item.href), parseAbbreviatedNumber(m[1]));
+        }
+        console.log(`[instagram] read ${reelViews.size} view count(s) from the Reels tab`);
+        if (items.length && !reelViews.size) {
+          console.log(`[instagram] Reels tab found ${items.length} reel(s) but none matched the expected view-count text — sample: "${items[0]?.text}"`);
+        }
+      } catch (e) {
+        console.error('[instagram] failed to read Reels tab view counts:', e.message);
+      }
+    }
+
     const recentVideos = [];
     for (const url of postUrls.values()) {
       try {
@@ -344,19 +372,9 @@ async function fetchInstagramStats(cfg, cutoffMs) {
         const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch(() => null);
         const likeMatch = desc && /^([\d,.]+[KMB]?) [Ll]ikes/.exec(desc);
         const commentMatch = desc && /,\s*([\d,.]+[KMB]?) [Cc]omments/.exec(desc);
-        // View/play counts only ever render on a logged-in session — this is
-        // untested against a real session (no test account available), so
-        // it tries a couple of likely text patterns and logs plainly if none
-        // match, rather than silently returning nothing.
-        let views = null;
-        if (sessionId) {
-          const viewsText = await page.evaluate(() => {
-            const m = /([\d,.]+[KMB]?)\s*(?:plays|views)/i.exec(document.body.innerText);
-            return m ? m[1] : null;
-          }).catch(() => null);
-          if (viewsText) views = parseAbbreviatedNumber(viewsText);
-          else console.log(`[instagram] logged-in session set but no view-count pattern matched on ${url} — page structure may differ from what was assumed, needs a look`);
-        }
+        // Photo posts (not reels) have no play count at all — reelViews
+        // simply won't have an entry for those, and views stays null.
+        const views = reelViews.has(instagramShortcode(url)) ? reelViews.get(instagramShortcode(url)) : null;
         recentVideos.push({
           title: decodeXmlEntities(desc || '').slice(0, 100) || 'Untitled',
           thumbnail: null,
