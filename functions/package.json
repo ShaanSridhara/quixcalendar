@@ -1,6 +1,6 @@
 {
   "name": "quixcalendar-functions",
-  "description": "Cloud Functions for Quix Calendar — Outreach panel backend (YouTube/Instagram stats + posting). Scaffold only: not deployed yet (Firebase project is on the Spark plan). See ../OUTREACH_SETUP.md.",
+  "description": "Cloud Functions for Quix Calendar — Social panel post-publishing (Instagram/YouTube). Stats collection lives in ../social-scraper instead. Scaffold only: not deployed yet (Firebase project is on the Spark plan). See ../SOCIAL_SETUP.md.",
   "private": true,
   "engines": {
     "node": "20"
@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "firebase-admin": "^12.6.0",
-    "firebase-functions": "^5.1.1",
-    "googleapis": "^144.0.0"
+    "firebase-functions": "^5.1.1"
   }
 }

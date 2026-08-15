@@ -1,0 +1,28 @@
+name: Scrape social stats
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'   # every 6 hours, offset to avoid the top-of-hour rush
+  workflow_dispatch: {}       # lets you trigger it manually from the Actions tab
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: social-scraper/package-lock.json
+
+      - name: Install dependencies
+        working-directory: social-scraper
+        run: npm ci
+
+      - name: Run scraper
+        working-directory: social-scraper
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: npm run scrape

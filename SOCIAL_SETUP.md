@@ -1,98 +1,100 @@
 # Social panel — setup checklist
 
-The Social page (`public/index.html`, page id `page-social`) and its
-Cloud Functions backend (`functions/`) are fully scaffolded and committed,
-but **not deployed and not live**. Today the panel runs entirely on mock
-"Preview data" so it's visibly functional with zero backend. This doc is the
-checklist for turning it into the real thing.
+The Social page (`public/index.html`, page id `page-social`) reads a single
+Firestore doc, `social/summary`. Two independent things write to it (or could
+one day):
 
-Nothing here is done yet. None of the steps below have been run, and no real
-credentials exist anywhere in this repo — only placeholder secret *names*.
+1. **`social-scraper/`** — a free scraper run on a GitHub Actions cron. This
+   is the active path. No Firebase billing, no Google/Meta developer app, no
+   API keys. Covers **view/like/share counts only** (read-only).
+2. **`functions/`** — a Cloud Functions scaffold for **posting** (composing
+   from the app). Not deployed, not active, needs the paid Blaze plan +
+   a Meta Developer app if you ever want it. Entirely optional.
 
-## 1. Upgrade to the Blaze plan
+Today the panel shows mock "Preview data" until step 1 below is configured.
 
-Cloud Functions require the paid Blaze plan; the project is currently on the
-free Spark plan.
+## 1. Stats — social-scraper/ (free, no billing)
 
-- Firebase Console → quixcalendar-fc708 → ⚙️ → **Usage and billing** →
-  upgrade to **Blaze** (pay-as-you-go). The functions in this repo are tiny
-  and low-traffic (a 6-hour cron + a couple of on-demand HTTPS calls), so
-  expect to stay within or very near the free tier of Blaze itself — but
-  Blaze is required to deploy functions at all.
+1. **YouTube** — auto-discovers new uploads, no setup beyond a channel ID.
+   Open `social-scraper/config.json` and set `youtube.channelId` to the
+   Quixilver channel's `UC...` ID (Channel → About → Share channel → Copy
+   channel ID), or set `youtube.handle` to the `@handle` and the scraper
+   will resolve it automatically. Uses YouTube's own public RSS feed — not
+   really "scraping," it's an official, stable, intended-for-consumption
+   feed. **Note:** the feed only returns the 15 most recent uploads; if the
+   channel posts more than 15 times between the cutoff date and now, older
+   ones in that window will be missed.
+2. **TikTok** — there's no public way to list a profile's videos without
+   logging in, so add each video's URL to the `tiktok.videoUrls` array in
+   `social-scraper/config.json` by hand as the team posts. Verified
+   working: pulls views, likes, shares, and comments straight from the
+   video page.
+3. **Instagram** — verified **not scrapable while logged out** as of
+   2026-08 (profile/post pages return an empty JS app-shell with zero post
+   data). URLs can still be added to the `instagram.videoUrls` array in
+   `social-scraper/config.json` on a best-effort basis, but expect them to
+   come back empty. The only
+   reliable path for Instagram is the official Graph API — see step 2
+   below if that's ever worth doing; it's free (no Blaze needed if run from
+   GitHub Actions instead of Cloud Functions) but does require a Meta
+   Developer app + converting the account to Business/Creator.
+4. **Firestore write access** — create a Firebase service account:
+   Firebase Console → quixcalendar-fc708 → ⚙️ → **Project settings** →
+   **Service accounts** → **Generate new private key**. This downloads a
+   JSON file. Free on any plan, no card required.
+5. In the GitHub repo → **Settings → Secrets and variables → Actions**,
+   add a new secret named `FIREBASE_SERVICE_ACCOUNT_JSON` containing the
+   full contents of that JSON file.
+6. That's it — `.github/workflows/scrape-social.yml` runs every 6 hours
+   automatically. To run it once immediately: repo → **Actions** tab →
+   "Scrape social stats" → **Run workflow**.
 
-## 2. YouTube — Google Cloud OAuth client
+To test locally before relying on the cron: `cd social-scraper && npm
+install && node scrape.mjs` — without `FIREBASE_SERVICE_ACCOUNT_JSON` set,
+it prints the result instead of writing to Firestore, so it's safe to run
+against real config while checking the output looks right.
 
-1. In Google Cloud Console (same project, or a linked one), enable the
-   **YouTube Data API v3**.
-2. Create an **OAuth 2.0 Client ID** (type: Web application) under
-   **APIs & Services → Credentials**.
-3. Run through the OAuth consent flow once (e.g. with `google-oauthlib` or
-   any OAuth playground) for the Quixilver team's YouTube channel account,
-   with scope `https://www.googleapis.com/auth/youtube.readonly` (add
-   `youtube.force-ssl` too only if upload/community-post support is ever
-   added later) to obtain a **refresh token**.
-4. Set the three secrets:
-   ```
-   firebase functions:secrets:set YOUTUBE_CLIENT_ID
-   firebase functions:secrets:set YOUTUBE_CLIENT_SECRET
-   firebase functions:secrets:set YOUTUBE_REFRESH_TOKEN
-   ```
-   (`YOUTUBE_REFRESH_TOKEN` is the one from step 3 above. Double-check
-   `functions/index.js` still references exactly `YOUTUBE_CLIENT_ID` /
-   `YOUTUBE_CLIENT_SECRET` / `YOUTUBE_REFRESH_TOKEN`.)
+## 2. Posting — functions/ (optional, needs Blaze + a Meta app)
 
-## 3. Instagram — Meta Developer app
+Only relevant if you want the in-app "Compose post" button to actually
+publish, rather than showing its current "not connected yet" message.
 
-1. Create a Meta Developer app at developers.facebook.com, add the
+1. Firebase Console → quixcalendar-fc708 → ⚙️ → **Usage and billing** →
+   upgrade to **Blaze** (pay-as-you-go — required for Cloud Functions to
+   make any outbound network call, but this workload is tiny and low-
+   traffic, so expect to stay within Blaze's own free tier).
+2. Create a Meta Developer app at developers.facebook.com, add the
    **Instagram Graph API** product.
-2. Convert the Quixilver Instagram account to a **Business** or **Creator**
+3. Convert the Quixilver Instagram account to a **Business** or **Creator**
    account (Instagram app → Settings → Account type) and link it to a
    Facebook Page.
-3. Generate a long-lived access token for that Instagram Business account
+4. Generate a long-lived access token for that Instagram Business account
    with `instagram_basic`, `instagram_manage_insights`, and
    `instagram_content_publish` permissions.
-4. Note the Instagram **Business Account ID** (via
+5. Note the Instagram **Business Account ID** (via
    `GET /{page-id}?fields=instagram_business_account` on the Graph API).
-5. Set the two secrets:
+6. Set the two secrets:
    ```
    firebase functions:secrets:set IG_ACCESS_TOKEN
    firebase functions:secrets:set IG_BUSINESS_ACCOUNT_ID
    ```
+7. Deploy: `firebase deploy --only functions,hosting:quixcalendar,firestore:rules`
+   — don't run a bare `firebase deploy` or omit the scoping, and don't
+   touch the legacy `quixcalendar-fc708` hosting site (no `/api/*` rewrites
+   there, and it shouldn't need any).
 
-## 4. TikTok — intentionally not built yet
+**YouTube posting isn't implemented** — the Data API v3 has no endpoint for
+a short text/caption post; the only thing it can publish is a full video
+upload, which this composer doesn't handle. `publishPost` returns a clear
+501 for YouTube rather than pretending to support it.
 
-TikTok view-stats collection is **not implemented** in this scaffold (see the
-TODO comment in `functions/index.js`, `runSocialRefresh()`). It would need
-its own **TikTok for Developers** app and a Login Kit OAuth flow, which
-doesn't exist yet. Until that's built, the TikTok card on the Social page
-will keep showing mock "Preview data" forever — that's expected, not a bug.
+**TikTok posting is out of scope by product decision**, not a missing
+integration — the composer has no TikTok checkbox, and `publishPost`
+rejects `platform: 'tiktok'` with a 400.
 
-**Posting to TikTok is out of scope by product decision**, not a missing
-integration — the composer intentionally has no TikTok checkbox, and
-`publishPost` rejects `platform: 'tiktok'` with a 400. Don't add it without
-re-confirming that decision.
-
-## 5. Deploy
-
-Once the secrets above are set and the Blaze plan is active:
-
-```
-firebase deploy --only functions,hosting:quixcalendar,firestore:rules
-```
-
-Do **not** run a bare `firebase deploy` or `firebase deploy --only functions`
-without the `hosting:quixcalendar` / `firestore:rules` scoping shown above —
-in particular, avoid touching the legacy `quixcalendar-fc708` hosting site,
-which has no `/api/*` rewrites configured (and shouldn't need any).
-
-After deploy, `refreshSocialStats` starts running every 6 hours
-automatically. To trigger it once immediately for testing (admin-only —
-checks the caller's Firebase ID token against the same platform-admin UID
-check the app already uses client-side):
-
-```
-curl -X POST https://<region>-quixcalendar-fc708.cloudfunctions.net/refreshSocialStatsNow \
-  -H "Authorization: Bearer <your Firebase ID token>"
-```
-
-(or via the `/api/refresh-social-now` Hosting rewrite once deployed).
+**Not built, and not recommended without a separate explicit decision:**
+automated posting via a logged-in bot (browser automation using the team's
+real password) instead of the official API. That's a meaningfully bigger
+risk than read-only scraping — it can get the real account flagged or
+locked, and more clearly crosses into automation the platforms actively
+try to detect and block.

@@ -74,8 +74,10 @@ test/
 package.json
 package-lock.json
 
-# ...except the Cloud Functions scaffold, which is a real Node project that
-# needs its manifest + lockfile committed (functions/node_modules/ itself is
-# still ignored via the blanket node_modules/ rule above).
+# ...except the Cloud Functions scaffold and the social-scraper, which are
+# real Node projects that need their manifest + lockfile committed
+# (their node_modules/ are still ignored via the blanket rule above).
 !functions/package.json
 !functions/package-lock.json
+!social-scraper/package.json
+!social-scraper/package-lock.json

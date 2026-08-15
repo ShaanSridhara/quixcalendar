@@ -19,8 +19,7 @@
         "**/node_modules/**"
       ],
       "rewrites": [
-        { "source": "/api/publish-post", "function": "publishPost" },
-        { "source": "/api/refresh-social-now", "function": "refreshSocialStatsNow" }
+        { "source": "/api/publish-post", "function": "publishPost" }
       ],
       "headers": [
         {
