@@ -169,8 +169,11 @@ async function fetchTikTokVideo(url) {
 async function fetchTikTokStats(cfg, cutoffMs) {
   const urls = cfg.videoUrls || [];
   if (!urls.length) {
-    console.log('[tiktok] no video URLs configured — skipping (see social-scraper/config.json)');
-    return null;
+    // Real zero, not "not configured" — the team hasn't posted anything to
+    // TikTok yet, which is a true fact worth writing, not a gap to hide
+    // behind mock preview numbers.
+    console.log('[tiktok] no video URLs configured yet — writing a real zero state');
+    return { connected: true, totalViews: 0, totalLikes: 0, totalComments: 0, totalShares: 0, totalSaves: 0, postCount: 0, recentVideos: [] };
   }
   let totalViews = 0, totalLikes = 0, totalComments = 0, totalShares = 0, totalSaves = 0;
   const recentVideos = [];
