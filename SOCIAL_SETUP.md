@@ -6,7 +6,7 @@ one day):
 
 1. **`social-scraper/`** — a free scraper run on a GitHub Actions cron. This
    is the active path. No Firebase billing, no Google/Meta developer app, no
-   API keys. Covers **view/like/share counts only** (read-only).
+   API keys. Read-only.
 2. **`functions/`** — a Cloud Functions scaffold for **posting** (composing
    from the app). Not deployed, not active, needs the paid Blaze plan +
    a Meta Developer app if you ever want it. Entirely optional.
@@ -24,20 +24,26 @@ Today the panel shows mock "Preview data" until step 1 below is configured.
    feed. **Note:** the feed only returns the 15 most recent uploads; if the
    channel posts more than 15 times between the cutoff date and now, older
    ones in that window will be missed.
-2. **TikTok** — there's no public way to list a profile's videos without
-   logging in, so add each video's URL to the `tiktok.videoUrls` array in
-   `social-scraper/config.json` by hand as the team posts. Verified
-   working: pulls views, likes, shares, and comments straight from the
-   video page.
-3. **Instagram** — verified **not scrapable while logged out** as of
-   2026-08 (profile/post pages return an empty JS app-shell with zero post
-   data). URLs can still be added to the `instagram.videoUrls` array in
-   `social-scraper/config.json` on a best-effort basis, but expect them to
-   come back empty. The only
-   reliable path for Instagram is the official Graph API — see step 2
-   below if that's ever worth doing; it's free (no Blaze needed if run from
-   GitHub Actions instead of Cloud Functions) but does require a Meta
-   Developer app + converting the account to Business/Creator.
+2. **Instagram** — also auto-discovers on its own. Set `instagram.handle`
+   in `social-scraper/config.json` to the account's `@username` (no `@`).
+   A plain HTTP request gets nothing from Instagram (empty JS app-shell),
+   so this launches a real (still free, still headless) browser instead,
+   which does render the public profile grid — verified working: it reads
+   the account's recent posts/reels, their exact publish dates, and their
+   likes + comments. **View counts are the one thing that's genuinely not
+   available** — Instagram hides that number from logged-out visitors even
+   in a full browser — so the Social page shows "—" for Instagram's views
+   and shows total likes in that stat's place instead, rather than a
+   misleading 0. `instagram.videoUrls` is optional, for adding specific
+   posts the auto-discovery grid might miss.
+3. **TikTok** — the one platform that can't auto-discover. TikTok actively
+   blocks even a real headless browser from loading a profile's video grid
+   (tested — it renders a "Something went wrong / Log in" wall specifically
+   there), so there's no way around adding each video's URL to the
+   `tiktok.videoUrls` array in `social-scraper/config.json` by hand as the
+   team posts. Once given a URL, per-video scraping itself is solid,
+   verified working: pulls views, likes, shares, and comments straight from
+   that video's page.
 4. **Firestore write access** — create a Firebase service account:
    Firebase Console → quixcalendar-fc708 → ⚙️ → **Project settings** →
    **Service accounts** → **Generate new private key**. This downloads a

@@ -21,6 +21,10 @@ jobs:
         working-directory: social-scraper
         run: npm ci
 
+      - name: Install headless browser (for Instagram auto-discovery)
+        working-directory: social-scraper
+        run: npx playwright install --with-deps chromium
+
       - name: Run scraper
         working-directory: social-scraper
         env:

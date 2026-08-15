@@ -8,18 +8,23 @@
  *  - YouTube: the channel's official public RSS feed
  *    (youtube.com/feeds/videos.xml?channel_id=...). Not really "scraping" —
  *    it's a stable, intended-for-consumption public feed, and it already
- *    includes a view count per video. Auto-discovers new uploads.
+ *    includes a view count per video. Auto-discovers new uploads (last 15).
+ *  - Instagram: a plain HTTP fetch gets nothing at all (Instagram serves an
+ *    empty JS app-shell to non-browser requests), but a real headless
+ *    browser (Playwright/Chromium) does render the public profile grid —
+ *    confirmed working: auto-discovers recent post/reel URLs, and each
+ *    post page yields an exact publish date plus likes+comments via the
+ *    og:description meta tag. View/play counts are NOT available even this
+ *    way — Instagram hides that number from logged-out viewers entirely, so
+ *    it's simply omitted rather than faked.
  *  - TikTok: per-video page HTML embeds a JSON blob
  *    (__UNIVERSAL_DATA_FOR_REHYDRATION__) with playCount/diggCount/
- *    shareCount/commentCount. Confirmed working, but TikTok does not expose
- *    a profile's video list without logging in — so videos must be added to
- *    config.json by URL manually as the team posts them.
- *  - Instagram: confirmed NOT scrapable logged-out as of 2026-08 — profile
- *    and post pages return an empty JS app-shell with no post data at all
- *    when fetched without a session. This still attempts a best-effort parse
- *    in case that ever changes, but expect it to return nothing. The only
- *    reliable path for Instagram is the official Graph API (free, but needs
- *    a Meta Developer app + Business account — see ../SOCIAL_SETUP.md).
+ *    shareCount/commentCount — confirmed working via plain fetch, no
+ *    browser needed. But TikTok actively blocks even a real headless
+ *    browser from loading a profile's video grid (tested — it renders a
+ *    "Something went wrong / Log in" wall specifically there), so unlike
+ *    YouTube/Instagram there's no way to auto-discover new videos. They
+ *    must be added to config.json by URL as the team posts them.
  *
  * Every fetch is read-only, against publicly-visible pages, with a normal
  * browser User-Agent — no login, no credentials, no bypassing any access
@@ -30,6 +35,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import admin from 'firebase-admin';
+import { chromium } from 'playwright';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -37,6 +43,18 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 function loadConfig() {
   const raw = readFileSync(join(__dirname, 'config.json'), 'utf8');
   return JSON.parse(raw);
+}
+
+// Instagram abbreviates large counts in og:description ("260K likes", "2M
+// likes") instead of giving an exact number — this is necessarily an
+// approximation for those, not a precision QuixCalendar ever actually had.
+function parseAbbreviatedNumber(s) {
+  if (!s) return null;
+  const m = /^([\d,.]+)([KMB]?)$/.exec(s.trim());
+  if (!m) return null;
+  const n = Number(m[1].replace(/,/g, ''));
+  const mult = { K: 1e3, M: 1e6, B: 1e9 }[m[2]] || 1;
+  return Math.round(n * mult);
 }
 
 function decodeXmlEntities(s) {
@@ -146,46 +164,73 @@ async function fetchTikTokStats(cfg, cutoffMs) {
   return { connected: true, totalViews, totalShares, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
 }
 
-// ── Instagram: best-effort, expected to come back empty (see header) ────
-async function fetchInstagramPost(url) {
-  const embedUrl = url.replace(/\/?$/, '/').replace(/(\/)?$/, '/embed/captioned/');
-  const res = await fetch(embedUrl, { headers: { 'User-Agent': UA } });
-  if (!res.ok) throw new Error(`Instagram returned ${res.status} for ${url}`);
-  const html = await res.text();
-  const desc = (/<meta property="og:description" content="([^"]*)"/.exec(html) || [])[1];
-  if (!desc) throw new Error(`No public data available for ${url} — Instagram requires login for this content today`);
-  const likeMatch = /^([\d,]+) Likes/.exec(desc);
-  return {
-    title: decodeXmlEntities(desc).slice(0, 100),
-    thumbnail: null,
-    views: null,
-    likes: likeMatch ? Number(likeMatch[1].replace(/,/g, '')) : null,
-    date: null,
-    url,
-  };
-}
+// ── Instagram: headless-browser auto-discovery ──────────────────────────
+// A plain fetch() gets nothing (empty JS app-shell), but a real headless
+// browser renders the public profile grid fine, so this launches one to
+// (a) collect recent post/reel links from the profile page, then (b) visit
+// each to read its exact publish date and its likes+comments via the
+// og:description meta tag. View/play counts are never available this way —
+// Instagram hides that number from logged-out viewers entirely — so
+// totalViews stays null rather than a misleading 0.
+async function fetchInstagramStats(cfg, cutoffMs) {
+  const handle = (cfg.handle || '').replace(/^@/, '');
+  const postUrls = new Set(cfg.videoUrls || []);
+  if (!handle && !postUrls.size) {
+    console.log('[instagram] no handle or post URLs configured — skipping (see social-scraper/config.json)');
+    return null;
+  }
 
-async function fetchInstagramStats(cfg) {
-  const urls = cfg.videoUrls || [];
-  if (!urls.length) {
-    console.log('[instagram] no post URLs configured — skipping (see social-scraper/config.json)');
-    return null;
-  }
-  const recentVideos = [];
-  for (const url of urls) {
-    try {
-      recentVideos.push(await fetchInstagramPost(url));
-      await new Promise((r) => setTimeout(r, 1500));
-    } catch (e) {
-      console.error(`[instagram] failed for ${url}:`, e.message);
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ userAgent: UA });
+
+    if (handle) {
+      await page.goto(`https://www.instagram.com/${handle}/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.waitForTimeout(2500);
+      // Scoped to /{handle}/p/... and /{handle}/reel/... specifically —
+      // the profile page also renders a "Suggested accounts" section with
+      // /p/ and /reel/ links to OTHER accounts' posts, which a bare
+      // a[href*="/p/"] selector would wrongly sweep in too.
+      const links = await page.$$eval(
+        `a[href^="/${handle}/p/"], a[href^="/${handle}/reel/"]`,
+        (els) => [...new Set(els.map((e) => e.href))]
+      );
+      links.slice(0, 15).forEach((l) => postUrls.add(l));
     }
+
+    const recentVideos = [];
+    for (const url of postUrls) {
+      try {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        await page.waitForTimeout(1200);
+        const datetime = await page.$eval('time', (el) => el.getAttribute('datetime')).catch(() => null);
+        if (datetime && Date.parse(datetime) < cutoffMs) continue;
+        const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch(() => null);
+        const likeMatch = desc && /^([\d,.]+[KMB]?) [Ll]ikes/.exec(desc);
+        const commentMatch = desc && /,\s*([\d,.]+[KMB]?) [Cc]omments/.exec(desc);
+        recentVideos.push({
+          title: decodeXmlEntities(desc || '').slice(0, 100) || 'Untitled',
+          thumbnail: null,
+          views: null,
+          likes: likeMatch ? parseAbbreviatedNumber(likeMatch[1]) : null,
+          comments: commentMatch ? parseAbbreviatedNumber(commentMatch[1]) : null,
+          date: datetime ? datetime.slice(0, 10) : null,
+          url,
+        });
+      } catch (e) {
+        console.error(`[instagram] failed for ${url}:`, e.message);
+      }
+    }
+    recentVideos.sort((a, b) => (a.date < b.date ? 1 : -1));
+    if (!recentVideos.length) {
+      console.log('[instagram] no posts returned data — check the handle in config.json is correct and public');
+      return null;
+    }
+    const totalLikes = recentVideos.reduce((s, v) => s + (v.likes || 0), 0);
+    return { connected: true, totalViews: null, totalLikes, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
+  } finally {
+    await browser.close();
   }
-  if (!recentVideos.length) {
-    console.log('[instagram] none of the configured URLs returned data — this is expected today, see header comment');
-    return null;
-  }
-  const totalViews = recentVideos.reduce((s, v) => s + (v.views || 0), 0);
-  return { connected: true, totalViews, postCount: recentVideos.length, recentVideos };
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────
@@ -209,7 +254,7 @@ async function main() {
   }
 
   try {
-    const ig = await fetchInstagramStats(cfg.instagram);
+    const ig = await fetchInstagramStats(cfg.instagram, cutoffMs);
     if (ig) update.instagram = ig;
   } catch (e) {
     console.error('[instagram] refresh failed:', e.message);

@@ -1,16 +1,17 @@
 {
   "cutoffDate": "2026-01-01",
   "youtube": {
-    "_comment": "The channel's UC... ID. Find it: open the channel, About tab, 'Share channel' > 'Copy channel ID'. Or leave the @handle below and the script will try to resolve it once.",
+    "_comment": "Auto-discovers new uploads on its own via the channel's public RSS feed. Either field works: set channelId to the UC... ID (Channel > About > Share channel > Copy channel ID), or just set handle and the script resolves the ID itself.",
     "channelId": "PUT_UC_CHANNEL_ID_HERE",
     "handle": ""
   },
-  "tiktok": {
-    "_comment": "TikTok has no public way to list a profile's videos without logging in, so this scraper reads stats for specific video URLs only. Add each new video's URL here after posting it.",
+  "instagram": {
+    "_comment": "Auto-discovers recent posts/reels on its own — just set handle to the account's @username (no @). View counts aren't available (Instagram hides that from logged-out visitors), but likes/comments/dates are. videoUrls below is optional, for adding specific posts the auto-discovery might miss.",
+    "handle": "",
     "videoUrls": []
   },
-  "instagram": {
-    "_comment": "Instagram blocks logged-out scraping almost entirely as of 2026 — profile pages return no post data at all when not logged in (verified). These URLs are attempted anyway on a best-effort basis, but expect them to come back empty until Instagram changes that or you switch to the official Graph API (see SOCIAL_SETUP.md).",
+  "tiktok": {
+    "_comment": "TikTok blocks even a real browser from loading a profile's video list while logged out, so unlike the other two this can't auto-discover — add each new video's URL here after posting it.",
     "videoUrls": []
   }
 }
