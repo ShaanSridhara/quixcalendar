@@ -6229,7 +6229,7 @@ function renderHomePage(){
   const h=getNow().getHours();
   const _grName=cu?.displayName?.split(' ')[0]||'there';
   const _grPhrase=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
-  document.getElementById('home-greeting').innerHTML=`${_grPhrase}, <em>${_grName}</em>!`;
+  document.getElementById('home-greeting').innerHTML=`${_grPhrase}, <em>${escHtml(_grName)}</em>!`;
   loadAbsenceCount();
   renderTodayStrip();
   autoDeclineStaleInvites();
@@ -6237,7 +6237,7 @@ function renderHomePage(){
 
   // Role display
   const roleRow=document.getElementById('home-role-row');
-  if(myRole)roleRow.innerHTML=`Your role: <span class="role-badge">${displayRole(myRole)}</span>`;
+  if(myRole)roleRow.innerHTML=`Your role: <span class="role-badge">${escHtml(displayRole(myRole))}</span>`;
   else roleRow.textContent='';
 
   const now=getNow(),soon=new Date(now);soon.setDate(soon.getDate()+14);
@@ -6405,8 +6405,7 @@ function renderHomePage(){
 
 async function loadAbsenceCount(){
   if(!cu)return;
-  const us=await getDoc(doc(db,'users',cu.uid));
-  const cnt=us.data()?.unexcusedCount||0;
+  const cnt=(calendars||[]).concat(sharedCalendars||[]).reduce((n,c)=>n+((c.attendance||{})[cu.uid]||0),0);
   document.getElementById('home-probation-banner').style.display=cnt>=3?'block':'none';
   document.getElementById('home-absence-row').style.display=cnt>0?'inline-flex':'none';
   document.getElementById('home-absence-count').textContent=cnt;
@@ -6708,9 +6707,10 @@ function renderViewPeople(){
     const pri=ev.priority||'important';
     const priColor=pri==='critical'?'var(--q-red)':pri==='important'?'var(--q-amber)':'var(--q-green)';
     const priLabel=pri==='critical'?'Critical':pri==='important'?'Important':'Optional';
+    const priSafe=String(pri||'important').replace(/[^a-z]/gi,'')||'important';
     const isIndiv=(ev.completionMode||'group')==='individual';
     const canToggleAny=isAdmin(ev.calendarId)||ev.taskManagerUid===cu?.uid;
-    el.innerHTML=`<div style="margin-bottom:10px"><span class="priority-badge priority-${pri}" style="font-size:11px;padding:3px 10px">${priLabel} priority</span>${isIndiv?' <span style="font-size:9px;font-weight:700;color:var(--q-blue2);background:var(--q-blue-dim);border-radius:5px;padding:3px 8px">INDIVIDUAL COMPLETION</span>':''}</div>`;
+    el.innerHTML=`<div style="margin-bottom:10px"><span class="priority-badge priority-${priSafe}" style="font-size:11px;padding:3px 10px">${priLabel} priority</span>${isIndiv?' <span style="font-size:9px;font-weight:700;color:var(--q-blue2);background:var(--q-blue-dim);border-radius:5px;padding:3px 8px">INDIVIDUAL COMPLETION</span>':''}</div>`;
     function completionBadge(p){
       if(!isIndiv)return '';
       const done=!!(ev.completedBy&&ev.completedBy[p.uid]);
@@ -6773,8 +6773,8 @@ function renderViewPeople(){
     let adminBtn='';
     // Don't allow marking optional attendees or opt-outs as unexcused
     if(isAdm&&!isTask&&rsvp==='declined'&&!isOptOut&&p.attendance!=='optional'){
-      if(!ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
-      else adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
+      if(!ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark','${ev.calendarId||''}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
+      else adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse','${ev.calendarId||''}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
     }
     const drLabel=rsvp==='leaving_early'?'Departure Note':'Reason';
     row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${uxB} ${adminBtn}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:${rsvp==='leaving_early'?'#a78bfa':'var(--q-red)'}">${drLabel}:</strong> ${escHtml(dr)}</div>`:''}`;
@@ -6849,8 +6849,8 @@ window.toggleMyTaskDone=async(evId,uid)=>{
 };
 
 // ── Unexcused ──────────────────────────────────────────────────────────────
-window.openUnexcused=(evId,uid,name,action)=>{
-  unexcusedTarget={evId,uid,action};
+window.openUnexcused=(evId,uid,name,action,calId)=>{
+  unexcusedTarget={evId,uid,action,calId};
   document.getElementById('unexcused-modal-title').textContent=action==='mark'?'Mark Unexcused':'Reverse Unexcused Absence';
   document.getElementById('unexcused-modal-desc').textContent=action==='mark'?`Mark ${name}'s absence as unexcused?`:`Reverse the unexcused mark for ${name}?`;
   document.getElementById('unexcused-note-wrap').style.display=action==='mark'?'block':'none';
@@ -6860,15 +6860,15 @@ window.openUnexcused=(evId,uid,name,action)=>{
 };
 window.submitUnexcused=async()=>{
   if(!unexcusedTarget)return;
-  const{evId,uid,action}=unexcusedTarget;
+  const{evId,uid,action,calId}=unexcusedTarget;
   const note=document.getElementById('unexcused-note').value.trim();
   if(action==='mark'){
     await updateDoc(doc(db,'events',evId),{[`unexcusedAbsences.${uid}`]:true,[`unexcusedNotes.${uid}`]:note||null});
-    await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(1)});
+    if(calId)await updateDoc(doc(db,'calendars',calId),{[`attendance.${uid}`]:increment(1)});
     toast('Marked unexcused');
   } else {
     await updateDoc(doc(db,'events',evId),{[`unexcusedAbsences.${uid}`]:null,[`unexcusedNotes.${uid}`]:null});
-    await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(-1)});
+    if(calId)await updateDoc(doc(db,'calendars',calId),{[`attendance.${uid}`]:increment(-1)});
     toast('Absence reversed');
   }
   closeModal('unexcused-modal');renderViewPeople();if(currentPage==='admin')renderAdminPage();
@@ -7000,24 +7000,18 @@ function updatePostNotesVisibility(evDate){
 async function loadCalMembers(calId){
   calMembers=[];
   if(!calId){renderChecklists();return;}
-  // FIX #4: include yourself in the members list
-  const mySnap=await getDoc(doc(db,'users',cu.uid));
-  calMembers.push({uid:cu.uid,displayName:cu.displayName||cu.email?.split('@')[0]||'Me',email:cu.email||'',subsection:mySnap.data()?.[`subsection_${calId}`]||''});
   try{
-    // For own calendars: query users who joined this cal
-    // For shared calendars: also query — works the same way
-    const snap=await getDocs(query(collection(db,'users'),where('joinedCalendars','array-contains',calId),limit(200)));
-    snap.docs.forEach(d=>{if(d.id!==cu.uid)calMembers.push({uid:d.id,displayName:d.data().displayName||d.data().email?.split('@')[0]||'User',email:d.data().email||'',subsection:d.data()[`subsection_${calId}`]||''});});
-    // Include the owner of any calendar (own or shared) if not already in list
-    const allCals=[...calendars,...sharedCalendars];
-    const thisCal=allCals.find(c=>c.id===calId);
-    if(thisCal?.uid&&thisCal.uid!==cu.uid&&!calMembers.find(m=>m.uid===thisCal.uid)){
+    // Members come from the calendar doc (membership is no longer stored on user docs)
+    const calSnap=await getDoc(doc(db,'calendars',calId)).catch(()=>null);
+    const thisCal=calSnap&&calSnap.exists()?calSnap.data():null;
+    const memberIds=new Set([cu.uid,...(thisCal?.members||[])]);
+    for(const uid of memberIds){
+      const m={uid,displayName:uid===cu.uid?(cu.displayName||cu.email?.split('@')[0]||'Me'):'User',email:uid===cu.uid?(cu.email||''):'',subsection:thisCal?.memberSubsections?.[uid]||''};
       try{
-        const ownerSnap=await getDoc(doc(db,'users',thisCal.uid));
-        if(ownerSnap.exists()){
-          calMembers.push({uid:ownerSnap.id,displayName:ownerSnap.data().displayName||'Owner',email:ownerSnap.data().email||'',subsection:ownerSnap.data()[`subsection_${calId}`]||''});
-        }
-      }catch(e){console.error(e);}
+        const s=await getDoc(doc(db,'users',uid));
+        if(s.exists()){const d=s.data();m.displayName=d.displayName||d.email?.split('@')[0]||'User';m.email=d.email||'';}
+      }catch(e){}
+      calMembers.push(m);
     }
   }catch(e){console.error(e);}
   renderChecklists();
@@ -7407,33 +7401,31 @@ async function renderTeamRoster(calId){
   const colsEl=document.getElementById('dash-columns');
   colsEl.className='roster-grid';
   colsEl.innerHTML='<div style="font-size:12px;color:var(--q-muted2);padding:8px">Loading team…</div>';
-  // Get all members of this calendar
-  const allCals=[...calendars,...sharedCalendars];
-  const cal=allCals.find(c=>c.id===calId);
-  const calRoles=cal?.roles||{};
-  // owner
-  const ownerSnap=await getDoc(doc(db,'users',cal?.uid||'x'));
+  // Get all members of this calendar (membership lives on the calendar doc)
+  const calSnap=await getDoc(doc(db,'calendars',calId)).catch(()=>null);
+  const cal=calSnap&&calSnap.exists()?calSnap.data():{};
+  const calRoles=cal.roles||{};
   const memberMap={};
-  if(ownerSnap.exists())memberMap[cal.uid]={uid:cal.uid,...ownerSnap.data()};
-  // joined members
-  const snap=await getDocs(query(collection(db,'users'),where('joinedCalendars','array-contains',calId),limit(200)));
-  snap.docs.forEach(d=>{memberMap[d.id]={uid:d.id,...d.data()};});
+  for(const uid of new Set([cal.uid,...(cal.members||[])])){
+    if(!uid)continue;
+    try{const s=await getDoc(doc(db,'users',uid));if(s.exists())memberMap[uid]={uid,...s.data()};}catch(e){}
+  }
   const members=Object.values(memberMap);
   colsEl.innerHTML='';
   if(!members.length){colsEl.innerHTML='<div style="padding:24px;color:var(--q-muted2);font-size:13px">No members yet.</div>';return;}
   members.forEach(m=>{
     const allRoles=getRolesForUid(calRoles,m.uid);
     const role=getPrimaryRole(calRoles,m.uid);
-    const sub=m[`subsection_${calId}`]||'';
+    const sub=cal.memberSubsections?.[m.uid]||'';
     const card=document.createElement('div');card.className='member-card';
     const char=(m.displayName||'?').charAt(0).toUpperCase();
-    const uxCount=m.unexcusedCount||0;
+    const uxCount=cal.attendance?.[m.uid]||0;
     card.innerHTML=`
       <div class="member-avatar">${safeUrl(m.pfpUrl)?`<img src="${safeUrl(m.pfpUrl)}"/>`:`<span>${char}</span>`}</div>
       <div style="flex:1;min-width:0;overflow:hidden">
         <div style="font-size:13px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(m.displayName||"User")}</div>
         <div style="display:flex;align-items:center;gap:5px;row-gap:4px;margin-top:4px;flex-wrap:wrap">
-          ${role?`<span class="role-badge ${role==='Admin'?'admin-role':''}" style="font-size:8px;padding:1px 6px;white-space:nowrap">${displayRole(role)}</span>`:''}
+          ${role?`<span class="role-badge ${role==='Admin'?'admin-role':''}" style="font-size:8px;padding:1px 6px;white-space:nowrap">${escHtml(displayRole(role))}</span>`:''}
           ${sub?`<span class="subsection-tag" style="font-size:8px">${escHtml(sub)}</span>`:''}
           ${uxCount>0?`<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:6px;background:var(--q-red-dim);color:var(--q-red)">${uxCount}✗</span>`:''}
         </div>
@@ -7451,9 +7443,9 @@ async function openMemberModal(m,calId,calRoles){
   const char=(m.displayName||'?').charAt(0).toUpperCase();
   const allRoles=getRolesForUid(calRoles,m.uid);
   const role=calRoles[m.uid]||null;
-  const sub=m[`subsection_${calId}`]||'';
+  const sub=cal.memberSubsections?.[m.uid]||'';
   const isAdm=isAdmin(calId);
-  const unexcused=m.unexcusedCount||0;
+  const unexcused=cal.attendance?.[m.uid]||0;
 
   // Find their meetings and tasks
   const myMeetings=events.filter(e=>{
@@ -7547,25 +7539,20 @@ async function openMemberModal(m,calId,calRoles){
 
 window.addMemberAbsence=async(uid,name)=>{
   if(!confirm(`Add 1 unexcused absence to ${name}?`))return;
-  await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(1)});
-  toast(`Absence added for ${name}`);
-  // refresh modal
-  const updatedSnap=await getDoc(doc(db,'users',uid));
   const calId=document.getElementById('dash-cal-select').value;
-  const allCals=[...calendars,...sharedCalendars];
-  const cal=allCals.find(c=>c.id===calId);
-  openMemberModal({uid,...updatedSnap.data()},calId,cal?.roles||{});
+  if(calId)await updateDoc(doc(db,'calendars',calId),{[`attendance.${uid}`]:increment(1)});
+  toast(`Absence added for ${name}`);
+  const calSnap=await getDoc(doc(db,'calendars',calId)).catch(()=>null);
+  openMemberModal({uid},calId,calSnap?.data()?.roles||{});
 };
 
 window.removeMemberAbsence=async(uid,name)=>{
   if(!confirm(`Remove 1 unexcused absence from ${name}?`))return;
-  await updateDoc(doc(db,'users',uid),{unexcusedCount:increment(-1)});
-  toast(`Absence removed for ${name}`);
-  const updatedSnap=await getDoc(doc(db,'users',uid));
   const calId=document.getElementById('dash-cal-select').value;
-  const allCals=[...calendars,...sharedCalendars];
-  const cal=allCals.find(c=>c.id===calId);
-  openMemberModal({uid,...updatedSnap.data()},calId,cal?.roles||{});
+  if(calId)await updateDoc(doc(db,'calendars',calId),{[`attendance.${uid}`]:increment(-1)});
+  toast(`Absence removed for ${name}`);
+  const calSnap=await getDoc(doc(db,'calendars',calId)).catch(()=>null);
+  openMemberModal({uid},calId,calSnap?.data()?.roles||{});
 };
 
 function buildDashTaskItem(t,container,calId){
@@ -8023,14 +8010,19 @@ async function renderAdminPage(){
 
   // Members
   const ml=document.getElementById('admin-members-list');ml.innerHTML='<div style="font-size:11px;color:var(--q-muted2)">Loading…</div>';
-  const snap=await getDocs(query(collection(db,'users'),where('joinedCalendars','array-contains',adminCal.id),limit(200)));
-  // For shared cals, uid is stored in sharedCalendars; for own cals it's cal.uid
   const calOwnerUid=adminCal.uid||cu.uid;
   const ownerSnap=await getDoc(doc(db,'users',calOwnerUid));
   const members=[];
   // Always include the calendar owner
-  if(ownerSnap.exists())members.push({uid:adminCal.uid,displayName:ownerSnap.data().displayName||'Owner',email:ownerSnap.data().email||'',subsection:ownerSnap.data()[`subsection_${adminCal.id}`]||''});
-  snap.docs.forEach(d=>{if(d.id!==adminCal.uid)members.push({uid:d.id,displayName:d.data().displayName||d.data().email?.split('@')[0]||'User',email:d.data().email||'',subsection:d.data()[`subsection_${adminCal.id}`]||''});});
+  if(ownerSnap.exists())members.push({uid:adminCal.uid,displayName:ownerSnap.data().displayName||'Owner',email:ownerSnap.data().email||'',subsection:adminCal.memberSubsections?.[adminCal.uid]||''});
+  // Members come from the calendar doc (membership is no longer stored on user docs)
+  for(const uid of (adminCal.members||[])){
+    if(uid===adminCal.uid)continue;
+    try{
+      const s=await getDoc(doc(db,'users',uid));
+      if(s.exists())members.push({uid,displayName:s.data().displayName||s.data().email?.split('@')[0]||'User',email:s.data().email||'',subsection:adminCal.memberSubsections?.[uid]||''});
+    }catch(e){}
+  }
   const subs=adminCal.subsections||[];
   const calRoles=adminCal.roles||{};
   ml.innerHTML='';
@@ -8050,13 +8042,13 @@ async function renderAdminPage(){
       const subSel=document.createElement('select');subSel.style.cssText='padding:3px 6px;font-size:10px;background:var(--q-dark3);border:1px solid var(--q-border2);border-radius:5px;color:var(--q-text);font-family:var(--font-body)';
       const emptyOpt=document.createElement('option');emptyOpt.value='';emptyOpt.textContent='No subsection';subSel.appendChild(emptyOpt);
       subs.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;if(m.subsection===s)o.selected=true;subSel.appendChild(o);});
-      subSel.onchange=async()=>{await updateDoc(doc(db,'users',m.uid),{[`subsection_${adminCal.id}`]:subSel.value||null});toast('Updated');renderAdminPage();};
+      subSel.onchange=async()=>{await updateDoc(doc(db,'calendars',adminCal.id),{[`memberSubsections.${m.uid}`]:subSel.value||null});toast('Updated');renderAdminPage();};
       row.querySelector('div:last-child').appendChild(subSel);
       // Kick
       if(m.uid!==cu.uid){
         const kickBtn=document.createElement('button');kickBtn.style.cssText='padding:3px 8px;font-size:10px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)';
         kickBtn.textContent='Kick';
-        kickBtn.onclick=async()=>{if(!confirm(`Remove ${escHtml(m.displayName)}?`))return;await updateDoc(doc(db,'calendars',adminCal.id),{members:arrayRemove(m.uid)}).catch(()=>{});await updateDoc(doc(db,'users',m.uid),{joinedCalendars:arrayRemove(adminCal.id)});toast(`${escHtml(m.displayName)} removed`);renderAdminPage();};
+        kickBtn.onclick=async()=>{if(!confirm(`Remove ${escHtml(m.displayName)}?`))return;await updateDoc(doc(db,'calendars',adminCal.id),{members:arrayRemove(m.uid),['memberSubsections.'+m.uid]:null}).catch(()=>{});toast(`${escHtml(m.displayName)} removed`);renderAdminPage();};
         row.querySelector('div:last-child').appendChild(kickBtn);
       }
     }
@@ -8092,7 +8084,7 @@ async function renderAdminPage(){
       const isLeavingEarly=rsvp==='leaving_early';
       const rsvpText=isLeavingEarly?'leaving early from':'declined';
       const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--q-dark3);border-radius:7px;margin-bottom:5px;font-size:12px;flex-wrap:wrap';
-      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">${rsvpText} "${escHtml(ev.title)}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">${isLeavingEarly?'Departure note':'Reason'}: ${escHtml(reason)}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${escHtml(uxNote)}</div>`:''}</div>${isLeavingEarly?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.25);color:#a78bfa;font-weight:700">LEAVING EARLY</span>`:ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
+      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">${rsvpText} "${escHtml(ev.title)}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">${isLeavingEarly?'Departure note':'Reason'}: ${escHtml(reason)}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${escHtml(uxNote)}</div>`:''}</div>${isLeavingEarly?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.25);color:#a78bfa;font-weight:700">LEAVING EARLY</span>`:ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse','${ev.calendarId||''}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark','${ev.calendarId||''}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
       al.appendChild(row);
     });
   });
@@ -8218,7 +8210,7 @@ function renderProfilePage(){
   updateNotifToggle();
   // Role display
   const rd=document.getElementById('profile-role-display');
-  if(myRole)rd.innerHTML=`<span class="role-badge">${displayRole(myRole)}</span>`;else rd.innerHTML='';
+  if(myRole)rd.innerHTML=`<span class="role-badge">${escHtml(displayRole(myRole))}</span>`;else rd.innerHTML='';
   const bigEl=document.getElementById('profile-avatar-big');const char=(name||email||'?').charAt(0).toUpperCase();
   if(safeUrl(userPfpUrl))bigEl.innerHTML=`<img src="${safeUrl(userPfpUrl)}" alt="pfp"/><input type="file" id="pfp-input" accept="image/*" style="display:none" onchange="handlePfpChange(event)"/>`;
   else bigEl.innerHTML=`<span id="profile-avatar-char">${char}</span><input type="file" id="pfp-input" accept="image/*" style="display:none" onchange="handlePfpChange(event)"/>`;
