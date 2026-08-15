@@ -8344,16 +8344,22 @@ function renderSocialPlatformCard(platform,d){
 }
 function renderSocialPage(){
   const plats=['youtube','instagram','tiktok'];
-  const data={};let anyPreview=false;
-  plats.forEach(p=>{data[p]=getSocialPlatform(p);if(data[p].preview)anyPreview=true;});
-  const total=plats.reduce((s,p)=>s+(data[p].totalViews||0),0);
+  const data={};const previewPlats=[];
+  plats.forEach(p=>{data[p]=getSocialPlatform(p);if(data[p].preview)previewPlats.push(SOCIAL_PLATFORM_META[p].label);});
+  const allPreview=previewPlats.length===plats.length;
+  // Never blend real and mock numbers into one total — if some platforms are
+  // still preview-only, the combined figure only counts the real ones.
+  const total=plats.reduce((s,p)=>s+((allPreview||!data[p].preview)?(data[p].totalViews||0):0),0);
+  const previewNote=allPreview
+    ?'Preview data — connect accounts to see real stats'
+    :previewPlats.length?`${previewPlats.join(' & ')} not counted yet — still showing preview data`:'';
   const hero=document.getElementById('social-hero');
   if(hero)hero.innerHTML=`
     <div class="dash-stat-card" style="padding:28px 32px;display:flex;flex-direction:column;gap:6px;margin-bottom:22px">
       <span class="dash-stat-icon">📈</span>
       <div class="dash-stat-value" style="font-size:42px">${total.toLocaleString()}</div>
       <div class="dash-stat-label">Combined views · YouTube + Instagram + TikTok · since Jan 1, 2026</div>
-      ${anyPreview?'<div style="margin-top:4px"><span class="admin-badge" style="background:rgba(255,184,48,.15);color:var(--q-amber)">Preview data — connect accounts to see real stats</span></div>':''}
+      ${previewNote?`<div style="margin-top:4px"><span class="admin-badge" style="background:rgba(255,184,48,.15);color:var(--q-amber)">${previewNote}</span></div>`:''}
     </div>`;
   const cardsEl=document.getElementById('social-cards');
   if(cardsEl)cardsEl.innerHTML=plats.map(p=>renderSocialPlatformCard(p,data[p])).join('');
