@@ -103,7 +103,7 @@ async function fetchYouTubeStats(cfg, cutoffMs) {
   const xml = await res.text();
 
   const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map((m) => m[1]);
-  let totalViews = 0;
+  let totalViews = 0, totalLikes = 0;
   const recentVideos = [];
   for (const entry of entries) {
     const published = (/<published>([^<]+)<\/published>/.exec(entry) || [])[1];
@@ -112,6 +112,12 @@ async function fetchYouTubeStats(cfg, cutoffMs) {
     const title = decodeXmlEntities((/<media:title>([^<]*)<\/media:title>/.exec(entry) || [])[1]);
     const thumbnail = (/<media:thumbnail url="([^"]+)"/.exec(entry) || [])[1] || null;
     const views = Number((/<media:statistics views="(\d+)"/.exec(entry) || [])[1] || 0);
+    // The feed's starRating is a leftover from YouTube's old 5-star system —
+    // every rating today is a 5, so the count IS effectively the like count
+    // (confirmed: it scales proportionally with view count on every real
+    // video checked). Not the real internal like number precisely, but the
+    // same figure YouTube itself has publicly exposed here for years.
+    const likes = Number((/<media:starRating count="(\d+)"/.exec(entry) || [])[1] || 0);
     // The feed already includes Shorts alongside regular uploads (same
     // upload pipeline, same <entry> shape) — the only difference is the
     // permalink shape, so preserve it as-is rather than always rewriting to
@@ -120,10 +126,12 @@ async function fetchYouTubeStats(cfg, cutoffMs) {
     const permalink = (/<link rel="alternate" href="([^"]+)"/.exec(entry) || [])[1];
     const isShort = !!permalink && permalink.includes('/shorts/');
     totalViews += views;
+    totalLikes += likes;
     recentVideos.push({
       title: title || 'Untitled',
       thumbnail,
       views,
+      likes,
       date: published.slice(0, 10),
       url: permalink || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : null),
       isShort,
@@ -131,7 +139,7 @@ async function fetchYouTubeStats(cfg, cutoffMs) {
   }
   recentVideos.sort((a, b) => (a.date < b.date ? 1 : -1));
 
-  return { connected: true, totalViews, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
+  return { connected: true, totalViews, totalLikes, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
 }
 
 // ── TikTok: per-video page scrape ───────────────────────────────────────
@@ -152,6 +160,7 @@ async function fetchTikTokVideo(url) {
     likes: Number(stats.diggCount || 0),
     shares: Number(stats.shareCount || 0),
     comments: Number(stats.commentCount || 0),
+    saves: Number(stats.collectCount || 0),
     date: item.createTime ? new Date(Number(item.createTime) * 1000).toISOString().slice(0, 10) : null,
     url,
   };
@@ -163,14 +172,17 @@ async function fetchTikTokStats(cfg, cutoffMs) {
     console.log('[tiktok] no video URLs configured — skipping (see social-scraper/config.json)');
     return null;
   }
-  let totalViews = 0, totalShares = 0;
+  let totalViews = 0, totalLikes = 0, totalComments = 0, totalShares = 0, totalSaves = 0;
   const recentVideos = [];
   for (const url of urls) {
     try {
       const v = await fetchTikTokVideo(url);
       if (v.date && Date.parse(v.date) < cutoffMs) continue;
       totalViews += v.views;
+      totalLikes += v.likes;
+      totalComments += v.comments;
       totalShares += v.shares;
+      totalSaves += v.saves;
       recentVideos.push(v);
       await new Promise((r) => setTimeout(r, 1500)); // be a polite, low-rate visitor
     } catch (e) {
@@ -178,7 +190,7 @@ async function fetchTikTokStats(cfg, cutoffMs) {
     }
   }
   recentVideos.sort((a, b) => (a.date < b.date ? 1 : -1));
-  return { connected: true, totalViews, totalShares, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
+  return { connected: true, totalViews, totalLikes, totalComments, totalShares, totalSaves, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
 }
 
 // ── Instagram: headless-browser auto-discovery ──────────────────────────
@@ -263,7 +275,8 @@ async function fetchInstagramStats(cfg, cutoffMs) {
       return null;
     }
     const totalLikes = recentVideos.reduce((s, v) => s + (v.likes || 0), 0);
-    return { connected: true, totalViews: null, totalLikes, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
+    const totalComments = recentVideos.reduce((s, v) => s + (v.comments || 0), 0);
+    return { connected: true, totalViews: null, totalLikes, totalComments, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
   } finally {
     await browser.close();
   }

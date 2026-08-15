@@ -8271,11 +8271,11 @@ window.saveProfile=async()=>{
 };
 
 // ── Social (social media) ─────────────────────────────────────────────────
-// Reads Firestore `social/summary` (written server-side by the
-// refreshSocialStats Cloud Function — see functions/index.js). That
-// function isn't deployed yet (Spark plan, no secrets configured), so this
-// falls back to small, clearly-labeled preview numbers per platform so the
-// panel isn't empty. Real data simply appears once the doc exists.
+// Reads Firestore `social/summary`, written by the free social-scraper/
+// GitHub Actions cron (see ../social-scraper/scrape.mjs and
+// ../SOCIAL_SETUP.md) — not a Cloud Function, no billing plan needed. Falls
+// back to small, clearly-labeled preview numbers per platform until that
+// doc exists or a given platform hasn't returned real data yet.
 const SOCIAL_ICONS={
   youtube:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="4" fill="#ef4444"/><path d="M10 9l6 3-6 3V9z" fill="#fff"/></svg>',
   instagram:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="igGrad" x1="0" y1="0" x2="24" y2="24"><stop offset="0" stop-color="#f9ce34"/><stop offset=".5" stop-color="#ee2a7b"/><stop offset="1" stop-color="#6228d7"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="6" fill="url(#igGrad)"/><circle cx="12" cy="12" r="5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.3" fill="#fff"/></svg>',
@@ -8288,15 +8288,15 @@ const SOCIAL_PLATFORM_META={
 };
 // Small, round, obviously-fake numbers — never invent fake precision.
 const SOCIAL_MOCK={
-  youtube:{totalViews:12400,postCount:6,recentVideos:[
-    {title:'Sample video — connect account to see real posts',views:3100,date:'2026-02-10'},
-    {title:'Sample video — connect account to see real posts',views:2200,date:'2026-01-18'}]},
-  instagram:{totalViews:8200,postCount:9,recentVideos:[
-    {title:'Sample reel — connect account to see real posts',views:1400,date:'2026-02-05'},
-    {title:'Sample reel — connect account to see real posts',views:900,date:'2026-01-22'}]},
-  tiktok:{totalViews:15000,postCount:4,recentVideos:[
-    {title:'Sample video — TikTok stats aren\'t connected yet',views:6000,date:'2026-02-01'},
-    {title:'Sample video — TikTok stats aren\'t connected yet',views:4500,date:'2026-01-12'}]}
+  youtube:{totalViews:12400,totalLikes:340,postCount:6,recentVideos:[
+    {title:'Sample video — connect account to see real posts',views:3100,likes:90,date:'2026-02-10'},
+    {title:'Sample video — connect account to see real posts',views:2200,likes:60,date:'2026-01-18'}]},
+  instagram:{totalViews:null,totalLikes:820,totalComments:64,postCount:9,recentVideos:[
+    {title:'Sample reel — connect account to see real posts',likes:140,comments:9,date:'2026-02-05'},
+    {title:'Sample reel — connect account to see real posts',likes:90,comments:6,date:'2026-01-22'}]},
+  tiktok:{totalViews:15000,totalLikes:1200,totalComments:95,totalShares:210,totalSaves:180,postCount:4,recentVideos:[
+    {title:'Sample video — TikTok stats aren\'t connected yet',views:6000,likes:480,shares:80,date:'2026-02-01'},
+    {title:'Sample video — TikTok stats aren\'t connected yet',views:4500,likes:360,shares:60,date:'2026-01-12'}]}
 };
 function getSocialPlatform(platform){
   const real=socialSummary?.[platform];
@@ -8308,13 +8308,28 @@ function socialConnPill(connected){
     ?'<span class="admin-badge" style="background:rgba(0,232,122,.15);color:var(--q-green)">Connected</span>'
     :'<span class="admin-badge" style="background:rgba(255,59,92,.12);color:var(--q-red)">Not connected</span>';
 }
+// Ordered so whichever of these a platform actually returns show up in a
+// consistent sequence — a platform simply omits the tile for any metric it
+// doesn't have (e.g. Instagram never has Views, TikTok never has nothing).
+const SOCIAL_METRIC_TILES=[
+  {key:'totalViews',label:'Views'},
+  {key:'totalLikes',label:'Likes'},
+  {key:'totalComments',label:'Comments'},
+  {key:'totalShares',label:'Shares'},
+  {key:'totalSaves',label:'Saves'},
+];
+function socialEngagementTotal(d){
+  return SOCIAL_METRIC_TILES.reduce((s,m)=>s+(d[m.key]||0),0);
+}
 function renderSocialPlatformCard(platform,d){
   const meta=SOCIAL_PLATFORM_META[platform];
   const hasViews=d.totalViews!=null; // Instagram never has this — hidden from logged-out visitors — so show "—" not a misleading 0
   const avg=hasViews&&d.postCount?Math.round(d.totalViews/d.postCount):null;
+  const metricTiles=SOCIAL_METRIC_TILES.filter(m=>d[m.key]!=null)
+    .map(m=>`<div><div class="dash-stat-num" style="font-size:20px">${d[m.key].toLocaleString()}</div><div class="dash-stat-label">${m.label}</div></div>`).join('');
   const videos=(d.recentVideos||[]).slice(0,3);
   const videoRows=videos.length?videos.map(v=>{
-    const metric=v.views!=null?{n:v.views,label:''}:v.likes!=null?{n:v.likes,label:' likes'}:null;
+    const metric=v.views!=null?{n:v.views,label:' views'}:v.likes!=null?{n:v.likes,label:' likes'}:null;
     return `
     <div class="admin-member-row" style="align-items:center">
       ${v.thumbnail?`<img src="${escHtml(v.thumbnail)}" alt="" style="width:48px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0"/>`:'<div style="width:48px;height:36px;border-radius:6px;background:var(--q-dark4);flex-shrink:0"></div>'}
@@ -8322,7 +8337,7 @@ function renderSocialPlatformCard(platform,d){
         <div style="font-size:12px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.isShort?'<span style="font-size:9px;font-weight:700;color:var(--q-blue2);border:1px solid var(--q-blue2);border-radius:4px;padding:1px 4px;margin-right:5px;vertical-align:1px">SHORT</span>':''}${escHtml(v.title||'Untitled')}</div>
         <div style="font-size:10px;color:var(--q-muted2)">${v.date?new Date(v.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''}</div>
       </div>
-      <div style="font-size:12px;font-weight:700;color:var(--q-blue2);flex-shrink:0">${metric?metric.n.toLocaleString()+metric.label:'—'}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--q-blue2);flex-shrink:0;white-space:nowrap">${metric?metric.n.toLocaleString()+metric.label:'—'}</div>
     </div>`;}).join(''):'<div style="font-size:11px;color:var(--q-muted2)">No videos yet</div>';
   return `
     <div class="admin-card">
@@ -8331,12 +8346,12 @@ function renderSocialPlatformCard(platform,d){
         ${socialConnPill(!!d.connected)}
       </div>
       ${d.preview?'<div style="margin-bottom:10px"><span class="admin-badge" style="background:rgba(255,184,48,.15);color:var(--q-amber)">Preview data — connect account to see real stats</span></div>':''}
-      <div style="display:flex;gap:18px;margin-bottom:14px;flex-wrap:wrap">
-        <div><div class="dash-stat-num" style="font-size:20px">${hasViews?d.totalViews.toLocaleString():'—'}</div><div class="dash-stat-label">Views</div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:14px 10px;margin-bottom:10px">
+        ${metricTiles}
         <div><div class="dash-stat-num" style="font-size:20px">${d.postCount||0}</div><div class="dash-stat-label">Posts</div></div>
-        ${hasViews?`<div><div class="dash-stat-num" style="font-size:20px">${avg.toLocaleString()}</div><div class="dash-stat-label">Avg/Post</div></div>`:d.totalLikes!=null?`<div><div class="dash-stat-num" style="font-size:20px">${d.totalLikes.toLocaleString()}</div><div class="dash-stat-label">Likes</div></div>`:''}
+        ${avg!=null?`<div><div class="dash-stat-num" style="font-size:20px">${avg.toLocaleString()}</div><div class="dash-stat-label">Avg/Post</div></div>`:''}
       </div>
-      ${!hasViews&&d.connected?'<div style="font-size:10px;color:var(--q-muted2);margin:-8px 0 14px">Instagram doesn\'t show view counts to logged-out visitors — showing likes/comments instead.</div>':''}
+      ${!hasViews&&d.connected?'<div style="font-size:10px;color:var(--q-muted2);margin-bottom:14px">This platform doesn\'t show view counts to logged-out visitors — other metrics above are real.</div>':'<div style="margin-bottom:4px"></div>'}
       <div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--q-muted2);margin-bottom:8px">Recent videos</div>
       <div>${videoRows}</div>
       ${meta.connectLabel?`<button class="btn-secondary" style="margin-top:14px;width:100%" onclick="connectSocialPlatform('${platform}')">${meta.connectLabel}</button>`:'<div style="margin-top:14px;font-size:10px;color:var(--q-muted2)">View-stats only — TikTok posting is out of scope, and live stats aren\'t wired up yet.</div>'}
@@ -8348,8 +8363,10 @@ function renderSocialPage(){
   plats.forEach(p=>{data[p]=getSocialPlatform(p);if(data[p].preview)previewPlats.push(SOCIAL_PLATFORM_META[p].label);});
   const allPreview=previewPlats.length===plats.length;
   // Never blend real and mock numbers into one total — if some platforms are
-  // still preview-only, the combined figure only counts the real ones.
-  const total=plats.reduce((s,p)=>s+((allPreview||!data[p].preview)?(data[p].totalViews||0):0),0);
+  // still preview-only, only the real ones count toward either figure.
+  const countable=p=>allPreview||!data[p].preview;
+  const totalViews=plats.reduce((s,p)=>s+(countable(p)?(data[p].totalViews||0):0),0);
+  const totalEngagement=plats.reduce((s,p)=>s+(countable(p)?socialEngagementTotal(data[p]):0),0);
   const previewNote=allPreview
     ?'Preview data — connect accounts to see real stats'
     :previewPlats.length?`${previewPlats.join(' & ')} not counted yet — still showing preview data`:'';
@@ -8357,8 +8374,9 @@ function renderSocialPage(){
   if(hero)hero.innerHTML=`
     <div class="dash-stat-card" style="padding:28px 32px;display:flex;flex-direction:column;gap:6px;margin-bottom:22px">
       <span class="dash-stat-icon">📈</span>
-      <div class="dash-stat-value" style="font-size:42px">${total.toLocaleString()}</div>
-      <div class="dash-stat-label">Combined views · YouTube + Instagram + TikTok · since Jan 1, 2026</div>
+      <div class="dash-stat-value" style="font-size:42px">${totalEngagement.toLocaleString()}</div>
+      <div class="dash-stat-label">Total engagement · views + likes + comments + shares + saves · YouTube + Instagram + TikTok · since Jan 1, 2026</div>
+      <div style="font-size:11px;color:var(--q-muted2)">${totalViews.toLocaleString()} of that is views · this counts every action, not unique people — the same person liking and commenting counts twice</div>
       ${previewNote?`<div style="margin-top:4px"><span class="admin-badge" style="background:rgba(255,184,48,.15);color:var(--q-amber)">${previewNote}</span></div>`:''}
     </div>`;
   const cardsEl=document.getElementById('social-cards');
