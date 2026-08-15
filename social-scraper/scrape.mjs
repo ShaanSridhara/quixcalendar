@@ -103,13 +103,21 @@ async function fetchYouTubeStats(cfg, cutoffMs) {
     const title = decodeXmlEntities((/<media:title>([^<]*)<\/media:title>/.exec(entry) || [])[1]);
     const thumbnail = (/<media:thumbnail url="([^"]+)"/.exec(entry) || [])[1] || null;
     const views = Number((/<media:statistics views="(\d+)"/.exec(entry) || [])[1] || 0);
+    // The feed already includes Shorts alongside regular uploads (same
+    // upload pipeline, same <entry> shape) — the only difference is the
+    // permalink shape, so preserve it as-is rather than always rewriting to
+    // /watch?v=, which would silently turn every Short link into a regular
+    // watch-page link.
+    const permalink = (/<link rel="alternate" href="([^"]+)"/.exec(entry) || [])[1];
+    const isShort = !!permalink && permalink.includes('/shorts/');
     totalViews += views;
     recentVideos.push({
       title: title || 'Untitled',
       thumbnail,
       views,
       date: published.slice(0, 10),
-      url: videoId ? `https://www.youtube.com/watch?v=${videoId}` : null,
+      url: permalink || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : null),
+      isShort,
     });
   }
   recentVideos.sort((a, b) => (a.date < b.date ? 1 : -1));

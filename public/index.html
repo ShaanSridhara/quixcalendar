@@ -4304,23 +4304,6 @@ body.light-mode .month-grid-day:hover {
       <div id="social-hero"></div>
 
       <div class="social-platform-grid" id="social-cards"></div>
-
-      <div class="admin-card" style="margin-top:20px;max-width:640px">
-        <div class="admin-card-title">Compose post</div>
-        <div class="form-group">
-          <label class="form-label">Caption</label>
-          <textarea class="form-input" id="social-caption" rows="3" placeholder="Write a caption…"></textarea>
-        </div>
-        <div class="form-group" style="display:flex;gap:18px">
-          <label class="form-checkbox"><input type="checkbox" id="social-plat-yt" checked/><span>YouTube</span></label>
-          <label class="form-checkbox"><input type="checkbox" id="social-plat-ig" checked/><span>Instagram</span></label>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Media URL</label>
-          <input class="form-input" id="social-media-url" type="text" placeholder="Link to a photo/video (upload isn't wired up yet)"/>
-        </div>
-        <button class="btn-primary" id="social-post-btn" onclick="submitSocialPost()">Post</button>
-      </div>
     </div>
   </div>
 
@@ -8336,7 +8319,7 @@ function renderSocialPlatformCard(platform,d){
     <div class="admin-member-row" style="align-items:center">
       ${v.thumbnail?`<img src="${escHtml(v.thumbnail)}" alt="" style="width:48px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0"/>`:'<div style="width:48px;height:36px;border-radius:6px;background:var(--q-dark4);flex-shrink:0"></div>'}
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(v.title||'Untitled')}</div>
+        <div style="font-size:12px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.isShort?'<span style="font-size:9px;font-weight:700;color:var(--q-blue2);border:1px solid var(--q-blue2);border-radius:4px;padding:1px 4px;margin-right:5px;vertical-align:1px">SHORT</span>':''}${escHtml(v.title||'Untitled')}</div>
         <div style="font-size:10px;color:var(--q-muted2)">${v.date?new Date(v.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''}</div>
       </div>
       <div style="font-size:12px;font-weight:700;color:var(--q-blue2);flex-shrink:0">${metric?metric.n.toLocaleString()+metric.label:'—'}</div>
@@ -8379,33 +8362,6 @@ window.connectSocialPlatform=(platform)=>{
   // TODO: once OAuth credentials exist, replace with: location.href='/api/oauth/start?platform='+platform;
   toast('Not yet configured — see SOCIAL_SETUP.md');
 };
-window.submitSocialPost=async()=>{
-  const caption=document.getElementById('social-caption').value.trim();
-  const platforms=[];
-  if(document.getElementById('social-plat-yt')?.checked)platforms.push('youtube');
-  if(document.getElementById('social-plat-ig')?.checked)platforms.push('instagram');
-  if(!caption){toast('Write a caption first');return;}
-  if(!platforms.length){toast('Pick at least one platform');return;}
-  const mediaUrl=document.getElementById('social-media-url').value.trim();
-  const btn=document.getElementById('social-post-btn');
-  if(btn){btn.disabled=true;btn.textContent='Posting…';}
-  try{
-    const token=await cu.getIdToken();
-    const res=await fetch('/api/publish-post',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({platforms,caption,mediaUrl})});
-    if(res.ok){
-      toast('Posted!');
-      document.getElementById('social-caption').value='';
-    } else {
-      toast("Social posting isn't connected yet — ask an admin to finish API setup (see SOCIAL_SETUP.md)");
-    }
-  }catch(e){
-    // Expected today: no Cloud Function is deployed yet (Spark plan / no secrets).
-    toast("Social posting isn't connected yet — ask an admin to finish API setup (see SOCIAL_SETUP.md)");
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent='Post';}
-  }
-};
-
 // ── Utilities ──────────────────────────────────────────────────────────────
 window.closeModal=(id)=>{
   const el=document.getElementById(id);

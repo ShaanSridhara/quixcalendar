@@ -62,8 +62,9 @@ against real config while checking the output looks right.
 
 ## 2. Posting — functions/ (optional, needs Blaze + a Meta app)
 
-Only relevant if you want the in-app "Compose post" button to actually
-publish, rather than showing its current "not connected yet" message.
+The Social page's "Compose post" UI was removed for now (to be re-added
+later) — this backend is dormant scaffolding with no caller today. Only
+relevant once that UI comes back and you want it to actually publish.
 
 1. Firebase Console → quixcalendar-fc708 → ⚙️ → **Usage and billing** →
    upgrade to **Blaze** (pay-as-you-go — required for Cloud Functions to
