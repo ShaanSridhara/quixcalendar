@@ -228,9 +228,16 @@ service cloud.firestore {
     }
 
     // ── Social (social media stats) ─────────────────────────────────────────
-    // Written only by the Admin SDK (Cloud Functions — refreshSocialStats /
-    // publishPost), which bypasses these rules entirely. Clients only ever
-    // read; no client write path is allowed for any doc in this collection.
+    // Stats docs (summary, etc.) are written only by the social-scraper's
+    // Admin SDK connection, which bypasses these rules entirely — clients
+    // only ever read. `config` is the one exception: platform admins can
+    // edit it directly (e.g. adding a TikTok video URL to track), and
+    // social-scraper reads it alongside social-scraper/config.json on each
+    // run.
+    match /social/config {
+      allow read: if isSignedIn();
+      allow write: if isPlatformAdmin();
+    }
     match /social/{docId} {
       allow read: if isSignedIn();
       allow create, update, delete: if false;

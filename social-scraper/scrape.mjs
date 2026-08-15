@@ -410,6 +410,33 @@ async function fetchInstagramStats(cfg, cutoffMs) {
 async function main() {
   const cfg = loadConfig();
   const cutoffMs = Date.parse(cfg.cutoffDate + 'T00:00:00Z');
+
+  const svcJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  let db = null;
+  if (svcJson) {
+    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(svcJson)) });
+    db = admin.firestore();
+
+    // Links added via the QuixCalendar app itself (Social page → TikTok
+    // card → "Manage TikTok links", admin-only) — merged in alongside
+    // config.json's own list rather than replacing it, deduped. TikTok has
+    // no auto-discovery (see header comment), so this is the actual way
+    // new videos get tracked day to day, without needing a repo edit.
+    try {
+      const configSnap = await db.doc('social/config').get();
+      if (configSnap.exists) {
+        const remote = configSnap.data();
+        if (Array.isArray(remote.tiktokVideoUrls) && remote.tiktokVideoUrls.length) {
+          const merged = new Set([...(cfg.tiktok.videoUrls || []), ...remote.tiktokVideoUrls]);
+          cfg.tiktok.videoUrls = [...merged];
+          console.log(`[config] merged in ${remote.tiktokVideoUrls.length} TikTok link(s) from social/config`);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to read social/config from Firestore (continuing with config.json only):', e.message);
+    }
+  }
+
   const update = {};
 
   try {
@@ -438,15 +465,12 @@ async function main() {
     return;
   }
 
-  const svcJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!svcJson) {
+  if (!db) {
     console.log('FIREBASE_SERVICE_ACCOUNT_JSON not set — printing result instead of writing to Firestore:');
     console.log(JSON.stringify(update, null, 2));
     return;
   }
 
-  admin.initializeApp({ credential: admin.credential.cert(JSON.parse(svcJson)) });
-  const db = admin.firestore();
   update.updatedAt = admin.firestore.FieldValue.serverTimestamp();
   await db.doc('social/summary').set(update, { merge: true });
   console.log('Wrote updated stats for:', Object.keys(update).filter((k) => k !== 'updatedAt').join(', '));
