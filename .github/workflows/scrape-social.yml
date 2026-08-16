@@ -63,10 +63,19 @@ jobs:
           IG_BUSINESS_ACCOUNT_ID: ${{ secrets.IG_BUSINESS_ACCOUNT_ID }}
           IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
         run: |
+          # A fresh IG_SESSION_ID cookie is confirmed (2026-08-16) to work for
+          # exactly one logged-in Instagram request before getting blocked
+          # again within ~60s — so only the loop's first iteration attempts
+          # it (IG_ALLOW_LOGIN=1); later iterations this same job skip it and
+          # reuse last known-good view counts, instead of retrying every ~60s
+          # and reflagging the session almost immediately.
           END=$((SECONDS + 480))
+          ITER=0
           while [ $SECONDS -lt $END ]; do
             START=$SECONDS
+            if [ $ITER -eq 0 ]; then export IG_ALLOW_LOGIN=1; else export IG_ALLOW_LOGIN=0; fi
             npm run scrape || echo "::warning::scrape iteration failed, continuing loop"
+            ITER=$((ITER + 1))
             ELAPSED=$((SECONDS - START))
             SLEEP=$((60 - ELAPSED))
             if [ $SLEEP -gt 0 ] && [ $((SECONDS + SLEEP)) -lt $END ]; then sleep $SLEEP; fi

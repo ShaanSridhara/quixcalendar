@@ -345,7 +345,17 @@ async function fetchInstagramStats(cfg, cutoffMs, db) {
   // used from this runner's IP instead, which Instagram might flag; and
   // sessions expire and need periodically re-extracting), but a real step
   // down from storing actual credentials or running automated logins.
-  const sessionId = process.env.IG_SESSION_ID;
+  // Confirmed 2026-08-16: a fresh cookie works for exactly one login before
+  // Instagram blocks it again within ~60s — the workflow's own inner loop
+  // was retrying every ~60s, which reflagged the session almost
+  // immediately. IG_ALLOW_LOGIN (set by the workflow, see
+  // scrape-social.yml) restricts the authenticated attempt to once per
+  // ~8min job instead of once per ~60s iteration, to stop needlessly
+  // burning through the session and hammering the real account.
+  const sessionId = process.env.IG_ALLOW_LOGIN === '1' ? process.env.IG_SESSION_ID : null;
+  if (process.env.IG_SESSION_ID && !sessionId) {
+    console.log('[instagram] skipping logged-in session this iteration (IG_ALLOW_LOGIN throttle) — reusing last known-good view counts instead');
+  }
   const browser = await chromium.launch();
   try {
     const context = await browser.newContext({ userAgent: UA });
@@ -456,8 +466,16 @@ async function fetchInstagramStats(cfg, cutoffMs, db) {
         const likeMatch = desc && /^([\d,.]+[KMB]?) [Ll]ikes/.exec(desc);
         const commentMatch = desc && /,\s*([\d,.]+[KMB]?) [Cc]omments/.exec(desc);
         // Photo posts (not reels) have no play count at all — reelViews
-        // simply won't have an entry for those, and views stays null.
-        const views = reelViews.has(instagramShortcode(url)) ? reelViews.get(instagramShortcode(url)) : null;
+        // simply won't have an entry for those, and views stays null. But a
+        // *reel* missing from reelViews just means the Reels tab (logged-in
+        // only, and confirmed 2026-08-16 to get blocked again within ~60s
+        // of a session successfully logging in) didn't come through this
+        // particular run — falling back to the last run's real view count
+        // instead of null means one lucky successful login isn't wiped out
+        // by the very next (blocked) iteration a minute later.
+        const code = instagramShortcode(url);
+        const prevViews = previousByShortcode.get(code)?.views;
+        const views = reelViews.has(code) ? reelViews.get(code) : (prevViews ?? null);
         recentVideos.push({
           title: decodeXmlEntities(desc || '').slice(0, 100) || 'Untitled',
           thumbnail,
