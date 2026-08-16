@@ -37,11 +37,23 @@ service cloud.firestore {
     function validPriority(v) {
       return v == null || v in ['critical', 'important', 'optional', 'high', 'medium', 'low'];
     }
+    // date is required (every event/task/meeting is placed on a specific
+    // day) and every client-side reader assumes it's a plain YYYY-MM-DD
+    // string — sorted with .localeCompare, parsed with `new Date(date+
+    // 'T12:00:00')`, etc. Unlike color/time/priority above, this can't be
+    // `v == null`-exempted: the client-side date-picker form was the only
+    // thing enforcing that shape, so any signed-in member could otherwise
+    // write date: "not-a-date" (or a non-string) straight through the API
+    // and crash rendering for every other member who loads that event.
+    function validDate(v) {
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
     function validateEventFields(d) {
       return validHexColor(d.get('color', null))
         && validTime(d.get('time', null))
         && validTime(d.get('timeEnd', null))
-        && validPriority(d.get('priority', null));
+        && validPriority(d.get('priority', null))
+        && validDate(d.get('date', null));
     }
 
     function isCalendarMember(calData) {

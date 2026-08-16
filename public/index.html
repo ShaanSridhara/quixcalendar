@@ -4970,6 +4970,14 @@ function fmt12(t){
 
 // ── HTML escape helper — use for all user-generated content in innerHTML ──
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+// Every render path assumes date is a plain YYYY-MM-DD string (sorted with
+// .localeCompare, parsed with `new Date(date+'T12:00:00')`) — firestore.rules
+// now rejects a bad date on write, but that doesn't retroactively fix a
+// doc written before that rule existed, and defense-in-depth means this
+// app shouldn't trust the network for something a single malformed value
+// can crash rendering over. Dropped at ingestion, not just skipped at
+// render time, so it can never reach a .sort() comparator either.
+function validEventDate(v){return typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v);}
 function linkify(s){return escHtml(s).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--q-blue2);text-decoration:underline;word-break:break-all">$1</a>');}
 // Color sanitizer — only allow hex colors (blocks style-attribute breakout via attacker-set colors)
 function escColor(c){return /^#[0-9a-fA-F]{6}$/.test(String(c||''))?c:'#2979ff';}
@@ -5133,7 +5141,10 @@ function subscribeData(uid){
   },err=>console.error(err));
 
   unsubEv=onSnapshot(query(collection(db,'events'),where('uid','==',uid)),snap=>{
-    const own=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const own=snap.docs.map(d=>({id:d.id,...d.data()})).filter(e=>{
+      if(validEventDate(e.date))return true;
+      console.error('Dropping event with invalid date:',e.id,e.date);return false;
+    });
     const ownIds=new Set(own.map(e=>e.id));
     // keep _invited and isShared events but never duplicate an own event
     events=[...own,...events.filter(e=>(e._invited||e.isShared)&&!ownIds.has(e.id))];
@@ -5190,7 +5201,11 @@ function subscribeInvitedEvents(uid){
   const unsub=onSnapshot(query(collection(db,'events'),where('inviteeUids','array-contains',uid)),snap=>{
     const invited=snap.docs
       .filter(d=>d.data().uid!==uid) // exclude own events
-      .map(d=>({id:d.id,...d.data(),_invited:true}));
+      .map(d=>({id:d.id,...d.data(),_invited:true}))
+      .filter(e=>{
+        if(validEventDate(e.date))return true;
+        console.error('Dropping invited event with invalid date:',e.id,e.date);return false;
+      });
     // Remove stale invited events
     events=events.filter(e=>!e._invited);
     // Never add an invited event that already exists as owned OR shared
@@ -7394,7 +7409,10 @@ async function renderDashboard(){
     else if(t==='__team'){btn.innerHTML='<span style="font-size:13px;margin-right:4px">👥</span>Team';}
     else{
       const col=subColor(t,calId);
-      btn.innerHTML=`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};margin-right:5px;flex-shrink:0"></span>${t}`;
+      // t is a leader-authored subsection name (Admin → Subsections) —
+      // unescaped here was a stored-XSS sink hit on every teammate's
+      // dashboard tab bar.
+      btn.innerHTML=`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};margin-right:5px;flex-shrink:0"></span>${escHtml(t)}`;
     }
     btn.onclick=()=>{
       dashSubTab=t;
@@ -7455,7 +7473,9 @@ async function renderDashboard(){
       const col=subColor(s||null,calId);
       const label=s||'General';
       const div=document.createElement('div');div.className='dash-col';
-      div.innerHTML=`<div class="dash-col-header"><div class="dash-col-dot" style="background:${col}"></div><div class="dash-col-title">${label}</div><div class="dash-col-count">${tasks.length}</div></div>`;
+      // label carries a leader-authored subsection name — same stored-XSS
+      // sink as the tab bar above, but for the dashboard column header.
+      div.innerHTML=`<div class="dash-col-header"><div class="dash-col-dot" style="background:${col}"></div><div class="dash-col-title">${escHtml(label)}</div><div class="dash-col-count">${tasks.length}</div></div>`;
       const body=document.createElement('div');body.className='dash-col-body';
       if(!tasks.length){body.innerHTML=`<div class="dash-empty">✓ No tasks<br><span style="font-size:10px">this week</span></div>`;}
       tasks.forEach(t=>{buildDashTaskItem(t,body,calId);});
@@ -7619,7 +7639,7 @@ async function openMemberModal(m,calId,calRoles){
     const isMgr=ev.taskManagerUid===m.uid;
     const row=document.createElement('div');row.className='member-ev-row';
     row.style.borderLeft=`3px solid ${priColor(pri)}`;
-    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}${isMgr?' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--q-blue-dim);color:var(--q-blue2)">MGR</span>':''}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.taskSubsection?' · '+ev.taskSubsection:''}</div></div><span class="priority-badge priority-${pri}" style="font-size:8px">${pri.charAt(0).toUpperCase()+pri.slice(1)}</span>`;
+    row.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}${isMgr?' <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:var(--q-blue-dim);color:var(--q-blue2)">MGR</span>':''}</div><div style="font-size:10px;color:var(--q-muted)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.taskSubsection?' · '+escHtml(ev.taskSubsection):''}</div></div><span class="priority-badge priority-${pri}" style="font-size:8px">${pri.charAt(0).toUpperCase()+pri.slice(1)}</span>`;
     row.onclick=()=>{closeModal('member-modal');openViewEvent(ev);};
     mtEl.appendChild(row);
   });
@@ -8022,7 +8042,10 @@ function subscribeSharedCal(calId,ownerUid,calName,ownerName,calColor,roles={},s
   const _evUnsub=onSnapshot(query(collection(db,'events'),where('calendarId','==',calId)),snap=>{
     if(!cu)return;
     const prevSharedIds=new Set(events.filter(e=>e.isShared&&e.sharedCalId===calId).map(e=>e.id));
-    const shared=snap.docs.filter(d=>d.data().uid!==cu.uid).map(d=>({id:d.id,...d.data(),isShared:true,sharedCalId:calId,sharedCalName:calName,color:d.data().color||calColor}));
+    const shared=snap.docs.filter(d=>d.data().uid!==cu.uid).map(d=>({id:d.id,...d.data(),isShared:true,sharedCalId:calId,sharedCalName:calName,color:d.data().color||calColor})).filter(e=>{
+      if(validEventDate(e.date))return true;
+      console.error('Dropping shared event with invalid date:',e.id,e.date);return false;
+    });
     events=events.filter(e=>!(e.isShared&&e.sharedCalId===calId));
     const existingEventIds=new Set(events.map(e=>e.id));
     const newSharedEvs=shared.filter(e=>!existingEventIds.has(e.id));
