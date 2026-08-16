@@ -4908,7 +4908,7 @@ body.light-mode .month-grid-day:hover {
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, updateProfile, updateEmail, updatePassword, sendPasswordResetEmail, browserLocalPersistence, setPersistence, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs, writeBatch, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp, getDocs, writeBatch, increment, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig={apiKey:"AIzaSyCPbBj5WUGWduOLw1hmA761nawPxUbLRyA",authDomain:"quixcalendar-fc708.firebaseapp.com",projectId:"quixcalendar-fc708",storageBucket:"quixcalendar-fc708.firebasestorage.app",messagingSenderId:"1066637408084",appId:"1:1066637408084:web:8f0655f4a089696319fac1"};
 const app=initializeApp(firebaseConfig);
@@ -5004,9 +5004,10 @@ const REPEAT_LABELS={none:'Does not repeat',daily:'Daily',weekly:'Weekly',monthl
 let cu=null,events=[],calendars=[],sharedCalendars=[];
 let currentDate=getNow(),miniDate=getNow();
 let editEvId=null,viewingEv=null;
-let unsubEv=null,unsubCals=null,unsubSocial=null,unsubSocialConfig=null;
+let unsubEv=null,unsubCals=null,unsubSocial=null,unsubSocialConfig=null,unsubSocialHistory=null;
 let socialSummary=null; // Firestore social/summary doc — null until first snapshot (or if missing)
 let socialConfig=null; // Firestore social/config doc — admin-managed video URL lists (e.g. TikTok, which can't auto-discover)
+let socialHistoryDocs=[]; // Firestore socialHistory docs, chronological — growth-over-time + best-time-to-post source data
 let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',currentTaskCompletionMode='group',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
@@ -5113,6 +5114,7 @@ function subscribeData(uid){
   loadJoinedCalendars();
   subscribeSocial();
   subscribeSocialConfig();
+  subscribeSocialHistory();
 }
 
 // Social summary doc is the same for every signed-in user (not per-uid), so
@@ -5133,6 +5135,20 @@ function subscribeSocialConfig(){
   if(unsubSocialConfig)unsubSocialConfig();
   unsubSocialConfig=onSnapshot(doc(db,'social','config'),snap=>{
     socialConfig=snap.exists()?snap.data():null;
+    if(currentPage==='social')renderSocialPage();
+  },err=>console.error(err));
+}
+
+// socialHistory: one doc per day (YYYY-MM-DD id), written by the scraper —
+// powers the growth-over-time chart and the best-time-to-post insight.
+// Ordered by document ID ascending, which sorts chronologically for
+// ISO-format date strings; capped at the most recent 60 days so this
+// doesn't grow unbounded as history accumulates.
+function subscribeSocialHistory(){
+  if(unsubSocialHistory)unsubSocialHistory();
+  const q=query(collection(db,'socialHistory'),orderBy('__name__'),limit(60));
+  unsubSocialHistory=onSnapshot(q,snap=>{
+    socialHistoryDocs=snap.docs.map(d=>({date:d.id,...d.data()}));
     if(currentPage==='social')renderSocialPage();
   },err=>console.error(err));
 }
@@ -5222,7 +5238,7 @@ window.handleForgotPassword=async()=>{
     if(btn)btn.disabled=false;
   }
 };
-window.signOut=async()=>{if(unsubEv)unsubEv();if(unsubCals)unsubCals();if(unsubSocial)unsubSocial();if(unsubSocialConfig)unsubSocialConfig();if(_socialUpdatedAgoTimer)clearInterval(_socialUpdatedAgoTimer);_invitedUnsubs.forEach(u=>u());_invitedUnsubs.length=0;_sharedCalUnsubs.forEach(unsubs=>unsubs.forEach(u=>u()));_sharedCalUnsubs.clear();await fbSignOut(auth);};
+window.signOut=async()=>{if(unsubEv)unsubEv();if(unsubCals)unsubCals();if(unsubSocial)unsubSocial();if(unsubSocialConfig)unsubSocialConfig();if(unsubSocialHistory)unsubSocialHistory();if(_socialUpdatedAgoTimer)clearInterval(_socialUpdatedAgoTimer);_invitedUnsubs.forEach(u=>u());_invitedUnsubs.length=0;_sharedCalUnsubs.forEach(unsubs=>unsubs.forEach(u=>u()));_sharedCalUnsubs.clear();await fbSignOut(auth);};
 function friendlyErr(c){return({'auth/user-not-found':'No account with that email.','auth/wrong-password':'Incorrect password. Use "Forgot password?" if needed.','auth/email-already-in-use':'Email already in use. Try signing in or resetting your password.','auth/weak-password':'Password needs 6+ chars.','auth/invalid-email':'Invalid email.','auth/invalid-credential':'Incorrect email or password. Use "Forgot password?" if needed.'})[c]||'Something went wrong.';}
 
 // ── Google sign-in ───────────────────────────────────────────────────────────
@@ -8371,6 +8387,80 @@ function renderSocialVideoRow(v,compact){
     :`<div class="admin-member-row" style="align-items:center">${inner}</div>`;
 }
 let _lastSocialData={};
+function videoEngagementTotal(v){return(v.views||0)+(v.likes||0)+(v.comments||0)+(v.shares||0)+(v.saves||0);}
+// Newest post gets its own spotlight — bigger, prominent, above the compact
+// list — rather than just being the first row buried among the rest.
+function renderSocialLatestPost(d){
+  const latest=(d.recentVideos||[])[0];
+  if(!latest)return'';
+  const metricsLine=socialVideoMetricsText(latest);
+  const inner=`
+    ${latest.thumbnail?`<img src="${escHtml(latest.thumbnail)}" alt="" style="width:72px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0"/>`:'<div style="width:72px;height:54px;border-radius:8px;background:var(--q-dark4);flex-shrink:0"></div>'}
+    <div style="flex:1;min-width:0">
+      <div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--q-green);margin-bottom:3px">Newest post${latest.isShort?' · SHORT':''}</div>
+      <div style="font-size:13px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(latest.title||'Untitled')}</div>
+      <div style="font-size:10px;color:var(--q-muted2);margin-top:2px">${latest.date?new Date(latest.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''}${metricsLine?' · '+escHtml(metricsLine):''}</div>
+    </div>
+    ${latest.url?'<span style="font-size:15px;color:var(--q-muted2);flex-shrink:0">↗</span>':''}`;
+  return latest.url
+    ?`<a href="${escHtml(latest.url)}" target="_blank" rel="noopener" style="display:flex;gap:12px;align-items:center;background:var(--q-dark3);border:1px solid rgba(0,232,122,.25);border-radius:10px;padding:12px;margin-bottom:14px;text-decoration:none;color:inherit;cursor:pointer">${inner}</a>`
+    :`<div style="display:flex;gap:12px;align-items:center;background:var(--q-dark3);border:1px solid rgba(0,232,122,.25);border-radius:10px;padding:12px;margin-bottom:14px">${inner}</div>`;
+}
+// Growth-over-time sparkline from socialHistory — total engagement (not
+// just views, since Instagram never has views) per day this platform has a
+// snapshot for. Needs at least 2 days of history to draw a line at all;
+// below that a single point would be a meaningless/misleading "chart".
+function renderSocialGrowthChart(platform){
+  const points=socialHistoryDocs
+    .map(h=>({date:h.date,value:h[platform]?socialEngagementTotal(h[platform]):null}))
+    .filter(p=>p.value!=null);
+  if(points.length<2)return'<div style="font-size:10px;color:var(--q-muted2);padding:8px 0 4px">Collecting growth data — a trend line appears once there are a couple of days of history.</div>';
+  const w=280,h=56,pad=4;
+  const vals=points.map(p=>p.value);
+  const maxV=Math.max(...vals),minV=Math.min(0,...vals);
+  const range=(maxV-minV)||1;
+  const stepX=points.length>1?(w-pad*2)/(points.length-1):0;
+  const coords=points.map((p,i)=>({x:pad+i*stepX,y:pad+(h-pad*2)*(1-(p.value-minV)/range),...p}));
+  const line=coords.map((c,i)=>`${i===0?'M':'L'}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const area=`${line} L${coords[coords.length-1].x.toFixed(1)},${h-pad} L${coords[0].x.toFixed(1)},${h-pad} Z`;
+  const dots=coords.map(c=>`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="2.5" fill="var(--q-blue2)"><title>${new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}: ${c.value.toLocaleString()} total engagement</title></circle>`).join('');
+  return `
+    <div style="margin:2px 0 10px">
+      <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:56px;display:block" preserveAspectRatio="none">
+        <path d="${area}" fill="var(--q-blue2)" opacity="0.1"/>
+        <path d="${line}" fill="none" stroke="var(--q-blue2)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${dots}
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--q-muted2);margin-top:2px">
+        <span>${new Date(coords[0].date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+        <span style="font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em">Engagement over time</span>
+        <span>${new Date(coords[coords.length-1].date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+      </div>
+    </div>`;
+}
+// Best-time-to-post: buckets known posts by day-of-week and time-of-day,
+// weighted by each post's own engagement, and surfaces whichever bucket
+// averages highest. Explicitly declines to guess with too little data
+// rather than presenting statistical noise as a real pattern.
+function renderSocialBestTime(d){
+  const posts=(d.recentVideos||[]).filter(v=>v.publishedAt);
+  if(posts.length<5)return`<div style="font-size:10px;color:var(--q-muted2)">Best-time-to-post needs at least 5 posts to say anything meaningful — ${posts.length} tracked so far.</div>`;
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const byDay={},byHour={};
+  posts.forEach(v=>{
+    const dt=new Date(v.publishedAt);
+    const eng=videoEngagementTotal(v);
+    const day=dayNames[dt.getDay()];
+    (byDay[day]=byDay[day]||[]).push(eng);
+    const hr=dt.getHours();
+    const bucket=hr<6?'Overnight (12–6am)':hr<12?'Morning (6am–12pm)':hr<18?'Afternoon (12–6pm)':'Evening (6pm–12am)';
+    (byHour[bucket]=byHour[bucket]||[]).push(eng);
+  });
+  const avg=arr=>arr.reduce((s,x)=>s+x,0)/arr.length;
+  const [bestDay]=Object.entries(byDay).sort((a,b)=>avg(b[1])-avg(a[1]));
+  const [bestHour]=Object.entries(byHour).sort((a,b)=>avg(b[1])-avg(a[1]));
+  return `<div style="font-size:11px;color:var(--q-text)"><b>${bestDay[0]}</b> · <b>${bestHour[0]}</b><div style="font-size:10px;color:var(--q-muted2);margin-top:2px">Best-performing so far, based on ${posts.length} post${posts.length===1?'':'s'} — gets more reliable the more you post</div></div>`;
+}
 function renderSocialPlatformCard(platform,d){
   const meta=SOCIAL_PLATFORM_META[platform];
   const hasViews=d.totalViews!=null; // Instagram never has this — hidden from logged-out visitors — so show "—" not a misleading 0
@@ -8378,8 +8468,8 @@ function renderSocialPlatformCard(platform,d){
   const metricTiles=SOCIAL_METRIC_TILES.filter(m=>d[m.key]!=null)
     .map(m=>`<div><div class="dash-stat-num" style="font-size:20px">${d[m.key].toLocaleString()}</div><div class="dash-stat-label">${m.label}</div></div>`).join('');
   const allVideos=d.recentVideos||[];
-  const videos=allVideos.slice(0,3);
-  const videoRows=videos.length?videos.map(v=>renderSocialVideoRow(v,true)).join(''):'<div style="font-size:11px;color:var(--q-muted2)">No videos yet</div>';
+  const videos=allVideos.slice(1,4); // skip index 0 — already shown in the "Newest post" spotlight above
+  const videoRows=videos.map(v=>renderSocialVideoRow(v,true)).join('');
   return `
     <div class="admin-card">
       <div class="admin-card-title" style="justify-content:space-between">
@@ -8387,14 +8477,17 @@ function renderSocialPlatformCard(platform,d){
         ${socialConnPill(!!d.connected)}
       </div>
       ${d.preview?'<div style="margin-bottom:10px"><span class="admin-badge" style="background:rgba(255,184,48,.15);color:var(--q-amber)">Preview data — connect account to see real stats</span></div>':''}
+      ${renderSocialLatestPost(d)}
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:14px 10px;margin-bottom:10px">
         ${metricTiles}
         <div><div class="dash-stat-num" style="font-size:20px">${d.postCount||0}</div><div class="dash-stat-label">Posts</div></div>
         ${avg!=null?`<div><div class="dash-stat-num" style="font-size:20px">${avg.toLocaleString()}</div><div class="dash-stat-label">Avg/Post</div></div>`:''}
       </div>
       ${!hasViews&&d.connected?'<div style="font-size:10px;color:var(--q-muted2);margin-bottom:14px">This platform doesn\'t show view counts to logged-out visitors — other metrics above are real.</div>':'<div style="margin-bottom:4px"></div>'}
-      <div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--q-muted2);margin-bottom:8px">Recent videos</div>
-      <div>${videoRows}</div>
+      ${renderSocialGrowthChart(platform)}
+      <div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--q-muted2);margin-bottom:8px">Best time to post</div>
+      <div style="margin-bottom:14px">${renderSocialBestTime(d)}</div>
+      ${allVideos.length>1?`<div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--q-muted2);margin-bottom:8px">More recent videos · newest first</div><div>${videoRows}</div>`:''}
       ${allVideos.length>3?`<button class="btn-secondary" style="margin-top:8px;width:100%;font-size:11px;padding:7px" onclick="openSocialPostsModal('${platform}')">View all ${allVideos.length} posts</button>`:''}
       ${meta.connectLabel&&!d.connected?`<button class="btn-secondary" style="margin-top:14px;width:100%" onclick="connectSocialPlatform('${platform}')">${meta.connectLabel}</button>`:''}
       ${!meta.connectLabel?'<div style="margin-top:14px;font-size:10px;color:var(--q-muted2)">View-stats only — TikTok posting is out of scope, and live stats aren\'t wired up yet.</div>':''}
