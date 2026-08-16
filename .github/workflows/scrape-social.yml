@@ -46,11 +46,28 @@ jobs:
         working-directory: social-scraper
         run: npx playwright install --with-deps chromium
 
-      - name: Run scraper
+      # A single `npm run scrape` only takes ~30-90s once dependencies and
+      # the browser are already installed above — the real bottleneck isn't
+      # the scrape itself, it's that GitHub's own scheduler has been seen
+      # sitting on this workflow's schedule trigger for 45-95 minutes at a
+      # time (checked via `gh run list`), independent of the cron
+      # expression. So instead of one scrape per (unreliably-timed) trigger,
+      # loop for 8 minutes and squeeze several scrapes out of every
+      # invocation GitHub actually grants us — best available mitigation
+      # for a platform-side scheduling gap we can't otherwise control.
+      - name: Run scraper (loops ~8 min, ~once/min)
         working-directory: social-scraper
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           IG_BUSINESS_ACCOUNT_ID: ${{ secrets.IG_BUSINESS_ACCOUNT_ID }}
           IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
-        run: npm run scrape
+        run: |
+          END=$((SECONDS + 480))
+          while [ $SECONDS -lt $END ]; do
+            START=$SECONDS
+            npm run scrape || echo "::warning::scrape iteration failed, continuing loop"
+            ELAPSED=$((SECONDS - START))
+            SLEEP=$((60 - ELAPSED))
+            if [ $SLEEP -gt 0 ] && [ $((SECONDS + SLEEP)) -lt $END ]; then sleep $SLEEP; fi
+          done
