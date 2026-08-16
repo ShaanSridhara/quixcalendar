@@ -56,17 +56,21 @@ service cloud.firestore {
         && validDate(d.get('date', null));
     }
 
-    // A "*ByDate" field is {dateKey: {uid: value}} — one map per recurring
-    // occurrence. The flat-field checks below already restrict a plain
-    // invitee to touching only their own uid's key; this applies the same
-    // restriction one level deeper, inside whichever date(s) they touched,
-    // so writing e.g. rsvpByDate.<date>.<otherUid> is rejected the same way
-    // writing rsvp.<otherUid> already is.
-    function onlyOwnUidInByDateMap(newByDate, oldByDate) {
-      return newByDate.diff(oldByDate).affectedKeys().all(d =>
-        newByDate[d].diff(oldByDate.get(d, {})).affectedKeys().hasOnly([request.auth.uid])
-      );
-    }
+    // NOTE: the *ByDate nested maps (rsvpByDate, optionalOptOutByDate,
+    // declineReasonsByDate, declineCategoryByDate, earlyLeaveByDate) do NOT
+    // get the same per-uid nested-key restriction the flat fields get just
+    // above (hasOnly([request.auth.uid])) — a first attempt at this used
+    // `.all(d, ...)`, which the rules compiler flagged with "Invalid
+    // function name: all" / "Invalid variable name: d" (it still deployed,
+    // but silently — this repo has no working local rules emulator to
+    // verify actual runtime semantics before trusting a change like that
+    // against production data, and getting it wrong risks either blocking
+    // all RSVPs on recurring meetings or silently not enforcing the
+    // restriction at all). Reverted rather than ship an unverified
+    // production security rule. Real risk today is low: only single-uid
+    // writes are ever issued client-side. Revisit with a working
+    // `firebase emulators:start --only firestore` (needs a JDK 21+
+    // upgrade) before attempting this hardening again.
 
     function isCalendarMember(calData) {
       return isSignedIn() && (
@@ -237,11 +241,6 @@ service cloud.firestore {
           && request.resource.data.get('declineReasons', {}).diff(resource.data.get('declineReasons', {})).affectedKeys().hasOnly([request.auth.uid])
           && request.resource.data.get('declineCategory', {}).diff(resource.data.get('declineCategory', {})).affectedKeys().hasOnly([request.auth.uid])
           && request.resource.data.get('earlyLeave', {}).diff(resource.data.get('earlyLeave', {})).affectedKeys().hasOnly([request.auth.uid])
-          && onlyOwnUidInByDateMap(request.resource.data.get('rsvpByDate', {}), resource.data.get('rsvpByDate', {}))
-          && onlyOwnUidInByDateMap(request.resource.data.get('optionalOptOutByDate', {}), resource.data.get('optionalOptOutByDate', {}))
-          && onlyOwnUidInByDateMap(request.resource.data.get('declineReasonsByDate', {}), resource.data.get('declineReasonsByDate', {}))
-          && onlyOwnUidInByDateMap(request.resource.data.get('declineCategoryByDate', {}), resource.data.get('declineCategoryByDate', {}))
-          && onlyOwnUidInByDateMap(request.resource.data.get('earlyLeaveByDate', {}), resource.data.get('earlyLeaveByDate', {}))
         )
       );
 
