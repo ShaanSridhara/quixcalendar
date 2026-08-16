@@ -1791,8 +1791,26 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 @media(max-width:1000px){ .admin-grid { grid-template-columns: 1fr; } }
 
 /* ── Social — platform card grid ──────────────────────────────────── */
-.social-platform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+/* Wider than the standard 1200px admin-page container — this page carries
+   more cards/charts side by side and reads cramped at the default width. */
+#page-social .admin-page { padding: 28px max(24px, calc((100% - 1440px) / 2)); }
+.social-platform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
 @media(max-width:1000px){ .social-platform-grid { grid-template-columns: 1fr; } }
+
+.social-pulse-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+@media(max-width:900px){ .social-pulse-row { grid-template-columns: repeat(2, 1fr); } }
+@media(max-width:520px){ .social-pulse-row { grid-template-columns: 1fr; } }
+
+.social-insights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; align-items: start; }
+@media(max-width:1000px){ .social-insights-grid { grid-template-columns: 1fr; } }
+
+/* Pulses to signal the page is live-ticking, not just a static snapshot. */
+.social-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--q-green); flex-shrink: 0; animation: socialLivePulse 2s infinite; }
+@keyframes socialLivePulse {
+  0% { box-shadow: 0 0 0 0 rgba(0,232,122,.55); }
+  70% { box-shadow: 0 0 0 6px rgba(0,232,122,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,232,122,0); }
+}
 
 .admin-card {
   background: var(--q-dark);
@@ -4302,6 +4320,10 @@ body.light-mode .month-grid-day:hover {
       <div class="admin-sub">Reach across YouTube, Instagram, and TikTok — videos posted since Jan 1, 2026</div>
 
       <div id="social-hero"></div>
+
+      <div class="social-pulse-row" id="social-pulse-row"></div>
+
+      <div class="social-insights-grid" id="social-insights-grid"></div>
 
       <div class="social-platform-grid" id="social-cards"></div>
     </div>
@@ -8485,6 +8507,8 @@ function renderSocialPlatformCard(platform,d){
       </div>
       ${!hasViews&&d.connected?'<div style="font-size:10px;color:var(--q-muted2);margin-bottom:14px">This platform doesn\'t show view counts to logged-out visitors — other metrics above are real.</div>':'<div style="margin-bottom:4px"></div>'}
       ${renderSocialGrowthChart(platform)}
+      ${renderSocialWorkingInsight(d)}
+      ${renderSocialFormatInsight(d)}
       <div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--q-muted2);margin-bottom:8px">Best time to post</div>
       <div style="margin-bottom:14px">${renderSocialBestTime(d)}</div>
       ${allVideos.length>1?`<div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--q-muted2);margin-bottom:8px">More recent videos · newest first</div><div>${videoRows}</div>`:''}
@@ -8559,12 +8583,209 @@ function renderSocialPage(){
       <div class="dash-stat-label">Total engagement · views + likes + comments + shares + saves · YouTube + Instagram + TikTok · since Jan 1, 2026</div>
       <div style="font-size:11px;color:var(--q-muted2)">${totalViews.toLocaleString()} of that is views · this counts every action, not unique people — the same person liking and commenting counts twice</div>
       ${previewNote?`<div style="margin-top:4px"><span class="admin-badge" style="background:rgba(255,184,48,.15);color:var(--q-amber)">${previewNote}</span></div>`:''}
-      <div id="social-updated-ago" style="font-size:10px;color:var(--q-muted2);font-family:var(--font-mono)"></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <span class="social-live-dot" title="Live — this page updates the instant new stats land, no refresh needed"></span>
+        <span id="social-updated-ago" style="font-size:10px;color:var(--q-muted2);font-family:var(--font-mono)"></span>
+      </div>
     </div>`;
+
+  const allPosts=socialAllPosts(data);
+  const pulseEl=document.getElementById('social-pulse-row');
+  if(pulseEl)pulseEl.innerHTML=renderSocialPulseRow(data,plats,allPosts);
+
+  const insightsEl=document.getElementById('social-insights-grid');
+  if(insightsEl)insightsEl.innerHTML=`
+    <div class="admin-card">
+      <div class="admin-card-title">🏆 Top performing posts</div>
+      ${renderSocialLeaderboard(allPosts)}
+    </div>
+    <div class="admin-card">
+      <div class="admin-card-title">📊 Combined growth · all platforms</div>
+      ${renderSocialCombinedGrowth()}
+      <div class="admin-card-title" style="margin-top:18px">🗓️ Posting cadence · last 8 weeks</div>
+      ${renderSocialCadence(allPosts)}
+    </div>`;
+
   const cardsEl=document.getElementById('social-cards');
   if(cardsEl)cardsEl.innerHTML=plats.map(p=>renderSocialPlatformCard(p,data[p])).join('');
   _lastSocialData=data;
   renderSocialUpdatedAgo();
+}
+// Cross-platform post list for the leaderboard/cadence/pulse row — only
+// real (non-preview) data counts, same rule the hero total already
+// follows: never blend real and mock posts into one figure.
+function socialAllPosts(data){
+  const posts=[];
+  Object.keys(data).forEach(p=>{
+    if(data[p].preview)return;
+    (data[p].recentVideos||[]).forEach(v=>{if(v.publishedAt)posts.push({...v,platform:p});});
+  });
+  return posts;
+}
+// Four at-a-glance numbers: are we posting enough, how's a typical post
+// doing, which platform is carrying the account, and is engagement
+// trending up — the "how are posts doing" ask, condensed to a glance.
+function renderSocialPulseRow(data,plats,allPosts){
+  const tile=(icon,value,label,sub)=>`
+    <div class="dash-stat-card" style="padding:18px 20px">
+      <span class="dash-stat-icon" style="font-size:16px;margin-bottom:6px">${icon}</span>
+      <div class="dash-stat-value" style="font-size:24px">${value}</div>
+      <div class="dash-stat-label">${label}</div>
+      ${sub?`<div style="font-size:10px;color:var(--q-muted2);margin-top:4px">${sub}</div>`:''}
+    </div>`;
+
+  const weekAgo=Date.now()-7*86400000;
+  const postsThisWeek=allPosts.filter(v=>Date.parse(v.publishedAt)>=weekAgo).length;
+
+  const avgEngagement=allPosts.length?Math.round(allPosts.reduce((s,v)=>s+videoEngagementTotal(v),0)/allPosts.length):null;
+
+  const realPlats=plats.filter(p=>!data[p].preview);
+  const topPlatform=realPlats.length?realPlats.reduce((best,p)=>socialEngagementTotal(data[p])>socialEngagementTotal(data[best])?p:best,realPlats[0]):null;
+
+  let trendValue='—',trendSub='Need ~2 weeks of history to compare';
+  if(socialHistoryDocs.length>=2){
+    const latest=socialHistoryDocs[socialHistoryDocs.length-1];
+    const latestTotal=plats.reduce((s,p)=>s+(latest[p]?socialEngagementTotal(latest[p]):0),0);
+    const targetMs=Date.parse(latest.date+'T12:00:00')-7*86400000;
+    const past=[...socialHistoryDocs].reverse().find(h=>Date.parse(h.date+'T12:00:00')<=targetMs);
+    if(past){
+      const pastTotal=plats.reduce((s,p)=>s+(past[p]?socialEngagementTotal(past[p]):0),0);
+      const delta=latestTotal-pastTotal;
+      trendValue=`${delta>=0?'+':''}${delta.toLocaleString()}`;
+      trendSub=`Engagement gained since ${new Date(past.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}`;
+    }
+  }
+
+  return [
+    tile('🗓️',postsThisWeek,'Posts this week',postsThisWeek===0?'Nothing posted in the last 7 days':`In the last 7 days`),
+    tile('⚡',avgEngagement!=null?avgEngagement.toLocaleString():'—','Avg engagement / post',allPosts.length?`Across ${allPosts.length} tracked post${allPosts.length===1?'':'s'}`:'No real posts tracked yet'),
+    tile('🥇',topPlatform?SOCIAL_PLATFORM_META[topPlatform].label:'—','Leading platform',topPlatform?`${socialEngagementTotal(data[topPlatform]).toLocaleString()} total engagement`:'Connect a platform to see this'),
+    tile('📈',trendValue,'7-day engagement trend',trendSub),
+  ].join('');
+}
+// Ranks every real post across all three platforms by total engagement —
+// the direct answer to "how are posts doing" / "what's working".
+function renderSocialLeaderboard(allPosts){
+  if(!allPosts.length)return'<div style="font-size:11px;color:var(--q-muted2)">No real posts tracked yet — connect accounts to see your top performers here.</div>';
+  const top=[...allPosts].sort((a,b)=>videoEngagementTotal(b)-videoEngagementTotal(a)).slice(0,5);
+  return top.map((v,i)=>{
+    const eng=videoEngagementTotal(v);
+    const icon=SOCIAL_ICONS[v.platform].replace('width="26" height="26"','width="16" height="16"');
+    const inner=`
+      <div style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--q-muted2);width:14px;flex-shrink:0">${i+1}</div>
+      <div style="width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center">${icon}</div>
+      ${v.thumbnail?`<img src="${escHtml(v.thumbnail)}" alt="" style="width:40px;height:30px;object-fit:cover;border-radius:5px;flex-shrink:0"/>`:'<div style="width:40px;height:30px;border-radius:5px;background:var(--q-dark4);flex-shrink:0"></div>'}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(v.title||'Untitled')}</div>
+        <div style="font-size:10px;color:var(--q-muted2)">${SOCIAL_PLATFORM_META[v.platform].label} · ${v.date?new Date(v.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):''}</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--q-blue2);flex-shrink:0;white-space:nowrap">${eng.toLocaleString()}</div>
+      ${v.url?'<span style="font-size:13px;color:var(--q-muted2);flex-shrink:0">↗</span>':''}`;
+    return v.url
+      ?`<a href="${escHtml(v.url)}" target="_blank" rel="noopener" class="admin-member-row" style="align-items:center;cursor:pointer;text-decoration:none;color:inherit">${inner}</a>`
+      :`<div class="admin-member-row" style="align-items:center">${inner}</div>`;
+  }).join('');
+}
+// Same sparkline approach as renderSocialGrowthChart, but summed across all
+// three platforms into one line — the "is the account as a whole growing"
+// view, rather than one platform at a time.
+function renderSocialCombinedGrowth(){
+  const points=socialHistoryDocs.map(h=>{
+    const plats=['youtube','instagram','tiktok'];
+    let any=false,total=0;
+    plats.forEach(p=>{if(h[p]){any=true;total+=socialEngagementTotal(h[p]);}});
+    return any?{date:h.date,value:total}:null;
+  }).filter(Boolean);
+  if(points.length<2)return'<div style="font-size:10px;color:var(--q-muted2);padding:8px 0 4px">Collecting growth data — a combined trend line appears once there are a couple of days of history.</div>';
+  const w=520,h=70,pad=4;
+  const vals=points.map(p=>p.value);
+  const maxV=Math.max(...vals),minV=Math.min(0,...vals);
+  const range=(maxV-minV)||1;
+  const stepX=points.length>1?(w-pad*2)/(points.length-1):0;
+  const coords=points.map((p,i)=>({x:pad+i*stepX,y:pad+(h-pad*2)*(1-(p.value-minV)/range),...p}));
+  const line=coords.map((c,i)=>`${i===0?'M':'L'}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const area=`${line} L${coords[coords.length-1].x.toFixed(1)},${h-pad} L${coords[0].x.toFixed(1)},${h-pad} Z`;
+  const dots=coords.map(c=>`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="2.5" fill="var(--q-green)"><title>${new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}: ${c.value.toLocaleString()} total engagement</title></circle>`).join('');
+  return`
+    <div style="margin:2px 0 6px">
+      <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:70px;display:block" preserveAspectRatio="none">
+        <path d="${area}" fill="var(--q-green)" opacity="0.1"/>
+        <path d="${line}" fill="none" stroke="var(--q-green)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${dots}
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--q-muted2);margin-top:2px">
+        <span>${new Date(coords[0].date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+        <span style="font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em">Total engagement, all platforms</span>
+        <span>${new Date(coords[coords.length-1].date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+      </div>
+    </div>`;
+}
+// Bucket real posts into 8 weekly columns — answers "are we posting
+// consistently" at a glance, which the per-post lists below don't show.
+function renderSocialCadence(allPosts){
+  if(!allPosts.length)return'<div style="font-size:10px;color:var(--q-muted2)">No real posts tracked yet.</div>';
+  const now=Date.now();
+  const weeks=[];
+  for(let i=7;i>=0;i--){
+    const end=now-i*7*86400000;
+    const start=end-7*86400000;
+    weeks.push({start,end,count:0});
+  }
+  allPosts.forEach(v=>{
+    const t=Date.parse(v.publishedAt);
+    const bucket=weeks.find(w=>t>=w.start&&t<w.end);
+    if(bucket)bucket.count++;
+  });
+  const maxC=Math.max(1,...weeks.map(w=>w.count));
+  const bars=weeks.map(w=>{
+    const pct=Math.max(w.count?8:2,Math.round((w.count/maxC)*100));
+    return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0">
+      <div style="font-size:9px;font-family:var(--font-mono);color:var(--q-muted2)">${w.count||''}</div>
+      <div style="width:100%;height:56px;display:flex;align-items:flex-end">
+        <div style="width:100%;height:${pct}%;background:${w.count?'var(--q-blue2)':'var(--q-dark4)'};border-radius:3px 3px 0 0"></div>
+      </div>
+      <div style="font-size:8px;color:var(--q-muted2)">${new Date(w.start).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+    </div>`;
+  }).join('');
+  const total8w=weeks.reduce((s,w)=>s+w.count,0);
+  return`
+    <div style="display:flex;gap:6px;align-items:flex-end;margin:2px 0 6px">${bars}</div>
+    <div style="font-size:10px;color:var(--q-muted2)">${total8w} post${total8w===1?'':'s'} across all platforms in the last 8 weeks · ${(total8w/8).toFixed(1)}/week average</div>`;
+}
+// Compares each platform's most recent posts against the ones right before
+// them — the plain-language "what's working / what isn't" the page
+// promises, computed per-platform since a format that works on one
+// platform doesn't necessarily work on another.
+function renderSocialWorkingInsight(d){
+  const posts=(d.recentVideos||[]).filter(v=>v.publishedAt);
+  if(posts.length<4)return'';
+  const sorted=[...posts].sort((a,b)=>a.publishedAt<b.publishedAt?1:-1);
+  const half=Math.min(3,Math.floor(sorted.length/2));
+  const recent=sorted.slice(0,half);
+  const older=sorted.slice(half,half*2);
+  if(older.length<half)return'';
+  const avg=arr=>arr.reduce((s,v)=>s+videoEngagementTotal(v),0)/arr.length;
+  const recentAvg=avg(recent),olderAvg=avg(older);
+  if(!olderAvg)return'';
+  const pct=Math.round(((recentAvg-olderAvg)/olderAvg)*100);
+  const up=pct>=0;
+  return`<div style="font-size:11px;color:${up?'var(--q-green)':'var(--q-red)'};margin-bottom:8px">${up?'▲':'▼'} Last ${recent.length} posts averaged ${Math.abs(pct)}% ${up?'more':'less'} engagement than the ${older.length} before them</div>`;
+}
+// YouTube-only in practice — isShort is never set for Instagram/TikTok
+// posts, so this quietly returns nothing there rather than needing a
+// platform check.
+function renderSocialFormatInsight(d){
+  const posts=(d.recentVideos||[]).filter(v=>v.isShort!=null);
+  if(posts.length<4)return'';
+  const shorts=posts.filter(v=>v.isShort),longs=posts.filter(v=>!v.isShort);
+  if(shorts.length<2||longs.length<2)return'';
+  const avg=arr=>arr.reduce((s,v)=>s+videoEngagementTotal(v),0)/arr.length;
+  const sAvg=avg(shorts),lAvg=avg(longs);
+  const shortsWin=sAvg>=lAvg;
+  const base=shortsWin?lAvg:sAvg;
+  if(!base)return'';
+  const ratio=Math.round((Math.max(sAvg,lAvg)/base-1)*100);
+  return`<div style="font-size:11px;color:var(--q-muted2);margin-bottom:14px">${shortsWin?'Shorts are':'Regular videos are'} outperforming, averaging ${ratio}% more engagement per post</div>`;
 }
 // Data itself only changes when the scraper runs (every 6h, or a manual
 // trigger from the repo's Actions tab) — Firestore's onSnapshot already
