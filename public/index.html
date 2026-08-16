@@ -4296,8 +4296,10 @@ body.light-mode .month-grid-day:hover {
       </div>
       <div class="admin-grid">
         <div class="admin-card"><div class="admin-card-title">Members &amp; Roles</div><div id="admin-members-list"></div></div>
-        <div class="admin-card"><div class="admin-card-title">Subsections</div><div style="font-size:11px;color:var(--q-muted2);margin-bottom:10px">Group members into teams</div><div id="admin-subsections-list"></div><div style="display:flex;gap:7px;margin-top:10px"><input class="form-input" id="new-subsection-input" type="text" placeholder="New subsection name" style="flex:1"/><button class="btn-primary-sm" onclick="addSubsection()">Add</button></div></div>
-        <div class="admin-card"><div class="admin-card-title">Leadership Roles</div><div style="font-size:11px;color:var(--q-muted2);margin-bottom:10px">Assign one person per role. Leaders have full admin access.</div><div id="admin-roles-section"></div></div>
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <div class="admin-card"><div class="admin-card-title">Subsections</div><div style="font-size:11px;color:var(--q-muted2);margin-bottom:10px">Group members into teams</div><div id="admin-subsections-list"></div><div style="display:flex;gap:7px;margin-top:10px"><input class="form-input" id="new-subsection-input" type="text" placeholder="New subsection name" style="flex:1"/><button class="btn-primary-sm" onclick="addSubsection()">Add</button></div></div>
+          <div class="admin-card"><div class="admin-card-title">Leadership Roles</div><div style="font-size:11px;color:var(--q-muted2);margin-bottom:10px">Assign one person per role. Leaders have full admin access.</div><div id="admin-roles-section"></div></div>
+        </div>
       </div>
     </div>
   </div>
