@@ -1854,6 +1854,16 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   background: var(--q-blue-dim); color: var(--q-blue2); letter-spacing: 0.05em;
 }
 
+/* Decline-reason quick-select chips */
+.reason-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.reason-chip {
+  font-family: var(--font-body); font-size: 11px; font-weight: 600;
+  padding: 5px 11px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--q-border2); background: var(--q-dark3); color: var(--q-muted);
+  transition: all 0.15s;
+}
+.reason-chip.selected { background: var(--q-blue-dim); color: var(--q-blue2); border-color: rgba(59,130,246,.4); }
+
 /* Attendance modal */
 .att-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--q-dark3); border-radius: var(--r); margin-bottom: 4px; }
 .att-btn {
@@ -1863,6 +1873,15 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 }
 .att-btn.present { background: var(--q-green-dim); color: var(--q-green); border-color: rgba(0,232,122,.3); }
 .att-btn.absent { background: var(--q-red-dim); color: var(--q-red); border-color: rgba(255,59,92,.3); }
+/* Same present/absent toggle as .att-btn, sized for an inline row in the
+   view-event invitee list (renderViewPeople) instead of the bulk modal. */
+.att-btn-inline {
+  padding: 2px 7px; font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  border-radius: 5px; cursor: pointer; border: 1px solid var(--q-border2);
+  background: transparent; color: var(--q-muted); transition: all 0.15s;
+}
+.att-btn-inline.present { background: var(--q-green-dim); color: var(--q-green); border-color: rgba(0,232,122,.3); }
+.att-btn-inline.absent { background: var(--q-red-dim); color: var(--q-red); border-color: rgba(255,59,92,.3); }
 
 /* Search */
 .search-bar {
@@ -3875,6 +3894,7 @@ body.light-mode .month-grid-day:hover {
       <button class="nav-pill-btn" id="nav-dash" onclick="showPage('dashboard')">Dashboard</button>
       <button class="nav-pill-btn" id="nav-social" onclick="showPage('social')">Social</button>
       <button class="nav-pill-btn" id="nav-admin" onclick="showPage('admin')" style="display:none">Admin</button>
+      <button class="nav-pill-btn" id="nav-attendance" onclick="showPage('attendance')" style="display:none">Attendance</button>
       <button class="nav-pill-btn" id="nav-profile" onclick="showPage('profile')">Profile</button>
       <button class="nav-pill-btn" id="nav-help" onclick="showPage('help')" title="Help guide">Help</button>
     </div>
@@ -4337,6 +4357,36 @@ body.light-mode .month-grid-day:hover {
     </div>
   </div>
 
+  <!-- ATTENDANCE (leadership-only analysis view: who's coming, who showed
+       up, attendance rate over time — distinct from the Admin page's
+       Absences card, which is an action list for marking unexcused
+       absences right now. Both read the same underlying event data. -->
+  <div class="page" id="page-attendance">
+    <div class="admin-page">
+      <div class="admin-header">Attendance</div>
+      <div class="admin-sub">Who showed up, who didn't, and why — across your meetings.</div>
+      <div style="margin-bottom:16px">
+        <label class="form-label">Calendar</label>
+        <select class="form-select" id="att-page-cal-select" onchange="renderAttendancePage()" style="max-width:300px"></select>
+      </div>
+      <div class="social-pulse-row" id="att-kpi-row"></div>
+      <div class="admin-grid">
+        <div class="admin-card" style="grid-column:1/-1">
+          <div class="admin-card-title">Attendance rate over time</div>
+          <div id="att-trend-chart"></div>
+        </div>
+        <div class="admin-card" style="grid-column:1/-1">
+          <div class="admin-card-title">Per-member attendance</div>
+          <div id="att-member-table"></div>
+        </div>
+        <div class="admin-card" style="grid-column:1/-1">
+          <div class="admin-card-title">Per-meeting drill-down</div>
+          <div id="att-meeting-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="social-posts-modal">
     <div class="modal" style="max-width:560px">
       <button class="modal-close" onclick="closeModal('social-posts-modal')">✕</button>
@@ -4541,6 +4591,10 @@ body.light-mode .month-grid-day:hover {
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       <span>Admin</span>
     </button>
+    <button class="bottom-nav-btn" id="bnav-attendance" onclick="showPage('attendance')" style="display:none">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Attendance</span>
+    </button>
     <button class="mobile-fab" id="mobile-fab" onclick="openNewEvent('meeting')" style="display:none" title="New meeting">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
@@ -4740,10 +4794,10 @@ body.light-mode .month-grid-day:hover {
       <button class="btn-secondary" id="view-edit-btn" onclick="editViewedEvent()" style="display:none">Edit</button>
       <button class="complete-btn" id="view-complete-btn" onclick="markTaskComplete()" style="display:none">Mark Complete</button>
       <button class="btn-secondary" id="view-accept-btn" onclick="rsvpViewed('accept')" style="display:none;color:var(--q-green);border-color:rgba(0,232,122,.35)">✓ Going</button>
-      <button class="btn-secondary" id="view-leaveearly-btn" onclick="rsvpViewed('leave_early')" style="display:none;color:#a78bfa;border-color:rgba(167,139,250,.35)">🏃 Leave Early</button>
+      <button class="btn-secondary" id="view-leaveearly-quick-btn" onclick="rsvpViewed('leave_early')" style="display:none;color:#a78bfa;border-color:rgba(167,139,250,.35)">🏃 Leave Early</button>
       <button class="btn-secondary" id="view-optout-btn" onclick="optOutViewed()" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Not Attending</button>
       <button class="btn-secondary" id="view-decline-btn" onclick="rsvpViewed('decline')" style="display:none;color:var(--q-red);border-color:rgba(255,59,92,.35)">Can't Go</button>
-      <button class="btn-secondary" id="view-leaveearly-btn" onclick="leaveEarlyViewed()" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Leaving Early?</button>
+      <button class="btn-secondary" id="view-leaveearly-time-btn" onclick="leaveEarlyViewed()" style="display:none;color:var(--q-amber);border-color:rgba(245,158,11,.35)">Leaving Early?</button>
       <button class="btn-secondary" id="view-attendance-btn" onclick="attendanceViewed()" style="display:none">Mark Attendance</button>
       <button class="btn-secondary" onclick="closeModal('view-modal')">Close</button>
     </div>
@@ -4830,6 +4884,16 @@ body.light-mode .month-grid-day:hover {
     <button class="modal-close" onclick="closeModal('decline-modal')">✕</button>
     <div class="modal-title" id="decline-modal-title">Decline Invitation</div>
     <p style="font-size:12px;color:var(--q-muted);margin-bottom:14px" id="decline-modal-desc">Provide a reason. This will be shared with the organizer.</p>
+    <div class="form-group" id="decline-chip-wrap">
+      <label class="form-label">Reason category</label>
+      <div class="reason-chip-row" id="decline-reason-chips">
+        <button type="button" class="reason-chip" data-cat="sick" onclick="selectDeclineCategory('sick')">🤒 Sick</button>
+        <button type="button" class="reason-chip" data-cat="family" onclick="selectDeclineCategory('family')">👪 Family</button>
+        <button type="button" class="reason-chip" data-cat="conflict" onclick="selectDeclineCategory('conflict')">🗓️ Conflict</button>
+        <button type="button" class="reason-chip" data-cat="transportation" onclick="selectDeclineCategory('transportation')">🚗 Transportation</button>
+        <button type="button" class="reason-chip" data-cat="other" onclick="selectDeclineCategory('other')">Other</button>
+      </div>
+    </div>
     <div class="form-group"><label class="form-label" id="decline-modal-label">Reason</label><textarea class="form-input" id="decline-reason" placeholder="e.g. I have a conflict at this time…"></textarea></div>
     <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('decline-modal')">Cancel</button><button class="btn-danger" id="decline-modal-submit" onclick="submitDecline()">Decline</button></div>
   </div>
@@ -5050,7 +5114,7 @@ let activeCalId=null,currentView='month',currentType='meeting';
 let invitees=[],assignees=[],calMembers=[],taskManagerUid=null;
 let userPfpUrl=null,myRole=null,currentTaskPriority='important',currentTaskCompletionMode='group',dashDate=getNow(),dashSubTab='all',dashPeriod='week';
 let _dashMeetings=[],_dashPeriodLabel='';
-let declineTargetEvId=null,declineTargetOccDate=null,declineTargetAction='decline',unexcusedTarget=null,_outreachTargetEvId=null,_outreachTargetOccDate=null,leaveEarlyTargetEvId=null,leaveEarlyTargetOccDate=null;
+let declineTargetEvId=null,declineTargetOccDate=null,declineTargetAction='decline',unexcusedTarget=null,_outreachTargetEvId=null,_outreachTargetOccDate=null,leaveEarlyTargetEvId=null,leaveEarlyTargetOccDate=null,declineSelectedCategory=null;
 let viewTab='all',currentPage='home';
 let calTypeFilter='all';
 let enabledCalIds=new Set();
@@ -5359,7 +5423,7 @@ function isAdmin(calId){return isLeader(calId);} // owner, Captain, Co-Captain, 
 // ── Page nav ───────────────────────────────────────────────────────────────
 window.showPage=(page)=>{
   currentPage=page;
-  ['home','calendar','profile','admin','dashboard','social','help'].forEach(p=>{
+  ['home','calendar','profile','admin','attendance','dashboard','social','help'].forEach(p=>{
     document.getElementById(`page-${p}`)?.classList.toggle('active',p===page);
     const nid=p==='calendar'?'nav-cal':p==='admin'?'nav-admin':p==='dashboard'?'nav-dash':`nav-${p}`;
     document.getElementById(nid)?.classList.toggle('active',p===page);
@@ -5374,7 +5438,7 @@ window.showPage=(page)=>{
   // Close sidebar drawer on mobile when navigating
   if(window.innerWidth<=768){closeSidebar();}
   // Update bottom nav active state
-  ['home','cal','dash','social','profile','help','admin'].forEach(id=>{
+  ['home','cal','dash','social','profile','help','admin','attendance'].forEach(id=>{
     const btn=document.getElementById(`bnav-${id}`);
     if(btn){
       const btnPage=id==='cal'?'calendar':id==='dash'?'dashboard':id;
@@ -5399,6 +5463,7 @@ window.showPage=(page)=>{
   }
   if(page==='profile')renderProfilePage();
   if(page==='admin'){renderAdminPage();}
+  if(page==='attendance'){renderAttendancePage();}
   if(page==='dashboard')renderDashboard();
   if(page==='social')renderSocialPage();
 };
@@ -5409,6 +5474,12 @@ function updateAdminUI(){
   document.getElementById('nav-admin').style.display=isAnyLeader?'block':'none';
   const bnavAdmin=document.getElementById('bnav-admin');
   if(bnavAdmin)bnavAdmin.style.display=isAnyLeader?'flex':'none';
+  // Attendance tracker: same per-team-leadership gate as Admin (not the
+  // Social tab's unconditional visibility) — it's leadership-only data.
+  const navAtt=document.getElementById('nav-attendance');
+  if(navAtt)navAtt.style.display=isAnyLeader?'block':'none';
+  const bnavAtt=document.getElementById('bnav-attendance');
+  if(bnavAtt)bnavAtt.style.display=isAnyLeader?'flex':'none';
   document.getElementById('create-btns').style.display=isAdm?'flex':'none';
   document.getElementById('cal-type-filter').style.display=activeCalId?'flex':'none';
   document.getElementById('new-cal-btn').style.display=isCaptain(activeCalId)?'inline':'none';
@@ -5771,6 +5842,36 @@ function getEarlyLeave(ev,uid){
   if(!key) return (ev.earlyLeave||{})[uid];
   const perOcc=(ev.earlyLeaveByDate||{})[key]||{};
   return uid in perOcc ? perOcc[uid] : (ev.earlyLeave||{})[uid];
+}
+// Present/absent check-in and unexcused-absence marking — same series/
+// occurrence override pattern as the RSVP accessors above. Added so a
+// recurring weekly meeting's attendance/unexcused marks stop clobbering
+// each other on the same flat map (each occurrence used to share one
+// `attendance`/`unexcusedAbsences` map with every other occurrence).
+function getAttendance(ev,uid){
+  const key=occKey(ev);
+  if(!key) return (ev.attendance||{})[uid];
+  const perOcc=(ev.attendanceByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.attendance||{})[uid];
+}
+function getUnexcused(ev,uid){
+  const key=occKey(ev);
+  if(!key) return (ev.unexcusedAbsences||{})[uid];
+  const perOcc=(ev.unexcusedAbsencesByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.unexcusedAbsences||{})[uid];
+}
+function getUnexcusedNote(ev,uid){
+  const key=occKey(ev);
+  if(!key) return (ev.unexcusedNotes||{})[uid];
+  const perOcc=(ev.unexcusedNotesByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.unexcusedNotes||{})[uid];
+}
+// Decline reason category (e.g. 'sick') — same pattern again.
+function getDeclineCategory(ev,uid){
+  const key=occKey(ev);
+  if(!key) return (ev.declineCategory||{})[uid];
+  const perOcc=(ev.declineCategoryByDate||{})[key]||{};
+  return uid in perOcc ? perOcc[uid] : (ev.declineCategory||{})[uid];
 }
 // Outreach model: a single "impacted" student count is logged ONCE per
 // series — repeating events don't multiply headcount just because the same
@@ -6537,7 +6638,7 @@ async function loadAbsenceCount(){
 // "viewingEv is not defined" and silently did nothing.
 window.rsvpViewed=(action)=>{if(viewingEv)rsvpEvent(viewingEv.id,action,viewingEv._occurrenceDate||null);};
 window.optOutViewed=()=>{if(viewingEv)optionalOptOut(viewingEv.id,viewingEv._occurrenceDate||null);};
-window.attendanceViewed=()=>{if(viewingEv)openAttendanceModal(viewingEv);};
+window.attendanceViewed=()=>{if(viewingEv)openAttendanceModal(viewingEv,viewingEv._occurrenceDate||null);};
 window.leaveEarlyViewed=()=>{
   if(!viewingEv)return;
   const ev=viewingEv;
@@ -6585,22 +6686,27 @@ window.rsvpEvent=async(evId,action,occDate=null)=>{
       declineTargetEvId=evId;
       declineTargetOccDate=key;
       declineTargetAction=action;
+      declineSelectedCategory=null;
+      document.querySelectorAll('#decline-reason-chips .reason-chip').forEach(b=>b.classList.remove('selected'));
       const modalTitle=document.getElementById('decline-modal-title');
       const modalDesc=document.getElementById('decline-modal-desc');
       const modalLabel=document.getElementById('decline-modal-label');
       const modalSubmit=document.getElementById('decline-modal-submit');
+      const chipWrap=document.getElementById('decline-chip-wrap');
       if(action==='leave_early'){
         if(modalTitle)modalTitle.textContent='Leaving Early';
         if(modalDesc)modalDesc.textContent='Provide a departure time or reason for leaving early.';
         if(modalLabel)modalLabel.textContent='Departure Note / Reason';
         if(document.getElementById('decline-reason'))document.getElementById('decline-reason').placeholder='e.g. Need to leave at 4:30 PM for an appointment…';
         if(modalSubmit){modalSubmit.textContent='Confirm Leaving Early';modalSubmit.className='btn-leaveearly';}
+        if(chipWrap)chipWrap.style.display='none';
       } else {
         if(modalTitle)modalTitle.textContent='Decline Invitation';
         if(modalDesc)modalDesc.textContent='Provide a reason. This will be shared with the organizer.';
         if(modalLabel)modalLabel.textContent='Reason';
         if(document.getElementById('decline-reason'))document.getElementById('decline-reason').placeholder='e.g. I have a conflict at this time…';
         if(modalSubmit){modalSubmit.textContent='Decline';modalSubmit.className='btn-danger';}
+        if(chipWrap)chipWrap.style.display='block';
       }
       document.getElementById('decline-reason').value=getDeclineReason(ev,cu.uid)||'';
       document.getElementById('decline-modal').classList.add('open');
@@ -6621,27 +6727,37 @@ window.rsvpEvent=async(evId,action,occDate=null)=>{
     toast('Accepted!');renderHomePage();
   }
 };
+window.selectDeclineCategory=(cat)=>{
+  declineSelectedCategory=declineSelectedCategory===cat?null:cat; // click again to deselect
+  document.querySelectorAll('#decline-reason-chips .reason-chip').forEach(b=>b.classList.toggle('selected',b.dataset.cat===declineSelectedCategory));
+  const reasonEl=document.getElementById('decline-reason');
+  if(reasonEl&&declineSelectedCategory==='sick')reasonEl.placeholder='Optional: any details (how long you expect to be out)…';
+  else if(reasonEl&&declineTargetAction!=='leave_early')reasonEl.placeholder='e.g. I have a conflict at this time…';
+};
 window.submitDecline=async()=>{
   const reason=document.getElementById('decline-reason').value.trim();
   const act=declineTargetAction||'decline';
   if(!reason&&act==='decline'){toast('Please provide a reason');return;}
   const key=declineTargetOccDate;
   const statusVal=act==='leave_early'?'leaving_early':'declined';
+  const cat=act==='decline'?declineSelectedCategory:null;
   const patch=key
-    ?{[`rsvpByDate.${key}.${cu.uid}`]:statusVal,[`declineReasonsByDate.${key}.${cu.uid}`]:reason||null}
-    :{[`rsvp.${cu.uid}`]:statusVal,[`declineReasons.${cu.uid}`]:reason||null};
+    ?{[`rsvpByDate.${key}.${cu.uid}`]:statusVal,[`declineReasonsByDate.${key}.${cu.uid}`]:reason||null,[`declineCategoryByDate.${key}.${cu.uid}`]:cat}
+    :{[`rsvp.${cu.uid}`]:statusVal,[`declineReasons.${cu.uid}`]:reason||null,[`declineCategory.${cu.uid}`]:cat};
   await updateDoc(doc(db,'events',declineTargetEvId),patch);
   const _de=events.find(e=>e.id===declineTargetEvId);
   if(_de){
     if(key){
       if(!_de.rsvpByDate)_de.rsvpByDate={};if(!_de.rsvpByDate[key])_de.rsvpByDate[key]={};_de.rsvpByDate[key][cu.uid]=statusVal;
       if(reason){if(!_de.declineReasonsByDate)_de.declineReasonsByDate={};if(!_de.declineReasonsByDate[key])_de.declineReasonsByDate[key]={};_de.declineReasonsByDate[key][cu.uid]=reason;}
+      if(!_de.declineCategoryByDate)_de.declineCategoryByDate={};if(!_de.declineCategoryByDate[key])_de.declineCategoryByDate[key]={};_de.declineCategoryByDate[key][cu.uid]=cat;
     } else {
       if(!_de.rsvp)_de.rsvp={};_de.rsvp[cu.uid]=statusVal;
       if(reason){if(!_de.declineReasons)_de.declineReasons={};_de.declineReasons[cu.uid]=reason;}
+      if(!_de.declineCategory)_de.declineCategory={};_de.declineCategory[cu.uid]=cat;
     }
   }
-  declineTargetEvId=null;declineTargetOccDate=null;declineTargetAction='decline';
+  declineTargetEvId=null;declineTargetOccDate=null;declineTargetAction='decline';declineSelectedCategory=null;
   toast(act==='leave_early'?'Marked as Leaving Early':'Declined');closeModal('decline-modal');closeModal('view-modal');renderHomePage();
 };
 window.submitLeaveEarly=async()=>{
@@ -6795,13 +6911,13 @@ function openViewEvent(ev){
   document.getElementById('view-accept-btn').style.display=showAccept?'block':'none';
   const _daysToEv=daysUntil(_occV);
   const showLeaveEarlyBtn=_rsvpableType&&myInvV&&myRsvpV!=='leaving_early'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
-  const leaveEarlyEl=document.getElementById('view-leaveearly-btn');
+  const leaveEarlyEl=document.getElementById('view-leaveearly-quick-btn');
   if(leaveEarlyEl)leaveEarlyEl.style.display=showLeaveEarlyBtn?'block':'none';
   const showDeclineBtn=_rsvpableType&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
   document.getElementById('view-decline-btn').style.display=showDeclineBtn?'block':'none';
   // Leaving early: only meaningful once you're actually going to a meeting.
   const showLeaveEarly=ev.type==='meeting'&&myInvV&&myRsvpV==='accepted'&&!_startedV;
-  const leBtn=document.getElementById('view-leaveearly-btn');
+  const leBtn=document.getElementById('view-leaveearly-time-btn');
   leBtn.style.display=showLeaveEarly?'block':'none';
   if(showLeaveEarly){const _myEarlyLeave=getEarlyLeave(ev,cu?.uid);leBtn.textContent=_myEarlyLeave?`🕒 Leaving @ ${fmt12(_myEarlyLeave.time)}`:'Leaving Early?';}
   const showAttBtn=ev.type==='meeting'&&(isOwn||isAdm)&&daysUntil(ev.date)<0&&(ev.invitees||[]).length>0;
@@ -6863,10 +6979,13 @@ function renderViewPeople(){
   const filtered=viewTab==='all'?ppl:ppl.filter(p=>{const r=getMyRsvp(ev,p.uid);return viewTab==='accepted'?r==='accepted':viewTab==='leaving_early'?r==='leaving_early':viewTab==='declined'?r==='declined':!r;});
   if(!filtered.length){el.innerHTML=`<div style="font-size:12px;color:var(--q-muted2);padding:7px 4px">No ${viewTab.replace('_',' ')} responses</div>`;return;}
   const isAdm=isAdmin(ev.calendarId);
+  const _occD=occDateFor(ev,ev._occurrenceDate);
+  const _meetingStarted=!isTask&&hasMeetingStarted(ev,_occD);
   filtered.forEach(p=>{
     const rsvp=getMyRsvp(ev,p.uid);
     const dr=getDeclineReason(ev,p.uid);
-    const ux=(ev.unexcusedAbsences||{})[p.uid];
+    const declineCat=getDeclineCategory(ev,p.uid);
+    const ux=getUnexcused(ev,p.uid);
     const hasDr=(rsvp==='declined'||rsvp==='leaving_early')&&dr;
     const row=document.createElement('div');row.className=`view-invitee-row${hasDr?' has-decline':''}`;
     let attBadge='';
@@ -6886,17 +7005,34 @@ function renderViewPeople(){
       else if(rsvp==='declined')rsvpB=`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:var(--q-red-dim);color:var(--q-red)">Declined</span>`;
       else rsvpB='<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:var(--q-dark4);color:var(--q-muted2)">Pending</span>';
     }
+    const sickB=declineCat==='sick'?`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(56,189,248,.15);color:#38bdf8">🤒 Sick</span>`:'';
     const uxB=ux?`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span>`:'';
     const earlyLeave=(!isTask&&rsvp==='accepted')?getEarlyLeave(ev,p.uid):null;
     const elB=earlyLeave?`<span style="font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(245,158,11,.15);color:var(--q-amber)"${earlyLeave.note?` title="${escHtml(earlyLeave.note)}"`:''}>🕒 Leaving @ ${fmt12(earlyLeave.time)}</span>`:'';
     let adminBtn='';
-    // Don't allow marking optional attendees or opt-outs as unexcused
+    // Don't allow marking optional attendees or opt-outs as unexcused. A
+    // decline tagged "Sick" can never be marked unexcused going forward
+    // (per team policy) — illness is always excused, no admin override —
+    // but a pre-existing unexcused mark from before the category existed
+    // can still be reversed.
     if(isAdm&&!isTask&&rsvp==='declined'&&!isOptOut&&p.attendance!=='optional'){
-      if(!ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark','${ev.calendarId||''}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
-      else adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse','${ev.calendarId||''}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
+      const occArg=ev._occurrenceDate||'';
+      if(!ux&&declineCat!=='sick')adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark','${ev.calendarId||''}','${occArg}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
+      else if(ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse','${ev.calendarId||''}','${occArg}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
+    }
+    // Present/Absent: folded inline here (rather than only in the separate
+    // bulk Attendance modal) so a leader sees RSVP intent and actual
+    // check-in together — "declined (sick), never marked absent" vs.
+    // "accepted, no-showed" are very different rows, previously only
+    // visible by opening two separate modals.
+    let attToggle='';
+    if(isAdm&&!isTask&&_meetingStarted){
+      const att=getAttendance(ev,p.uid);
+      const occArg=ev._occurrenceDate||'';
+      attToggle=`<button onclick="quickSetAttendance('${ev.id}','${p.uid}','present','${occArg}');event.stopPropagation()" class="att-btn-inline${att==='present'?' present':''}">Present</button><button onclick="quickSetAttendance('${ev.id}','${p.uid}','absent','${occArg}');event.stopPropagation()" class="att-btn-inline${att==='absent'?' absent':''}">Absent</button>`;
     }
     const drLabel=rsvp==='leaving_early'?'Departure Note':'Reason';
-    row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${uxB} ${adminBtn}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:${rsvp==='leaving_early'?'#a78bfa':'var(--q-red)'}">${drLabel}:</strong> ${escHtml(dr)}</div>`:''}`;
+    row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${sickB} ${uxB} ${elB} ${adminBtn} ${attToggle}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:${rsvp==='leaving_early'?'#a78bfa':'var(--q-red)'}">${drLabel}:</strong> ${escHtml(dr)}</div>`:''}`;
     if(hasDr&&!isOptOut)row.onclick=()=>row.querySelector('.decline-reason-box').classList.toggle('open');
     el.appendChild(row);
   });
@@ -6968,8 +7104,8 @@ window.toggleMyTaskDone=async(evId,uid)=>{
 };
 
 // ── Unexcused ──────────────────────────────────────────────────────────────
-window.openUnexcused=(evId,uid,name,action,calId)=>{
-  unexcusedTarget={evId,uid,action,calId};
+window.openUnexcused=(evId,uid,name,action,calId,occDate=null)=>{
+  unexcusedTarget={evId,uid,action,calId,occDate};
   document.getElementById('unexcused-modal-title').textContent=action==='mark'?'Mark Unexcused':'Reverse Unexcused Absence';
   document.getElementById('unexcused-modal-desc').textContent=action==='mark'?`Mark ${name}'s absence as unexcused?`:`Reverse the unexcused mark for ${name}?`;
   document.getElementById('unexcused-note-wrap').style.display=action==='mark'?'block':'none';
@@ -6979,15 +7115,32 @@ window.openUnexcused=(evId,uid,name,action,calId)=>{
 };
 window.submitUnexcused=async()=>{
   if(!unexcusedTarget)return;
-  const{evId,uid,action,calId}=unexcusedTarget;
+  const{evId,uid,action,calId,occDate}=unexcusedTarget;
   const note=document.getElementById('unexcused-note').value.trim();
+  const ev=events.find(e=>e.id===evId);
+  const key=(ev?occKey(ev):null)||occDate||null;
   if(action==='mark'){
-    await updateDoc(doc(db,'events',evId),{[`unexcusedAbsences.${uid}`]:true,[`unexcusedNotes.${uid}`]:note||null});
+    const patch=key
+      ?{[`unexcusedAbsencesByDate.${key}.${uid}`]:true,[`unexcusedNotesByDate.${key}.${uid}`]:note||null}
+      :{[`unexcusedAbsences.${uid}`]:true,[`unexcusedNotes.${uid}`]:note||null};
+    await updateDoc(doc(db,'events',evId),patch);
     if(calId)await updateDoc(doc(db,'calendars',calId),{[`attendance.${uid}`]:increment(1)});
+    if(ev){
+      if(key){if(!ev.unexcusedAbsencesByDate)ev.unexcusedAbsencesByDate={};if(!ev.unexcusedAbsencesByDate[key])ev.unexcusedAbsencesByDate[key]={};ev.unexcusedAbsencesByDate[key][uid]=true;
+        if(!ev.unexcusedNotesByDate)ev.unexcusedNotesByDate={};if(!ev.unexcusedNotesByDate[key])ev.unexcusedNotesByDate[key]={};ev.unexcusedNotesByDate[key][uid]=note||null;}
+      else{if(!ev.unexcusedAbsences)ev.unexcusedAbsences={};ev.unexcusedAbsences[uid]=true;if(!ev.unexcusedNotes)ev.unexcusedNotes={};ev.unexcusedNotes[uid]=note||null;}
+    }
     toast('Marked unexcused');
   } else {
-    await updateDoc(doc(db,'events',evId),{[`unexcusedAbsences.${uid}`]:null,[`unexcusedNotes.${uid}`]:null});
+    const patch=key
+      ?{[`unexcusedAbsencesByDate.${key}.${uid}`]:null,[`unexcusedNotesByDate.${key}.${uid}`]:null}
+      :{[`unexcusedAbsences.${uid}`]:null,[`unexcusedNotes.${uid}`]:null};
+    await updateDoc(doc(db,'events',evId),patch);
     if(calId)await updateDoc(doc(db,'calendars',calId),{[`attendance.${uid}`]:increment(-1)});
+    if(ev){
+      if(key){if(ev.unexcusedAbsencesByDate?.[key])ev.unexcusedAbsencesByDate[key][uid]=null;if(ev.unexcusedNotesByDate?.[key])ev.unexcusedNotesByDate[key][uid]=null;}
+      else{if(ev.unexcusedAbsences)ev.unexcusedAbsences[uid]=null;if(ev.unexcusedNotes)ev.unexcusedNotes[uid]=null;}
+    }
     toast('Absence reversed');
   }
   closeModal('unexcused-modal');renderViewPeople();if(currentPage==='admin')renderAdminPage();
@@ -7567,6 +7720,7 @@ async function openMemberModal(m,calId,calRoles){
   const char=(m.displayName||'?').charAt(0).toUpperCase();
   const allRoles=getRolesForUid(calRoles,m.uid);
   const role=calRoles[m.uid]||null;
+  const cal=calendars.find(c=>c.id===calId)||sharedCalendars.find(c=>c.id===calId)||{};
   const sub=cal.memberSubsections?.[m.uid]||'';
   const isAdm=isAdmin(calId);
   const unexcused=cal.attendance?.[m.uid]||0;
@@ -8093,6 +8247,24 @@ window.leaveCalendar=async(calId)=>{
 };
 
 // ── Admin / Leadership page ────────────────────────────────────────────────
+// Resolves a calendar's member list (owner + roster) into
+// {uid,displayName,email,subsection} rows — display names/emails live on
+// `users` docs, not the calendar doc, so this always needs one fetch per
+// member. Shared by renderAdminPage's Members card and renderAttendancePage.
+async function resolveCalMembers(cal){
+  const members=[];
+  const calOwnerUid=cal.uid||cu.uid;
+  const ownerSnap=await getDoc(doc(db,'users',calOwnerUid));
+  if(ownerSnap.exists())members.push({uid:cal.uid,displayName:ownerSnap.data().displayName||'Owner',email:ownerSnap.data().email||'',subsection:cal.memberSubsections?.[cal.uid]||''});
+  for(const uid of (cal.members||[])){
+    if(uid===cal.uid)continue;
+    try{
+      const s=await getDoc(doc(db,'users',uid));
+      if(s.exists())members.push({uid,displayName:s.data().displayName||s.data().email?.split('@')[0]||'User',email:s.data().email||'',subsection:cal.memberSubsections?.[uid]||''});
+    }catch(e){}
+  }
+  return members;
+}
 async function renderAdminPage(){
   const sel=document.getElementById('admin-cal-select');
   const prevCalId=sel.value; // preserve selected calendar across re-renders
@@ -8137,19 +8309,7 @@ async function renderAdminPage(){
 
   // Members
   const ml=document.getElementById('admin-members-list');ml.innerHTML='<div style="font-size:11px;color:var(--q-muted2)">Loading…</div>';
-  const calOwnerUid=adminCal.uid||cu.uid;
-  const ownerSnap=await getDoc(doc(db,'users',calOwnerUid));
-  const members=[];
-  // Always include the calendar owner
-  if(ownerSnap.exists())members.push({uid:adminCal.uid,displayName:ownerSnap.data().displayName||'Owner',email:ownerSnap.data().email||'',subsection:adminCal.memberSubsections?.[adminCal.uid]||''});
-  // Members come from the calendar doc (membership is no longer stored on user docs)
-  for(const uid of (adminCal.members||[])){
-    if(uid===adminCal.uid)continue;
-    try{
-      const s=await getDoc(doc(db,'users',uid));
-      if(s.exists())members.push({uid,displayName:s.data().displayName||s.data().email?.split('@')[0]||'User',email:s.data().email||'',subsection:adminCal.memberSubsections?.[uid]||''});
-    }catch(e){}
-  }
+  const members=await resolveCalMembers(adminCal);
   const subs=adminCal.subsections||[];
   const calRoles=adminCal.roles||{};
   ml.innerHTML='';
@@ -8192,26 +8352,36 @@ async function renderAdminPage(){
   });
   document.getElementById('new-subsection-input').dataset.calId=adminCal.id;
 
-  // Absences
-  // NOTE: calEvents is the raw (non-expanded) events list, so for a recurring
-  // meeting this only ever reflects one occurrence's worth of rsvp/decline
-  // state. Since per-occurrence declines now live in rsvpByDate/
-  // declineReasonsByDate (see getMyRsvp/getDeclineReason), a recurring
-  // occurrence declined via the calendar/Home page may not surface here
-  // until this panel is upgraded to work over expanded occurrences too.
+  // Absences — expanded over individual occurrences (expandRec), not raw
+  // per-series docs, so a recurring meeting's per-occurrence declines
+  // (rsvpByDate/declineReasonsByDate) each show as their own row instead of
+  // being missed/misattributed to whichever date the series doc happened to
+  // be sitting on. 6-month lookback covers a full season without pulling
+  // every event ever created.
   const al=document.getElementById('admin-absences-list');al.innerHTML='';
-  const calEvents=events.filter(e=>e.calendarId===adminCal.id);let hasAny=false;
+  const _absRs=new Date();_absRs.setMonth(_absRs.getMonth()-6);
+  const _absRe=new Date();_absRe.setMonth(_absRe.getMonth()+1);
+  const calEvents=expandRec(events.filter(e=>e.calendarId===adminCal.id),_absRs,_absRe);
+  let hasAny=false;
   calEvents.forEach(ev=>{
     const ppl=ev.type==='task'?ev.assignees:ev.invitees;if(!ppl)return;
     ppl.forEach(p=>{
       const rsvp=getMyRsvp(ev,p.uid);if(rsvp!=='declined'&&rsvp!=='leaving_early')return;
       if(p.attendance==='optional'||getOptOut(ev,p.uid))return;
       hasAny=true;
-      const ux=(ev.unexcusedAbsences||{})[p.uid];const reason=getDeclineReason(ev,p.uid);const uxNote=(ev.unexcusedNotes||{})[p.uid];
+      const ux=getUnexcused(ev,p.uid);const reason=getDeclineReason(ev,p.uid);const uxNote=getUnexcusedNote(ev,p.uid);
+      const declineCat=getDeclineCategory(ev,p.uid);
       const isLeavingEarly=rsvp==='leaving_early';
       const rsvpText=isLeavingEarly?'leaving early from':'declined';
+      const occArg=ev._occurrenceDate||'';
+      const sickTag=declineCat==='sick'?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(56,189,248,.15);color:#38bdf8;margin-left:6px">🤒 Sick</span>`:'';
+      let actionHtml;
+      if(isLeavingEarly)actionHtml=`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.25);color:#a78bfa;font-weight:700">LEAVING EARLY</span>`;
+      else if(ux)actionHtml=`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse','${ev.calendarId||''}','${occArg}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
+      else if(declineCat==='sick')actionHtml=''; // sick declines can never be marked unexcused going forward
+      else actionHtml=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark','${ev.calendarId||''}','${occArg}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
       const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--q-dark3);border-radius:7px;margin-bottom:5px;font-size:12px;flex-wrap:wrap';
-      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">${rsvpText} "${escHtml(ev.title)}"</span>${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">${isLeavingEarly?'Departure note':'Reason'}: ${escHtml(reason)}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${escHtml(uxNote)}</div>`:''}</div>${isLeavingEarly?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.25);color:#a78bfa;font-weight:700">LEAVING EARLY</span>`:ux?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse','${ev.calendarId||''}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`:`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark','${ev.calendarId||''}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`}`;
+      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">${rsvpText} "${escHtml(ev.title)}"${ev.date?' · '+new Date(ev.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):''}</span>${sickTag}${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">${isLeavingEarly?'Departure note':'Reason'}: ${escHtml(reason)}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${escHtml(uxNote)}</div>`:''}</div>${actionHtml}`;
       al.appendChild(row);
     });
   });
@@ -8327,6 +8497,167 @@ window.deleteSubsection=async(calId,name)=>{
 };
 
 // ── Profile ────────────────────────────────────────────────────────────────
+// ── Attendance Tracker (admin/leader) ────────────────────────────────────
+// An analysis view — attendance rate over time, per-member history,
+// per-meeting drill-down — computed client-side from the same events data
+// the Admin page's Absences card reads (no new Firestore reads, no Cloud
+// Function). Absences stays an action list ("mark unexcused now"); this is
+// for the bigger picture over a season.
+async function renderAttendancePage(){
+  const sel=document.getElementById('att-page-cal-select');
+  if(!sel)return;
+  const prevCalId=sel.value;
+  sel.innerHTML='';
+  const allCals=[...calendars,...sharedCalendars];
+  const leadCals=allCals.filter(cal=>getRolesForUid(cal.roles||{},cu?.uid).length>0);
+  if(!leadCals.length){
+    document.getElementById('att-kpi-row').innerHTML='';
+    document.getElementById('att-trend-chart').innerHTML='<div style="font-size:12px;color:var(--q-muted2)">You have no leadership role assigned. Ask your Captain to assign you a role in the Admin panel.</div>';
+    document.getElementById('att-member-table').innerHTML='';
+    document.getElementById('att-meeting-list').innerHTML='';
+    return;
+  }
+  leadCals.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name+(sharedCalendars.find(sc=>sc.id===c.id)?' (shared)':'');sel.appendChild(o);});
+  if(prevCalId&&leadCals.find(c=>c.id===prevCalId))sel.value=prevCalId;
+  const attCal=allCals.find(c=>c.id===sel.value)||leadCals[0];if(!attCal)return;
+
+  const members=await resolveCalMembers(attCal);
+
+  // Past meeting occurrences over a 6-month lookback — enough for a season
+  // without expanding every event ever created.
+  const rs=new Date();rs.setMonth(rs.getMonth()-6);
+  const re=new Date();re.setDate(re.getDate()+1);
+  const occs=expandRec(events.filter(e=>e.type==='meeting'&&e.calendarId===attCal.id),rs,re)
+    .filter(ev=>hasMeetingStarted(ev,occDateFor(ev,ev._occurrenceDate)))
+    .sort((a,b)=>(a._occurrenceDate||a.date).localeCompare(b._occurrenceDate||b.date));
+
+  // Per-member rollup. Optional invitees are excluded throughout, matching
+  // the rest of the app (probation banner, Admin Absences card) — they're
+  // never eligible for unexcused marking either.
+  const stats={};
+  members.forEach(m=>{stats[m.uid]={present:0,absent:0,declined:0,sick:0,unexcused:0,total:0};});
+  occs.forEach(ev=>{
+    (ev.invitees||[]).forEach(p=>{
+      if(!stats[p.uid]||p.attendance==='optional')return;
+      const s=stats[p.uid];
+      const rsvp=getMyRsvp(ev,p.uid);
+      const att=getAttendance(ev,p.uid);
+      const cat=getDeclineCategory(ev,p.uid);
+      const ux=getUnexcused(ev,p.uid);
+      s.total++;
+      if(att==='present')s.present++;
+      else if(att==='absent'||rsvp==='declined')s.absent++;
+      if(rsvp==='declined')s.declined++;
+      if(cat==='sick')s.sick++;
+      if(ux)s.unexcused++;
+    });
+  });
+
+  // KPI tiles
+  const totals=Object.values(stats).reduce((a,s)=>{a.present+=s.present;a.absent+=s.absent;a.sick+=s.sick;a.unexcused+=s.unexcused;return a;},{present:0,absent:0,sick:0,unexcused:0});
+  const overallRate=(totals.present+totals.absent)?Math.round(100*totals.present/(totals.present+totals.absent)):null;
+  const atRiskCount=Object.values(stats).filter(s=>s.unexcused>=3).length; // 3+ matches the existing probation threshold (loadAbsenceCount)
+  const tile=(icon,value,label,sub)=>`
+    <div class="dash-stat-card" style="padding:18px 20px">
+      <span class="dash-stat-icon" style="font-size:16px;margin-bottom:6px">${icon}</span>
+      <div class="dash-stat-value" style="font-size:24px">${value}</div>
+      <div class="dash-stat-label">${label}</div>
+      ${sub?`<div style="font-size:10px;color:var(--q-muted2);margin-top:4px">${sub}</div>`:''}
+    </div>`;
+  document.getElementById('att-kpi-row').innerHTML=
+    tile('✅',overallRate!=null?overallRate+'%':'—','Attendance rate',occs.length?`Across ${occs.length} tracked meeting${occs.length===1?'':'s'}`:'No meetings tracked yet')+
+    tile('🚩',totals.unexcused,'Unexcused absences','From meetings, this calendar')+
+    tile('🤒',totals.sick,'Sick declines','Excused automatically')+
+    tile('⚠️',atRiskCount,'At-risk members','3+ unexcused absences');
+
+  document.getElementById('att-trend-chart').innerHTML=renderAttendanceTrendChart(occs);
+
+  // Per-member table
+  const mt=document.getElementById('att-member-table');
+  if(!members.length){mt.innerHTML='<div style="font-size:12px;color:var(--q-muted2)">No members yet</div>';}
+  else{
+    mt.innerHTML='';
+    members.forEach(m=>{
+      const s=stats[m.uid]||{present:0,absent:0,sick:0,unexcused:0,total:0};
+      const rate=(s.present+s.absent)?Math.round(100*s.present/(s.present+s.absent)):null;
+      const manualCount=(attCal.attendance||{})[m.uid]||0;
+      const atRisk=s.unexcused>=3||manualCount>=3;
+      const row=document.createElement('div');row.className='admin-member-row';row.style.cursor='pointer';
+      row.onclick=()=>openMemberModal(m,attCal.id,attCal.roles||{});
+      row.innerHTML=`
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:13px;font-weight:600;color:var(--q-text)">${escHtml(m.displayName)}${atRisk?' <span class="admin-badge" style="background:rgba(255,59,92,.15);color:var(--q-red)">At risk</span>':''}</div>
+          <div style="font-size:10px;color:var(--q-muted2);margin-top:1px">${s.present} present · ${s.absent} absent · ${s.sick} sick${manualCount?` · manual counter: ${manualCount}`:''}</div>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:${rate==null?'var(--q-muted2)':rate>=80?'var(--q-green)':rate>=50?'var(--q-amber)':'var(--q-red)'}">${rate!=null?rate+'%':'—'}</div>`;
+      mt.appendChild(row);
+    });
+  }
+
+  // Per-meeting drill-down — most recent first
+  const dl=document.getElementById('att-meeting-list');
+  if(!occs.length){dl.innerHTML='<div style="font-size:12px;color:var(--q-muted2)">No past meetings tracked yet</div>';}
+  else{
+    dl.innerHTML='';
+    [...occs].reverse().slice(0,25).forEach(ev=>{
+      const ppl=(ev.invitees||[]).filter(p=>p.attendance!=='optional');
+      const present=ppl.filter(p=>getAttendance(ev,p.uid)==='present').length;
+      const row=document.createElement('div');row.className='admin-member-row';row.style.cursor='pointer';
+      row.onclick=()=>{const calId=ev.calendarId;if(calId){activeCalId=calId;enabledCalIds.add(calId);}showPage('calendar');setTimeout(()=>openViewEvent(ev),80);};
+      const d=new Date((ev._occurrenceDate||ev.date)+'T12:00:00');
+      row.innerHTML=`
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:var(--q-text)">${escHtml(ev.title)}</div>
+          <div style="font-size:10px;color:var(--q-muted2)">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
+        </div>
+        <div style="font-size:12px;color:var(--q-muted2)">${present}/${ppl.length} present</div>`;
+      dl.appendChild(row);
+    });
+  }
+}
+// Attendance-rate-over-time sparkline — same hand-rolled inline-SVG
+// technique as renderSocialGrowthChart (no chart library), one point per
+// ISO week that had at least one meeting with recorded attendance.
+function renderAttendanceTrendChart(occs){
+  const byWeek={};
+  occs.forEach(ev=>{
+    const d=new Date((ev._occurrenceDate||ev.date)+'T12:00:00');
+    const weekStart=new Date(d);weekStart.setDate(d.getDate()-d.getDay());
+    const wk=localDateStr(weekStart);
+    (ev.invitees||[]).forEach(p=>{
+      if(p.attendance==='optional')return;
+      const att=getAttendance(ev,p.uid);
+      if(att!=='present'&&att!=='absent')return;
+      if(!byWeek[wk])byWeek[wk]={present:0,total:0};
+      byWeek[wk].total++;
+      if(att==='present')byWeek[wk].present++;
+    });
+  });
+  const points=Object.entries(byWeek).map(([date,v])=>({date,value:Math.round(100*v.present/v.total)})).sort((a,b)=>a.date.localeCompare(b.date));
+  if(points.length<2)return '<div style="font-size:10px;color:var(--q-muted2);padding:8px 0 4px">Collecting attendance data — a trend line appears once a couple of weeks have recorded attendance.</div>';
+  const w=280,h=56,pad=4;
+  const vals=points.map(p=>p.value);
+  const maxV=Math.max(100,...vals),minV=Math.min(0,...vals);
+  const range=(maxV-minV)||1;
+  const stepX=points.length>1?(w-pad*2)/(points.length-1):0;
+  const coords=points.map((p,i)=>({x:pad+i*stepX,y:pad+(h-pad*2)*(1-(p.value-minV)/range),...p}));
+  const line=coords.map((c,i)=>`${i===0?'M':'L'}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const area=`${line} L${coords[coords.length-1].x.toFixed(1)},${h-pad} L${coords[0].x.toFixed(1)},${h-pad} Z`;
+  const dots=coords.map(c=>`<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="2.5" fill="var(--q-green)"><title>Week of ${new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}: ${c.value}% attendance</title></circle>`).join('');
+  return `
+    <div style="margin:2px 0 10px">
+      <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:56px;display:block" preserveAspectRatio="none">
+        <path d="${area}" fill="var(--q-green)" opacity="0.1"/>
+        <path d="${line}" fill="none" stroke="var(--q-green)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${dots}
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--q-muted2);margin-top:2px">
+        <span>Week of ${new Date(coords[0].date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+        <span style="font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.05em">Attendance rate over time</span>
+        <span>Week of ${new Date(coords[coords.length-1].date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+      </div>
+    </div>`;
+}
 function renderProfilePage(){
   const name=cu?.displayName||'';const email=cu?.email||'';
   document.getElementById('profile-name-display').textContent=name;
@@ -9272,12 +9603,18 @@ window.runSearch=(q)=>{
 };
 
 // ── Attendance Tracking ─────────────────────────────────────────────────────
+// Occurrence-aware since 2026-08 (see getAttendance/occKey): a recurring
+// meeting's attendance is keyed per occurrence date, same rsvpByDate-style
+// override pattern, so marking week 3 no longer overwrites week 1's record.
 let attendanceState={};
-window.openAttendanceModal=async(ev)=>{
+window.openAttendanceModal=async(ev,occDate=null)=>{
   if(!ev||ev.type!=='meeting')return;
-  attendanceState={evId:ev.id,records:{...((ev.attendance)||{})}};
+  const key=occKey(ev)||occDate; // occKey already resolves ev._occurrenceDate for recurring events
+  const records={};
+  (ev.invitees||[]).forEach(p=>{records[p.uid]=getAttendance(ev,p.uid);});
+  attendanceState={evId:ev.id,occKey:key,records};
   document.getElementById('att-modal-title').textContent=`Attendance: ${escHtml(ev.title)}`;
-  const d=new Date(ev.date+'T12:00:00');
+  const d=new Date((ev._occurrenceDate||ev.date)+'T12:00:00');
   document.getElementById('att-modal-sub').textContent=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   const listEl=document.getElementById('att-list');listEl.innerHTML='';
   (ev.invitees||[]).forEach(p=>{
@@ -9301,10 +9638,36 @@ window.setAtt=(uid,status)=>{
 };
 window.saveAttendance=async()=>{
   if(!attendanceState.evId)return;
+  const key=attendanceState.occKey;
   const updates={};
-  Object.entries(attendanceState.records).forEach(([uid,status])=>{updates[`attendance.${uid}`]=status;});
+  Object.entries(attendanceState.records).forEach(([uid,status])=>{
+    if(!status)return; // 'unknown' — nothing recorded yet, don't write a value
+    if(key)updates[`attendanceByDate.${key}.${uid}`]=status;
+    else updates[`attendance.${uid}`]=status;
+  });
   await updateDoc(doc(db,'events',attendanceState.evId),updates);
+  const _ate=events.find(e=>e.id===attendanceState.evId);
+  if(_ate){
+    Object.entries(attendanceState.records).forEach(([uid,status])=>{
+      if(!status)return;
+      if(key){if(!_ate.attendanceByDate)_ate.attendanceByDate={};if(!_ate.attendanceByDate[key])_ate.attendanceByDate[key]={};_ate.attendanceByDate[key][uid]=status;}
+      else{if(!_ate.attendance)_ate.attendance={};_ate.attendance[uid]=status;}
+    });
+  }
   toast('Attendance saved');closeModal('attendance-modal');
+  if(viewingEv?.id===attendanceState.evId)renderViewPeople();
+};
+// Single-row present/absent write from the view-event invitee list
+// (renderViewPeople) — same occurrence-aware write as saveAttendance, just
+// for one person at a time instead of the bulk modal.
+window.quickSetAttendance=async(evId,uid,status,occDate)=>{
+  const ev=events.find(e=>e.id===evId);if(!ev)return;
+  const key=occKey(ev)||occDate||null;
+  const patch=key?{[`attendanceByDate.${key}.${uid}`]:status}:{[`attendance.${uid}`]:status};
+  await updateDoc(doc(db,'events',evId),patch);
+  if(key){if(!ev.attendanceByDate)ev.attendanceByDate={};if(!ev.attendanceByDate[key])ev.attendanceByDate[key]={};ev.attendanceByDate[key][uid]=status;}
+  else{if(!ev.attendance)ev.attendance={};ev.attendance[uid]=status;}
+  if(viewingEv?.id===evId)renderViewPeople();
 };
 
 // ── Subsection lead home dashboard injection ────────────────────────────────
