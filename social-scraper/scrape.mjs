@@ -373,10 +373,17 @@ async function fetchInstagramStats(cfg, cutoffMs) {
     for (const url of postUrls.values()) {
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-        await page.waitForTimeout(1200);
+        // Reels take noticeably longer to hydrate their <time> element than
+        // photo posts do (confirmed: absent at 1200ms, present by 3200ms on
+        // a real reel; photo posts had it immediately) — wait for the
+        // element itself rather than guessing a fixed delay long enough for
+        // the slowest case. Missing entirely (not just slow) after 6s is a
+        // real "couldn't find it", not a timing issue — falls through to null.
+        await page.waitForSelector('time', { timeout: 6000 }).catch(() => null);
         const datetime = await page.$eval('time', (el) => el.getAttribute('datetime')).catch(() => null);
         if (datetime && Date.parse(datetime) < cutoffMs) continue;
         const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch(() => null);
+        const thumbnail = await page.$eval('meta[property="og:image"]', (el) => el.content).catch(() => null);
         const likeMatch = desc && /^([\d,.]+[KMB]?) [Ll]ikes/.exec(desc);
         const commentMatch = desc && /,\s*([\d,.]+[KMB]?) [Cc]omments/.exec(desc);
         // Photo posts (not reels) have no play count at all — reelViews
@@ -384,7 +391,7 @@ async function fetchInstagramStats(cfg, cutoffMs) {
         const views = reelViews.has(instagramShortcode(url)) ? reelViews.get(instagramShortcode(url)) : null;
         recentVideos.push({
           title: decodeXmlEntities(desc || '').slice(0, 100) || 'Untitled',
-          thumbnail: null,
+          thumbnail,
           views,
           likes: likeMatch ? parseAbbreviatedNumber(likeMatch[1]) : null,
           comments: commentMatch ? parseAbbreviatedNumber(commentMatch[1]) : null,
