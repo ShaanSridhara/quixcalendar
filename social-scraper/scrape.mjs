@@ -398,7 +398,8 @@ async function fetchInstagramStats(cfg, cutoffMs) {
     const recentVideos = [];
     for (const url of postUrls.values()) {
       try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        const _resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        console.log(`[instagram][debug] ${url} -> HTTP ${_resp?.status()}, page title: "${await page.title().catch(() => '?')}"`);
         // Reels take noticeably longer to hydrate their <time> element than
         // photo posts do (confirmed: absent at 1200ms, present by 3200ms on
         // a real reel; photo posts had it immediately) — wait for the
@@ -416,7 +417,8 @@ async function fetchInstagramStats(cfg, cutoffMs) {
         }
         if (!datetime) console.log(`[instagram] no <time> found for ${url} after 2 attempts — this post will be missing its date/time`);
         if (datetime && Date.parse(datetime) < cutoffMs) continue;
-        const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch(() => null);
+        const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch((e) => { console.log(`[instagram][debug] og:description $eval threw for ${url}: ${e.message}`); return null; });
+        console.log(`[instagram][debug] ${url} -> desc=${JSON.stringify(desc)}`);
         if (!desc) console.log(`[instagram] no og:description found for ${url} — this post will show as "Untitled"`);
         const thumbnail = await page.$eval('meta[property="og:image"]', (el) => el.content).catch(() => null);
         const likeMatch = desc && /^([\d,.]+[KMB]?) [Ll]ikes/.exec(desc);
