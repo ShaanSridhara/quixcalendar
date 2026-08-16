@@ -294,7 +294,24 @@ async function fetchInstagramStats(cfg, cutoffMs) {
   }
 
   const handle = (cfg.handle || '').replace(/^@/, '');
-  const postUrls = new Map((cfg.videoUrls || []).map((u) => [instagramShortcode(u), u]));
+  // Instagram's own "copy link" share button gives you the bare
+  // /reel/{code}/ form (no username) — confirmed by a real scrape run that
+  // every reel visited in that bare form came back with zero <time>
+  // element after two full attempts, while the handle-prefixed form
+  // (/{handle}/reel/{code}/, what auto-discovery always produces) worked
+  // every time. Instagram appears to render the bare URL as a stripped
+  // player view rather than the normal post page. Rewrite to the
+  // handle-prefixed form before ever visiting it, since a manually-pasted
+  // config.json URL is the main way the bare form gets in here.
+  const withHandlePrefix = (u) => {
+    if (!handle) return u;
+    const m = /^https:\/\/www\.instagram\.com\/reel\/([A-Za-z0-9_-]+)\/?/.exec(u);
+    return m ? `https://www.instagram.com/${handle}/reel/${m[1]}/` : u;
+  };
+  const postUrls = new Map((cfg.videoUrls || []).map((u) => {
+    const full = withHandlePrefix(u);
+    return [instagramShortcode(full), full];
+  }));
   if (!handle && !postUrls.size) {
     console.log('[instagram] no handle or post URLs configured — skipping (see social-scraper/config.json)');
     return null;
