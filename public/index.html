@@ -1783,7 +1783,11 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .profile-email-sm { font-size: 12px; color: var(--q-muted); margin-top: 2px; }
 
 /* ── Admin ──────────────────────────────────────────────────────── */
-.admin-page { flex: 1; overflow-y: auto; padding: 28px max(32px, calc((100% - 1200px) / 2)); }
+/* overflow-x is explicit, not left to default: setting only overflow-y
+   makes overflow-x compute to `auto` too (per spec), which silently turns
+   this into a horizontally-scrollable container the moment any child
+   overflows — exactly what was pushing cards off the right edge. */
+.admin-page { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 28px max(32px, calc((100% - 1200px) / 2)); }
 .admin-header { font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
 .admin-sub { color: var(--q-muted); font-size: 13px; margin-bottom: 26px; }
 
@@ -1817,6 +1821,10 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
   border: 1px solid var(--q-border);
   border-radius: var(--r-lg); padding: 24px;
   box-shadow: var(--shadow);
+  min-width: 0; /* grid/flex items default to min-width:auto, which refuses
+    to shrink below their content's intrinsic width — without this a wide
+    child (a chart, a long unbroken title) forces the whole grid wider than
+    the viewport instead of the card just wrapping/clipping internally. */
 }
 
 .admin-card-title {
@@ -8697,7 +8705,11 @@ function renderSocialCombinedGrowth(){
     return any?{date:h.date,value:total}:null;
   }).filter(Boolean);
   if(points.length<2)return'<div style="font-size:10px;color:var(--q-muted2);padding:8px 0 4px">Collecting growth data — a combined trend line appears once there are a couple of days of history.</div>';
-  const w=520,h=70,pad=4;
+  // Kept at the same viewBox width as the per-card charts (not the visual
+  // width this card renders at) — a wider viewBox here was letting the SVG's
+  // intrinsic size force this grid column, and everything below it, wider
+  // than the viewport on narrower screens despite width:100% in its style.
+  const w=280,h=70,pad=4;
   const vals=points.map(p=>p.value);
   const maxV=Math.max(...vals),minV=Math.min(0,...vals);
   const range=(maxV-minV)||1;
