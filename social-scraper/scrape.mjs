@@ -282,7 +282,7 @@ async function fetchInstagramStatsViaAPI(accessToken, businessAccountId, cutoffM
   };
 }
 
-async function fetchInstagramStats(cfg, cutoffMs) {
+async function fetchInstagramStats(cfg, cutoffMs, db) {
   const accessToken = process.env.IG_ACCESS_TOKEN;
   const businessAccountId = process.env.IG_BUSINESS_ACCOUNT_ID;
   if (accessToken && businessAccountId) {
@@ -290,6 +290,28 @@ async function fetchInstagramStats(cfg, cutoffMs) {
       return await fetchInstagramStatsViaAPI(accessToken, businessAccountId, cutoffMs);
     } catch (e) {
       console.error('[instagram] official API failed, falling back to scraping (no view counts that way):', e.message);
+    }
+  }
+
+  // Confirmed via a real run: Instagram occasionally 429s a handful of
+  // requests mid-scrape (5 posts in a row briefly rate-limited, out of 136
+  // requests that run — not a hard block, just a hiccup) and a 429
+  // response has no <time> or og:description at all. Every scrape run
+  // fully replaces `instagram.recentVideos`, so writing that as
+  // title:"Untitled"/likes:null overwrote perfectly good data that had
+  // been scraped seconds earlier — visible on the live site until the
+  // next successful run corrected it a minute later. Reading the last
+  // known-good result first means a degraded fetch can fall back to it
+  // instead of ever publishing the blank version.
+  let previousByShortcode = new Map();
+  if (db) {
+    try {
+      const prevSnap = await db.doc('social/summary').get();
+      for (const v of prevSnap.data()?.instagram?.recentVideos || []) {
+        if (v.url) previousByShortcode.set(instagramShortcode(v.url), v);
+      }
+    } catch (e) {
+      console.error('[instagram] failed to read previous summary (fallback-on-failure disabled this run):', e.message);
     }
   }
 
@@ -399,7 +421,6 @@ async function fetchInstagramStats(cfg, cutoffMs) {
     for (const url of postUrls.values()) {
       try {
         const _resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-        console.log(`[instagram][debug] ${url} -> HTTP ${_resp?.status()}, page title: "${await page.title().catch(() => '?')}"`);
         // Reels take noticeably longer to hydrate their <time> element than
         // photo posts do (confirmed: absent at 1200ms, present by 3200ms on
         // a real reel; photo posts had it immediately) — wait for the
@@ -415,11 +436,22 @@ async function fetchInstagramStats(cfg, cutoffMs) {
           await page.waitForSelector('time', { timeout: 10000 }).catch(() => null);
           datetime = await page.$eval('time', (el) => el.getAttribute('datetime')).catch(() => null);
         }
-        if (!datetime) console.log(`[instagram] no <time> found for ${url} after 2 attempts — this post will be missing its date/time`);
         if (datetime && Date.parse(datetime) < cutoffMs) continue;
-        const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch((e) => { console.log(`[instagram][debug] og:description $eval threw for ${url}: ${e.message}`); return null; });
-        console.log(`[instagram][debug] ${url} -> desc=${JSON.stringify(desc)}`);
-        if (!desc) console.log(`[instagram] no og:description found for ${url} — this post will show as "Untitled"`);
+        const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch(() => null);
+        // Confirmed signature of a 429/rate-limited response: no <time>
+        // AND no og:description at all (a real successful page always has
+        // at least one). Fall back to the last known-good scrape of this
+        // exact post instead of publishing a blank "Untitled" that would
+        // overwrite perfectly good data until the next run corrects it.
+        if (!datetime && !desc) {
+          const prev = previousByShortcode.get(instagramShortcode(url));
+          if (prev) {
+            console.log(`[instagram] fetch degraded for ${url} (HTTP ${_resp?.status()}, no <time>/og:description) — reusing last known-good data instead of overwriting it`);
+            recentVideos.push(prev);
+            continue;
+          }
+          console.log(`[instagram] fetch degraded for ${url} (HTTP ${_resp?.status()}) and no previous data to fall back to — will show as "Untitled" this run`);
+        }
         const thumbnail = await page.$eval('meta[property="og:image"]', (el) => el.content).catch(() => null);
         const likeMatch = desc && /^([\d,.]+[KMB]?) [Ll]ikes/.exec(desc);
         const commentMatch = desc && /,\s*([\d,.]+[KMB]?) [Cc]omments/.exec(desc);
@@ -503,7 +535,7 @@ async function main() {
   }
 
   try {
-    const ig = await fetchInstagramStats(cfg.instagram, cutoffMs);
+    const ig = await fetchInstagramStats(cfg.instagram, cutoffMs, db);
     if (ig) update.instagram = ig;
   } catch (e) {
     console.error('[instagram] refresh failed:', e.message);
