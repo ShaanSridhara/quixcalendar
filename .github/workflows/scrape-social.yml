@@ -2,8 +2,29 @@ name: Scrape social stats
 
 on:
   schedule:
-    - cron: '*/5 * * * *'   # every 5 minutes — GitHub's practical floor for schedule reliability
+    # Every minute is the fastest a cron expression can say, but GitHub's own
+    # docs call 5 minutes the shortest *reliable* interval — under load,
+    # GitHub silently delays or drops scheduled runs rather than queuing
+    # them, so the real-world cadence will land somewhere between 1-5 min,
+    # not a guaranteed 60s tick.
+    - cron: '* * * * *'
   workflow_dispatch: {}       # lets you trigger it manually from the Actions tab
+
+# A run takes ~1.5-2.5 min end to end, so a 1-minute schedule WILL try to
+# start a new run before the last one finishes. Without this, GitHub runs
+# them in parallel — multiple concurrent Instagram sessions hammering the
+# same account from the same runner IPs is a real risk to the logged-in
+# IG_SESSION_ID getting flagged. cancel-in-progress is deliberately false:
+# killing an in-progress run would mean it never finishes writing to
+# Firestore, so every trigger would just cancel the last one forever and
+# nothing would ever actually update. Instead, only one run is queued
+# behind the current one (extra triggers in between collapse into that
+# single queued slot), so scrapes run back-to-back as fast as each one
+# completes — in practice every ~1.5-2.5 min, not a literal 60s tick, but
+# the fastest this can sustain without racing itself.
+concurrency:
+  group: scrape-social
+  cancel-in-progress: false
 
 jobs:
   scrape:
