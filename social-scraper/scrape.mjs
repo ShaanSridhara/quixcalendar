@@ -555,6 +555,18 @@ async function main() {
     return;
   }
 
+  // One-line per-platform breakdown so a jump/drop in the dashboard's
+  // "Total engagement" number can be attributed to a specific platform from
+  // the run log, without having to read raw Firestore data.
+  const ENGAGEMENT_KEYS = ['totalViews', 'totalLikes', 'totalComments', 'totalShares', 'totalSaves'];
+  let grandTotal = 0;
+  for (const [platform, stats] of Object.entries(update)) {
+    const total = ENGAGEMENT_KEYS.reduce((s, k) => s + (stats[k] || 0), 0);
+    grandTotal += total;
+    console.log(`[summary] ${platform}: ${total} total engagement (views=${stats.totalViews ?? 'n/a'} likes=${stats.totalLikes ?? 0} comments=${stats.totalComments ?? 0} shares=${stats.totalShares ?? 0} saves=${stats.totalSaves ?? 0}) across ${stats.postCount ?? 0} post(s)`);
+  }
+  console.log(`[summary] grand total engagement across all platforms: ${grandTotal}`);
+
   if (!db) {
     console.log('FIREBASE_SERVICE_ACCOUNT_JSON not set — printing result instead of writing to Firestore:');
     console.log(JSON.stringify(update, null, 2));
