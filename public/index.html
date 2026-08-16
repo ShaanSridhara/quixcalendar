@@ -8552,9 +8552,12 @@ function renderSocialPlatformCard(platform,d){
 // TikTok has no auto-discovery (see social-scraper/scrape.mjs) — someone
 // has to paste each new video's link in by hand. Admin-only, writes to
 // Firestore social/config (read by the scraper on its next run, no repo
-// edit needed). Only TikTok needs this today; harmless to keep it generic
-// in case another platform needs the same escape hatch later.
-const SOCIAL_MANAGED_LINKS={tiktok:'tiktokVideoUrls'};
+// edit needed). Instagram's auto-discovery is confirmed (real Actions run
+// logs, 2026-08-16) to always return 0 profile-grid links from GitHub
+// Actions — even with a logged-in session cookie — so without this, new
+// Instagram posts silently stop being tracked the moment the hand-edited
+// config.json list goes stale. Same escape hatch, same reason.
+const SOCIAL_MANAGED_LINKS={tiktok:'tiktokVideoUrls',instagram:'instagramVideoUrls'};
 function renderSocialLinkManager(platform){
   const field=SOCIAL_MANAGED_LINKS[platform];
   if(!field||cu?.uid!==CHARLIE_UID)return'';

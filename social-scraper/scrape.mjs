@@ -498,11 +498,15 @@ async function main() {
     admin.initializeApp({ credential: admin.credential.cert(JSON.parse(svcJson)) });
     db = admin.firestore();
 
-    // Links added via the QuixCalendar app itself (Social page → TikTok
-    // card → "Manage TikTok links", admin-only) — merged in alongside
+    // Links added via the QuixCalendar app itself (Social page → TikTok/
+    // Instagram card → "Manage links", admin-only) — merged in alongside
     // config.json's own list rather than replacing it, deduped. TikTok has
-    // no auto-discovery (see header comment), so this is the actual way
-    // new videos get tracked day to day, without needing a repo edit.
+    // no auto-discovery (see header comment), so this is the actual way new
+    // videos get tracked day to day, without needing a repo edit. Instagram
+    // auto-discovery is attempted too, but confirmed (real Actions run
+    // logs, 2026-08-16) to return 0 profile-grid links every single time —
+    // even with IG_SESSION_ID set — so in practice it's exactly as
+    // manual-only as TikTok today, and needs the same escape hatch.
     try {
       const configSnap = await db.doc('social/config').get();
       if (configSnap.exists) {
@@ -511,6 +515,11 @@ async function main() {
           const merged = new Set([...(cfg.tiktok.videoUrls || []), ...remote.tiktokVideoUrls]);
           cfg.tiktok.videoUrls = [...merged];
           console.log(`[config] merged in ${remote.tiktokVideoUrls.length} TikTok link(s) from social/config`);
+        }
+        if (Array.isArray(remote.instagramVideoUrls) && remote.instagramVideoUrls.length) {
+          const merged = new Set([...(cfg.instagram.videoUrls || []), ...remote.instagramVideoUrls]);
+          cfg.instagram.videoUrls = [...merged];
+          console.log(`[config] merged in ${remote.instagramVideoUrls.length} Instagram link(s) from social/config`);
         }
       }
     } catch (e) {
