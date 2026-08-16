@@ -1869,24 +1869,19 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 }
 .reason-chip.selected { background: var(--q-blue-dim); color: var(--q-blue2); border-color: rgba(59,130,246,.4); }
 
-/* Attendance modal */
-.att-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--q-dark3); border-radius: var(--r); margin-bottom: 4px; }
-.att-btn {
+/* Attendance check-in — one shared look, used in the Mark Attendance modal,
+   the Attendance tab's Today card, and inline in the view-event invitee
+   list. Present is the assumed default; the button only ever marks the
+   exception (didn't show) or undoes it. */
+.att-checkin-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--q-dark3); border-radius: var(--r); margin-bottom: 4px; }
+.att-checkin-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--q-text); }
+.att-checkin-btn {
   padding: 4px 10px; font-family: var(--font-mono); font-size: 9px; font-weight: 700;
-  border-radius: 5px; cursor: pointer; border: 1px solid var(--q-border2);
-  background: transparent; color: var(--q-muted); transition: all 0.15s;
+  border-radius: 5px; cursor: pointer; border: 1px solid rgba(0,232,122,.3);
+  background: var(--q-green-dim); color: var(--q-green); transition: all 0.15s;
 }
-.att-btn.present { background: var(--q-green-dim); color: var(--q-green); border-color: rgba(0,232,122,.3); }
-.att-btn.absent { background: var(--q-red-dim); color: var(--q-red); border-color: rgba(255,59,92,.3); }
-/* Same present/absent toggle as .att-btn, sized for an inline row in the
-   view-event invitee list (renderViewPeople) instead of the bulk modal. */
-.att-btn-inline {
-  padding: 2px 7px; font-family: var(--font-mono); font-size: 9px; font-weight: 700;
-  border-radius: 5px; cursor: pointer; border: 1px solid var(--q-border2);
-  background: transparent; color: var(--q-muted); transition: all 0.15s;
-}
-.att-btn-inline.present { background: var(--q-green-dim); color: var(--q-green); border-color: rgba(0,232,122,.3); }
-.att-btn-inline.absent { background: var(--q-red-dim); color: var(--q-red); border-color: rgba(255,59,92,.3); }
+.att-checkin-btn.absent { background: var(--q-red-dim); color: var(--q-red); border-color: rgba(255,59,92,.3); }
+.att-checkin-btn-inline { padding: 2px 7px; }
 
 /* Search */
 .search-bar {
@@ -4375,6 +4370,7 @@ body.light-mode .month-grid-day:hover {
         <label class="form-label">Calendar</label>
         <select class="form-select" id="att-page-cal-select" onchange="renderAttendancePage()" style="max-width:300px"></select>
       </div>
+      <div id="att-today-card"></div>
       <div class="social-pulse-row" id="att-kpi-row"></div>
       <div class="admin-grid">
         <div class="admin-card" style="grid-column:1/-1">
@@ -4625,7 +4621,7 @@ body.light-mode .month-grid-day:hover {
     <div class="modal-title" id="att-modal-title">Mark Attendance</div>
     <div style="font-size:12px;color:var(--q-muted);margin-bottom:14px" id="att-modal-sub"></div>
     <div id="att-list"></div>
-    <div class="modal-actions"><button class="btn-secondary" onclick="closeModal('attendance-modal')">Close</button><button class="btn-primary-sm" onclick="saveAttendance()">Save</button></div>
+    <div class="modal-actions"><button class="btn-primary-sm" onclick="closeModal('attendance-modal')">Done</button></div>
   </div>
 </div>
 
@@ -5849,16 +5845,36 @@ function getEarlyLeave(ev,uid){
   const perOcc=(ev.earlyLeaveByDate||{})[key]||{};
   return uid in perOcc ? perOcc[uid] : (ev.earlyLeave||{})[uid];
 }
-// Present/absent check-in and unexcused-absence marking — same series/
-// occurrence override pattern as the RSVP accessors above. Added so a
-// recurring weekly meeting's attendance/unexcused marks stop clobbering
-// each other on the same flat map (each occurrence used to share one
-// `attendance`/`unexcusedAbsences` map with every other occurrence).
+// Present/absent check-in. Same series/occurrence override pattern as the
+// RSVP accessors above, PLUS one more rule (2026-08): if nobody's marked
+// this person one way or the other, assume present when they accepted the
+// invite. A leader only ever needs to tap the exceptions — who said they
+// were coming but didn't show — not confirm everyone who did. An explicit
+// mark (from before this rule existed, or an exception) always wins.
 function getAttendance(ev,uid){
   const key=occKey(ev);
-  if(!key) return (ev.attendance||{})[uid];
-  const perOcc=(ev.attendanceByDate||{})[key]||{};
-  return uid in perOcc ? perOcc[uid] : (ev.attendance||{})[uid];
+  const perOcc=key?(ev.attendanceByDate||{})[key]||{}:null;
+  const explicit=perOcc&&uid in perOcc?perOcc[uid]:(ev.attendance||{})[uid];
+  if(explicit)return explicit;
+  return getMyRsvp(ev,uid)==='accepted'?'present':null;
+}
+// Invitees the "who didn't show" check-in applies to: accepted, not
+// optional. Everyone else (declined/pending/optional) isn't "supposed to
+// come" in the first place, so isn't part of this list.
+function acceptedInvitees(ev){
+  return (ev.invitees||[]).filter(p=>p.attendance!=='optional'&&getMyRsvp(ev,p.uid)==='accepted');
+}
+// One row, one button, same everywhere attendance gets marked (the
+// Attendance tab's Today card, the Mark Attendance modal, and anywhere
+// else) — tap once to flag a no-show, tap again to undo. Nothing to mark
+// for everyone else; presence is the assumed default.
+function attendanceCheckinRow(ev,p){
+  const absent=getAttendance(ev,p.uid)==='absent';
+  const occArg=ev._occurrenceDate||'';
+  return `<div class="att-checkin-row">
+    <span class="att-checkin-name">${escHtml(p.name||p.displayName||'')}</span>
+    <button onclick="quickSetAttendance('${ev.id}','${p.uid}','${absent?'':'absent'}','${occArg}')" class="att-checkin-btn${absent?' absent':''}">${absent?"✗ Didn't show":'Here'}</button>
+  </div>`;
 }
 function getUnexcused(ev,uid){
   const key=occKey(ev);
@@ -6937,7 +6953,10 @@ function openViewEvent(ev){
   const leBtn=document.getElementById('view-leaveearly-time-btn');
   leBtn.style.display=showLeaveEarly?'block':'none';
   if(showLeaveEarly){const _myEarlyLeave=getEarlyLeave(ev,cu?.uid);leBtn.textContent=_myEarlyLeave?`🕒 Leaving @ ${fmt12(_myEarlyLeave.time)}`:'Leaving Early?';}
-  const showAttBtn=ev.type==='meeting'&&(isOwn||isAdm)&&daysUntil(ev.date)<0&&(ev.invitees||[]).length>0;
+  // Was gated on daysUntil<0 (the day AFTER the meeting) — meant nobody
+  // could take attendance until a full day later. Meeting-started is the
+  // actually-correct gate: available same-day, the moment it begins.
+  const showAttBtn=ev.type==='meeting'&&(isOwn||isAdm)&&_startedV&&(ev.invitees||[]).length>0;
   document.getElementById('view-attendance-btn').style.display=showAttBtn?'block':'none';
   document.getElementById('view-modal').classList.add('open');
 }
@@ -7037,19 +7056,16 @@ function renderViewPeople(){
       if(!ux&&declineCat!=='sick')adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark','${ev.calendarId||''}','${occArg}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
       else if(ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse','${ev.calendarId||''}','${occArg}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
     }
-    // Present/Absent: one cycling toggle (unmarked → Present → Absent →
-    // unmarked), folded inline here rather than only in the separate bulk
-    // Attendance modal, so a leader sees RSVP intent and actual check-in
-    // together. Kept to a single button per row instead of two separate
-    // Present/Absent buttons (too many buttons per row otherwise, review
-    // 2026-08-16) — click cycles through the three states.
+    // Attendance check-in, same one-button model as the Attendance tab and
+    // the Mark Attendance modal (present is the assumed default once
+    // accepted — this only ever needs a tap for the exceptions). Only
+    // shown for people this check-in actually applies to: accepted,
+    // non-optional, meeting already started.
     let attToggle='';
-    if(isAdm&&!isTask&&_meetingStarted){
-      const att=getAttendance(ev,p.uid);
+    if(isAdm&&!isTask&&_meetingStarted&&rsvp==='accepted'&&p.attendance!=='optional'){
+      const absent=getAttendance(ev,p.uid)==='absent';
       const occArg=ev._occurrenceDate||'';
-      const next=att==='present'?'absent':att==='absent'?'':'present';
-      const label=att==='present'?'✓ Present':att==='absent'?'✗ Absent':'Mark attendance';
-      attToggle=`<button onclick="quickSetAttendance('${ev.id}','${p.uid}','${next}','${occArg}');event.stopPropagation()" class="att-btn-inline${att==='present'?' present':att==='absent'?' absent':''}">${label}</button>`;
+      attToggle=`<button onclick="quickSetAttendance('${ev.id}','${p.uid}','${absent?'':'absent'}','${occArg}');event.stopPropagation()" class="att-checkin-btn att-checkin-btn-inline${absent?' absent':''}">${absent?"✗ Didn't show":'Here'}</button>`;
     }
     const drLabel=rsvp==='leaving_early'?'Departure Note':'Reason';
     row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${sickB} ${uxB} ${elB} ${adminBtn} ${attToggle}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:${rsvp==='leaving_early'?'#a78bfa':'var(--q-red)'}">${drLabel}:</strong> ${escHtml(dr)}</div>`:''}`;
@@ -8497,13 +8513,34 @@ window.deleteSubsection=async(calId,name)=>{
   const subs=(cal.subsections||[]).filter(s=>s!==name);await updateDoc(doc(db,'calendars',calId),{subsections:subs});toast(`"${name}" removed`);renderAdminPage();
 };
 
-// ── Profile ────────────────────────────────────────────────────────────────
 // ── Attendance Tracker (admin/leader) ────────────────────────────────────
-// An analysis view — attendance rate over time, per-member history,
-// per-meeting drill-down — computed client-side from the same events data
-// the Admin page's Absences card reads (no new Firestore reads, no Cloud
-// Function). Absences stays an action list ("mark unexcused now"); this is
-// for the bigger picture over a season.
+// The primary way attendance gets taken: open this tab on meeting day, tap
+// whoever didn't show, done — everyone who accepted is assumed present
+// (see getAttendance/acceptedInvitees/attendanceCheckinRow). Below the
+// Today card is the season-wide picture: rate over time, per-member
+// history, per-meeting drill-down — all computed client-side from the same
+// event data (no new Firestore reads, no Cloud Function).
+function renderAttendanceTodayCard(){
+  const container=document.getElementById('att-today-card');
+  if(!container)return;
+  const calId=document.getElementById('att-page-cal-select')?.value;
+  const attCal=[...calendars,...sharedCalendars].find(c=>c.id===calId);
+  if(!attCal){container.innerHTML='';return;}
+  const todayStr=getTodayStr();
+  const todayStart=new Date(todayStr+'T00:00:00'),todayEnd=new Date(todayStr+'T23:59:59');
+  const todaysMeetings=expandRec(events.filter(e=>e.type==='meeting'&&e.calendarId===attCal.id),todayStart,todayEnd)
+    .filter(ev=>(ev._occurrenceDate||ev.date)===todayStr);
+  if(!todaysMeetings.length){container.innerHTML='';return;}
+  container.innerHTML=todaysMeetings.map(ev=>{
+    const people=acceptedInvitees(ev);
+    const rows=people.length?people.map(p=>attendanceCheckinRow(ev,p)).join(''):'<div style="font-size:12px;color:var(--q-muted2)">Nobody has accepted this meeting yet</div>';
+    return `<div class="admin-card" style="border-color:rgba(0,232,122,.35);margin-bottom:20px">
+      <div class="admin-card-title" style="color:var(--q-green)">📍 Today · ${escHtml(ev.title)}</div>
+      <div style="font-size:11px;color:var(--q-muted2);margin-bottom:10px">Tap anyone who didn't show up — everyone else is assumed present</div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
 async function renderAttendancePage(){
   const sel=document.getElementById('att-page-cal-select');
   if(!sel)return;
@@ -8512,6 +8549,7 @@ async function renderAttendancePage(){
   const allCals=[...calendars,...sharedCalendars];
   const leadCals=allCals.filter(cal=>getRolesForUid(cal.roles||{},cu?.uid).length>0);
   if(!leadCals.length){
+    document.getElementById('att-today-card').innerHTML='';
     document.getElementById('att-kpi-row').innerHTML='';
     document.getElementById('att-trend-chart').innerHTML='<div style="font-size:12px;color:var(--q-muted2)">You have no leadership role assigned. Ask your Captain to assign you a role in the Admin panel.</div>';
     document.getElementById('att-member-table').innerHTML='';
@@ -8522,6 +8560,7 @@ async function renderAttendancePage(){
   if(prevCalId&&leadCals.find(c=>c.id===prevCalId))sel.value=prevCalId;
   const attCal=allCals.find(c=>c.id===sel.value)||leadCals[0];if(!attCal)return;
 
+  renderAttendanceTodayCard();
   const members=await resolveCalMembers(attCal);
 
   // Past meeting occurrences over a 6-month lookback — enough for a season
@@ -9607,7 +9646,7 @@ window.runSearch=(q)=>{
 // Occurrence-aware since 2026-08 (see getAttendance/occKey): a recurring
 // meeting's attendance is keyed per occurrence date, same rsvpByDate-style
 // override pattern, so marking week 3 no longer overwrites week 1's record.
-let attendanceState={};
+let attendanceModalEvId=null;
 // One-tap entry point from the Home page's today-highlighted meeting row —
 // only has evId/occDate as strings (inline onclick can't reference the
 // loop's expanded-occurrence object directly), so re-derive the correct
@@ -9617,60 +9656,27 @@ window.quickOpenAttendance=(evId,occDate)=>{
   const ev=occDate?{...raw,date:occDate,_occurrenceDate:occDate}:raw;
   openAttendanceModal(ev,occDate||null);
 };
-window.openAttendanceModal=async(ev,occDate=null)=>{
+// One list, one button per person, writes immediately (no separate Save
+// step — there's nothing to stage, each tap is already the final answer).
+// Only lists people who accepted; everyone else isn't part of this check-in.
+window.openAttendanceModal=(ev,occDate=null)=>{
   if(!ev||ev.type!=='meeting')return;
-  const key=occKey(ev)||occDate; // occKey already resolves ev._occurrenceDate for recurring events
-  const records={};
-  (ev.invitees||[]).forEach(p=>{records[p.uid]=getAttendance(ev,p.uid);});
-  attendanceState={evId:ev.id,occKey:key,records};
-  document.getElementById('att-modal-title').textContent=`Attendance: ${escHtml(ev.title)}`;
+  attendanceModalEvId=ev.id;
+  document.getElementById('att-modal-title').textContent=escHtml(ev.title);
   const d=new Date((ev._occurrenceDate||ev.date)+'T12:00:00');
-  document.getElementById('att-modal-sub').textContent=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
-  const listEl=document.getElementById('att-list');listEl.innerHTML='';
-  (ev.invitees||[]).forEach(p=>{
-    const cur=attendanceState.records[p.uid]||'unknown';
-    const row=document.createElement('div');row.className='att-row';
-    row.innerHTML=`<div style="flex:1;font-size:13px;font-weight:600;color:var(--q-text)">${escHtml(p.name||p.displayName||"")}</div>
-      <button class="att-btn${cur==='present'?' present':''}" onclick="setAtt('${p.uid}','present')">Present</button>
-      <button class="att-btn${cur==='absent'?' absent':''}" onclick="setAtt('${p.uid}','absent')">Absent</button>`;
-    row.id=`att-row-${p.uid}`;
-    listEl.appendChild(row);
-  });
+  document.getElementById('att-modal-sub').textContent=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · tap anyone who didn\'t show up — everyone else is assumed present';
+  renderAttendanceModalList(ev);
   document.getElementById('attendance-modal').classList.add('open');
 };
-window.setAtt=(uid,status)=>{
-  attendanceState.records[uid]=status;
-  const row=document.getElementById(`att-row-${uid}`);
-  if(!row)return;
-  const btns=row.querySelectorAll('.att-btn');
-  btns.forEach(b=>b.classList.remove('present','absent'));
-  (status==='present'?btns[0]:btns[1])?.classList.add(status);
-};
-window.saveAttendance=async()=>{
-  if(!attendanceState.evId)return;
-  const key=attendanceState.occKey;
-  const updates={};
-  Object.entries(attendanceState.records).forEach(([uid,status])=>{
-    if(!status)return; // 'unknown' — nothing recorded yet, don't write a value
-    if(key)updates[`attendanceByDate.${key}.${uid}`]=status;
-    else updates[`attendance.${uid}`]=status;
-  });
-  await updateDoc(doc(db,'events',attendanceState.evId),updates);
-  const _ate=events.find(e=>e.id===attendanceState.evId);
-  if(_ate){
-    Object.entries(attendanceState.records).forEach(([uid,status])=>{
-      if(!status)return;
-      if(key){if(!_ate.attendanceByDate)_ate.attendanceByDate={};if(!_ate.attendanceByDate[key])_ate.attendanceByDate[key]={};_ate.attendanceByDate[key][uid]=status;}
-      else{if(!_ate.attendance)_ate.attendance={};_ate.attendance[uid]=status;}
-    });
-  }
-  toast('Attendance saved');closeModal('attendance-modal');
-  if(viewingEv?.id===attendanceState.evId)renderViewPeople();
-};
-// Single-row present/absent write from the view-event invitee list
-// (renderViewPeople) — same occurrence-aware write as saveAttendance, just
-// for one person at a time instead of the bulk modal. status='' clears the
-// mark back to unset (the third state in the row's cycling toggle).
+function renderAttendanceModalList(ev){
+  const listEl=document.getElementById('att-list');if(!listEl)return;
+  const people=acceptedInvitees(ev);
+  listEl.innerHTML=people.length?people.map(p=>attendanceCheckinRow(ev,p)).join(''):'<div style="font-size:12px;color:var(--q-muted2)">Nobody has accepted this meeting yet</div>';
+}
+// Single-row write, reused everywhere attendance gets marked (the bulk
+// modal, the Attendance tab's Today card, and anywhere else) — occurrence-
+// aware like saveAttendance/rsvpEvent. status='' clears an exception back
+// to the assumed-present default.
 window.quickSetAttendance=async(evId,uid,status,occDate)=>{
   const ev=events.find(e=>e.id===evId);if(!ev)return;
   const val=status||null;
@@ -9680,6 +9686,8 @@ window.quickSetAttendance=async(evId,uid,status,occDate)=>{
   if(key){if(!ev.attendanceByDate)ev.attendanceByDate={};if(!ev.attendanceByDate[key])ev.attendanceByDate[key]={};ev.attendanceByDate[key][uid]=val;}
   else{if(!ev.attendance)ev.attendance={};ev.attendance[uid]=val;}
   if(viewingEv?.id===evId)renderViewPeople();
+  if(attendanceModalEvId===evId&&document.getElementById('attendance-modal')?.classList.contains('open'))renderAttendanceModalList(ev);
+  if(currentPage==='attendance')renderAttendanceTodayCard();
 };
 
 // ── Subsection lead home dashboard injection ────────────────────────────────
