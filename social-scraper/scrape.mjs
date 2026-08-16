@@ -133,11 +133,12 @@ async function fetchYouTubeStats(cfg, cutoffMs) {
       views,
       likes,
       date: published.slice(0, 10),
+      publishedAt: published, // full ISO timestamp incl. time-of-day — used for the best-time-to-post insight
       url: permalink || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : null),
       isShort,
     });
   }
-  recentVideos.sort((a, b) => (a.date < b.date ? 1 : -1));
+  recentVideos.sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
 
   return { connected: true, totalViews, totalLikes, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
 }
@@ -153,6 +154,7 @@ async function fetchTikTokVideo(url) {
   const item = data?.__DEFAULT_SCOPE__?.['webapp.video-detail']?.itemInfo?.itemStruct;
   if (!item) throw new Error(`No video data in TikTok blob for ${url}`);
   const stats = item.statsV2 || item.stats || {};
+  const publishedAt = item.createTime ? new Date(Number(item.createTime) * 1000).toISOString() : null;
   return {
     title: (item.desc || 'Untitled').slice(0, 100),
     thumbnail: item.video?.cover || item.video?.originCover || item.video?.dynamicCover || null,
@@ -161,7 +163,8 @@ async function fetchTikTokVideo(url) {
     shares: Number(stats.shareCount || 0),
     comments: Number(stats.commentCount || 0),
     saves: Number(stats.collectCount || 0),
-    date: item.createTime ? new Date(Number(item.createTime) * 1000).toISOString().slice(0, 10) : null,
+    date: publishedAt ? publishedAt.slice(0, 10) : null,
+    publishedAt, // full ISO timestamp incl. time-of-day — used for the best-time-to-post insight
     url,
   };
 }
@@ -192,7 +195,7 @@ async function fetchTikTokStats(cfg, cutoffMs) {
       console.error(`[tiktok] failed for ${url}:`, e.message);
     }
   }
-  recentVideos.sort((a, b) => (a.date < b.date ? 1 : -1));
+  recentVideos.sort((a, b) => ((a.publishedAt || a.date) < (b.publishedAt || b.date) ? 1 : -1));
   return { connected: true, totalViews, totalLikes, totalComments, totalShares, totalSaves, postCount: recentVideos.length, recentVideos: recentVideos.slice(0, 10) };
 }
 
@@ -261,13 +264,14 @@ async function fetchInstagramStatsViaAPI(accessToken, businessAccountId, cutoffM
         likes,
         comments,
         date: (media.timestamp || '').slice(0, 10),
+        publishedAt: media.timestamp || null, // full ISO timestamp incl. time-of-day — used for the best-time-to-post insight
         url: media.permalink || null,
       });
     }
     url = hitCutoff ? null : (json.paging?.next || null);
   }
 
-  recentVideos.sort((a, b) => (a.date < b.date ? 1 : -1));
+  recentVideos.sort((a, b) => ((a.publishedAt || a.date) < (b.publishedAt || b.date) ? 1 : -1));
   return {
     connected: true,
     totalViews: anyViews ? totalViews : null,
@@ -385,13 +389,14 @@ async function fetchInstagramStats(cfg, cutoffMs) {
           likes: likeMatch ? parseAbbreviatedNumber(likeMatch[1]) : null,
           comments: commentMatch ? parseAbbreviatedNumber(commentMatch[1]) : null,
           date: datetime ? datetime.slice(0, 10) : null,
+          publishedAt: datetime, // full ISO timestamp incl. time-of-day — used for the best-time-to-post insight
           url,
         });
       } catch (e) {
         console.error(`[instagram] failed for ${url}:`, e.message);
       }
     }
-    recentVideos.sort((a, b) => (a.date < b.date ? 1 : -1));
+    recentVideos.sort((a, b) => ((a.publishedAt || a.date) < (b.publishedAt || b.date) ? 1 : -1));
     if (!recentVideos.length) {
       console.log('[instagram] no posts returned data — check the handle in config.json is correct and public');
       return null;
@@ -474,6 +479,44 @@ async function main() {
   update.updatedAt = admin.firestore.FieldValue.serverTimestamp();
   await db.doc('social/summary').set(update, { merge: true });
   console.log('Wrote updated stats for:', Object.keys(update).filter((k) => k !== 'updatedAt').join(', '));
+
+  // Daily growth history — one doc per day (top-level `socialHistory`
+  // collection, same read-only-to-clients lockdown as social/summary),
+  // overwritten by every run that same day so re-runs don't create
+  // duplicate snapshots. Two levels: account totals (for the growth chart)
+  // and a per-post snapshot (so an individual video's view count climbing
+  // day over day is visible, and so the best-time-to-post insight has
+  // exact publish timestamps to bucket once enough days accumulate).
+  const today = new Date().toISOString().slice(0, 10);
+  const historyUpdate = { recordedAt: admin.firestore.FieldValue.serverTimestamp() };
+  for (const [platform, stats] of Object.entries(update)) {
+    if (platform === 'updatedAt') continue;
+    const posts = {};
+    for (const v of stats.recentVideos || []) {
+      const key = shortHash(v.url || v.title || '');
+      if (!key) continue;
+      posts[key] = {
+        views: v.views ?? null, likes: v.likes ?? null, comments: v.comments ?? null,
+        shares: v.shares ?? null, saves: v.saves ?? null,
+        date: v.date || null, publishedAt: v.publishedAt || null, url: v.url || null,
+      };
+    }
+    historyUpdate[platform] = {
+      totalViews: stats.totalViews ?? null, totalLikes: stats.totalLikes ?? null,
+      totalComments: stats.totalComments ?? null, totalShares: stats.totalShares ?? null,
+      totalSaves: stats.totalSaves ?? null, postCount: stats.postCount ?? 0, posts,
+    };
+  }
+  await db.doc(`socialHistory/${today}`).set(historyUpdate, { merge: true });
+  console.log(`Wrote history snapshot for ${today}`);
+}
+
+// Firestore map keys can't contain . # $ [ ] / — post URLs often do, so
+// derive a short, stable, safe key from the URL instead of using it as-is.
+function shortHash(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
+  return 'p' + (h >>> 0).toString(36);
 }
 
 main().catch((e) => {

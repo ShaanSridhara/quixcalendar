@@ -242,6 +242,13 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update, delete: if false;
     }
+    // One doc per day (growth-over-time snapshots for the Social page's
+    // charts) — same lockdown as social/summary, written only by the
+    // scraper's Admin SDK connection.
+    match /socialHistory/{docId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if false;
+    }
 
     // ── Default Deny ─────────────────────────────────────────────────────────
     match /{document=**} {
