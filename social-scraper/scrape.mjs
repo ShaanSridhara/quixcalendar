@@ -356,11 +356,20 @@ async function fetchInstagramStats(cfg, cutoffMs) {
           `a[href^="/${handle}/reel/"]`,
           (els) => els.map((e) => ({ href: e.href, text: e.innerText.trim() }))
         );
+        let mergedFromReelsTab = 0;
         for (const item of items) {
+          const code = instagramShortcode(item.href);
+          // The Reels tab is the one page guaranteed to list every reel —
+          // merge its URLs into postUrls too, not just the view counts read
+          // off it below. Without this, a reel that hadn't yet surfaced in
+          // the mixed profile grid (which only gets a 2.5s settle window
+          // before we read it) was silently never visited at all, so it
+          // never got a date/likes/comments and just didn't show up.
+          if (!postUrls.has(code)) { postUrls.set(code, item.href); mergedFromReelsTab++; }
           const m = /^([\d,.]+[KMB]?)$/.exec(item.text);
-          if (m) reelViews.set(instagramShortcode(item.href), parseAbbreviatedNumber(m[1]));
+          if (m) reelViews.set(code, parseAbbreviatedNumber(m[1]));
         }
-        console.log(`[instagram] read ${reelViews.size} view count(s) from the Reels tab`);
+        console.log(`[instagram] read ${reelViews.size} view count(s) from the Reels tab, merged ${mergedFromReelsTab} reel URL(s) not already found via the profile grid`);
         if (items.length && !reelViews.size) {
           console.log(`[instagram] Reels tab found ${items.length} reel(s) but none matched the expected view-count text — sample: "${items[0]?.text}"`);
         }
@@ -377,10 +386,18 @@ async function fetchInstagramStats(cfg, cutoffMs) {
         // photo posts do (confirmed: absent at 1200ms, present by 3200ms on
         // a real reel; photo posts had it immediately) — wait for the
         // element itself rather than guessing a fixed delay long enough for
-        // the slowest case. Missing entirely (not just slow) after 6s is a
-        // real "couldn't find it", not a timing issue — falls through to null.
-        await page.waitForSelector('time', { timeout: 6000 }).catch(() => null);
-        const datetime = await page.$eval('time', (el) => el.getAttribute('datetime')).catch(() => null);
+        // the slowest case. A GitHub Actions runner is slower and more
+        // variable than the dev machine that 3200ms number came from, so
+        // this waits longer (10s) and, if the element still isn't there,
+        // reloads once and gives it a second try before giving up — a
+        // single slow tick shouldn't cost the post its timestamp entirely.
+        let datetime = null;
+        for (let attempt = 0; attempt < 2 && !datetime; attempt++) {
+          if (attempt > 0) await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => null);
+          await page.waitForSelector('time', { timeout: 10000 }).catch(() => null);
+          datetime = await page.$eval('time', (el) => el.getAttribute('datetime')).catch(() => null);
+        }
+        if (!datetime) console.log(`[instagram] no <time> found for ${url} after 2 attempts — this post will be missing its date/time`);
         if (datetime && Date.parse(datetime) < cutoffMs) continue;
         const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch(() => null);
         const thumbnail = await page.$eval('meta[property="og:image"]', (el) => el.content).catch(() => null);
