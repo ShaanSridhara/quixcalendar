@@ -8563,9 +8563,12 @@ async function renderAttendancePage(){
   renderAttendanceTodayCard();
   const members=await resolveCalMembers(attCal);
 
-  // Past meeting occurrences over a 6-month lookback — enough for a season
-  // without expanding every event ever created.
-  const rs=new Date();rs.setMonth(rs.getMonth()-6);
+  // Tracking starts today, not from some lookback into the past — meetings
+  // before today were never actually checked off, so counting them would
+  // let the assumed-present default silently claim perfect attendance for
+  // meetings nobody was tracking. Every stat below only reflects meetings
+  // from the day this was turned on, onward.
+  const rs=new Date(getTodayStr()+'T00:00:00');
   const re=new Date();re.setDate(re.getDate()+1);
   const occs=expandRec(events.filter(e=>e.type==='meeting'&&e.calendarId===attCal.id),rs,re)
     .filter(ev=>hasMeetingStarted(ev,occDateFor(ev,ev._occurrenceDate)))
