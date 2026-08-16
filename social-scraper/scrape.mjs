@@ -417,6 +417,7 @@ async function fetchInstagramStats(cfg, cutoffMs) {
         if (!datetime) console.log(`[instagram] no <time> found for ${url} after 2 attempts — this post will be missing its date/time`);
         if (datetime && Date.parse(datetime) < cutoffMs) continue;
         const desc = await page.$eval('meta[property="og:description"]', (el) => el.content).catch(() => null);
+        if (!desc) console.log(`[instagram] no og:description found for ${url} — this post will show as "Untitled"`);
         const thumbnail = await page.$eval('meta[property="og:image"]', (el) => el.content).catch(() => null);
         const likeMatch = desc && /^([\d,.]+[KMB]?) [Ll]ikes/.exec(desc);
         const commentMatch = desc && /,\s*([\d,.]+[KMB]?) [Cc]omments/.exec(desc);
