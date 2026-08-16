@@ -1247,6 +1247,11 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .upcoming-row:last-child { border-bottom: none; }
 .upcoming-row:hover { background: var(--q-glass2); transform: translateX(3px); }
 .upcoming-row:active { transform: translateX(3px) scale(0.99); }
+/* Today's meeting stands out from the rest of this week's list — the whole
+   point of narrowing this card to one week is finding today's meeting fast
+   at the start of it. */
+.upcoming-today { background: rgba(0,232,122,.08); border: 1px solid rgba(0,232,122,.3); border-radius: var(--r); }
+.upcoming-today:hover { background: rgba(0,232,122,.14); }
 
 .upcoming-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .upcoming-title { font-size: 12px; font-weight: 600; color: var(--q-text); }
@@ -1791,7 +1796,7 @@ body.light-mode .theme-toggle::after { transform: translateX(17px); background: 
 .admin-header { font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
 .admin-sub { color: var(--q-muted); font-size: 13px; margin-bottom: 26px; }
 
-.admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 @media(max-width:1000px){ .admin-grid { grid-template-columns: 1fr; } }
 
 /* ── Social — platform card grid ──────────────────────────────────── */
@@ -3960,7 +3965,7 @@ body.light-mode .month-grid-day:hover {
           <div class="home-card" id="home-lead-card" style="display:none;margin-top:20px"><div class="home-card-title">My Section's Tasks</div><div id="home-lead-tasks"></div></div>
         </div>
         <div>
-          <div class="home-card" style="margin-bottom:20px"><div class="home-card-title">Upcoming Meetings (14 days)</div><div id="home-upcoming"></div></div>
+          <div class="home-card" style="margin-bottom:20px"><div class="home-card-title">Upcoming Meetings (This Week)</div><div id="home-upcoming"></div></div>
           <div class="home-card" style="margin-bottom:20px"><div class="home-card-title" style="color:#a78bfa">Upcoming Events (30 days)</div><div id="home-events"></div></div>
           <div class="home-card" id="home-managed-tasks-card" style="display:none"><div class="home-card-title">Tasks I'm Managing</div><div id="home-managed-tasks"></div></div>
         </div>
@@ -4292,7 +4297,6 @@ body.light-mode .month-grid-day:hover {
       <div class="admin-grid">
         <div class="admin-card"><div class="admin-card-title">Members &amp; Roles</div><div id="admin-members-list"></div></div>
         <div class="admin-card"><div class="admin-card-title">Subsections</div><div style="font-size:11px;color:var(--q-muted2);margin-bottom:10px">Group members into teams</div><div id="admin-subsections-list"></div><div style="display:flex;gap:7px;margin-top:10px"><input class="form-input" id="new-subsection-input" type="text" placeholder="New subsection name" style="flex:1"/><button class="btn-primary-sm" onclick="addSubsection()">Add</button></div></div>
-        <div class="admin-card"><div class="admin-card-title">Absences</div><div style="font-size:11px;color:var(--q-muted2);margin-bottom:10px">Mark or reverse unexcused absences.</div><div id="admin-absences-list"></div></div>
         <div class="admin-card"><div class="admin-card-title">Leadership Roles</div><div style="font-size:11px;color:var(--q-muted2);margin-bottom:10px">Assign one person per role. Leaders have full admin access.</div><div id="admin-roles-section"></div></div>
       </div>
     </div>
@@ -6460,20 +6464,24 @@ function renderHomePage(){
   if(myRole)roleRow.innerHTML=`Your role: <span class="role-badge">${escHtml(displayRole(myRole))}</span>`;
   else roleRow.textContent='';
 
-  const now=getNow(),soon=new Date(now);soon.setDate(soon.getDate()+14);
+  const now=getNow(),soon=new Date(now);soon.setDate(now.getDate()+(6-now.getDay())); // through Saturday of this week
   const todayStr=getTodayStr(),soonStr=`${soon.getFullYear()}-${String(soon.getMonth()+1).padStart(2,'0')}-${String(soon.getDate()).padStart(2,'0')}`;
   const myUid=cu?.uid,myEmail=(cu?.email||'').toLowerCase();
 
-  // Upcoming meetings — expand recurring meetings so each occurrence in the
-  // window is its own row with its own RSVP state (see getMyRsvp/rsvpByDate)
+  // Upcoming meetings — this week only (today through Saturday), so the
+  // list a leader sees at the start of a meeting is short and immediately
+  // actionable instead of scrolling a 2-week window. Expand recurring
+  // meetings so each occurrence in the window is its own row with its own
+  // RSVP state (see getMyRsvp/rsvpByDate).
   const upEl=document.getElementById('home-upcoming');upEl.innerHTML='';
   const upcoming=expandRec(events,now,soon).filter(e=>e.type==='meeting'&&!e.completed&&(e.isShared?enabledCalIds.has(e.sharedCalId):(e._invited||enabledCalIds.has(e.calendarId)))).filter(e=>e.date>=todayStr&&e.date<=soonStr).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,8);
-  if(!upcoming.length)upEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">No upcoming meetings in 2 weeks</div></div>';
+  if(!upcoming.length)upEl.innerHTML='<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">No meetings this week</div></div>';
   else upcoming.forEach(ev=>{
     const cal=calendars.find(c=>c.id===ev.calendarId);
     const color=ev.color||cal?.color||'#2979ff';
     const d=new Date(ev.date+'T12:00:00');
-    const row=document.createElement('div');row.className='upcoming-row';
+    const isToday=ev.date===todayStr;
+    const row=document.createElement('div');row.className='upcoming-row'+(isToday?' upcoming-today':'');
     const myRsvpU=getMyRsvp(ev,myUid);
     const isInvitedU=(ev.invitees||[]).some(p=>p.uid===myUid||p.email===myEmail);
     const myInvU=(ev.invitees||[]).find(p=>p.uid===myUid||p.email===myEmail);
@@ -6505,7 +6513,11 @@ function renderHomePage(){
         }
       }
     }
-    row.innerHTML=`<div class="upcoming-dot" style="background:${escColor(color)}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div>${rsvpHtml}`;
+    // One-tap attendance for today's meeting — the whole point of
+    // highlighting it is not having to click through Calendar → open event
+    // → Mark Attendance in the middle of running the meeting.
+    const attBtn=(isToday&&isAdmin(ev.calendarId))?`<button class="btn-primary-sm" style="font-size:10px;padding:4px 9px;flex-shrink:0" onclick="event.stopPropagation();quickOpenAttendance('${ev.id}','${ev._occurrenceDate||''}')">Take Attendance</button>`:'';
+    row.innerHTML=`<div class="upcoming-dot" style="background:${escColor(color)}"></div><div style="flex:1"><div class="upcoming-title">${escHtml(ev.title)}${isToday?' <span style="font-size:9px;font-weight:700;color:var(--q-green);vertical-align:1px">TODAY</span>':''}</div><div class="upcoming-meta">${d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}${ev.time?' · '+fmt12(ev.time):''}</div></div>${attBtn}${rsvpHtml}`;
     row.onclick=()=>openViewEvent(ev);upEl.appendChild(row);
   });
 
@@ -6910,7 +6922,10 @@ function openViewEvent(ev){
   const showAccept=_rsvpableType&&myInvV&&myRsvpV!=='accepted'&&!_startedV;
   document.getElementById('view-accept-btn').style.display=showAccept?'block':'none';
   const _daysToEv=daysUntil(_occV);
-  const showLeaveEarlyBtn=_rsvpableType&&myInvV&&myRsvpV!=='leaving_early'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
+  // Once already accepted, "Leaving Early?" below (an exact time/note) is
+  // the relevant follow-up action, not this quick RSVP-response option —
+  // showing both together was confusing (caught in review 2026-08-16).
+  const showLeaveEarlyBtn=_rsvpableType&&myInvV&&myRsvpV!=='leaving_early'&&myRsvpV!=='accepted'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
   const leaveEarlyEl=document.getElementById('view-leaveearly-quick-btn');
   if(leaveEarlyEl)leaveEarlyEl.style.display=showLeaveEarlyBtn?'block':'none';
   const showDeclineBtn=_rsvpableType&&myInvV&&myInvV.attendance!=='optional'&&myRsvpV!=='declined'&&!_startedV&&(_daysToEv<0||_daysToEv>=3);
@@ -7020,16 +7035,19 @@ function renderViewPeople(){
       if(!ux&&declineCat!=='sick')adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark','${ev.calendarId||''}','${occArg}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
       else if(ux)adminBtn=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse','${ev.calendarId||''}','${occArg}');event.stopPropagation()" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
     }
-    // Present/Absent: folded inline here (rather than only in the separate
-    // bulk Attendance modal) so a leader sees RSVP intent and actual
-    // check-in together — "declined (sick), never marked absent" vs.
-    // "accepted, no-showed" are very different rows, previously only
-    // visible by opening two separate modals.
+    // Present/Absent: one cycling toggle (unmarked → Present → Absent →
+    // unmarked), folded inline here rather than only in the separate bulk
+    // Attendance modal, so a leader sees RSVP intent and actual check-in
+    // together. Kept to a single button per row instead of two separate
+    // Present/Absent buttons (too many buttons per row otherwise, review
+    // 2026-08-16) — click cycles through the three states.
     let attToggle='';
     if(isAdm&&!isTask&&_meetingStarted){
       const att=getAttendance(ev,p.uid);
       const occArg=ev._occurrenceDate||'';
-      attToggle=`<button onclick="quickSetAttendance('${ev.id}','${p.uid}','present','${occArg}');event.stopPropagation()" class="att-btn-inline${att==='present'?' present':''}">Present</button><button onclick="quickSetAttendance('${ev.id}','${p.uid}','absent','${occArg}');event.stopPropagation()" class="att-btn-inline${att==='absent'?' absent':''}">Absent</button>`;
+      const next=att==='present'?'absent':att==='absent'?'':'present';
+      const label=att==='present'?'✓ Present':att==='absent'?'✗ Absent':'Mark attendance';
+      attToggle=`<button onclick="quickSetAttendance('${ev.id}','${p.uid}','${next}','${occArg}');event.stopPropagation()" class="att-btn-inline${att==='present'?' present':att==='absent'?' absent':''}">${label}</button>`;
     }
     const drLabel=rsvp==='leaving_early'?'Departure Note':'Reason';
     row.innerHTML=`<span style="color:var(--q-text);font-weight:600;min-width:90px">${escHtml(p.name||p.displayName||'')}</span>${attBadge} ${rsvpB} ${sickB} ${uxB} ${elB} ${adminBtn} ${attToggle}${hasDr&&!isOptOut?`<div class="decline-reason-box"><strong style="color:${rsvp==='leaving_early'?'#a78bfa':'var(--q-red)'}">${drLabel}:</strong> ${escHtml(dr)}</div>`:''}`;
@@ -8252,17 +8270,23 @@ window.leaveCalendar=async(calId)=>{
 // `users` docs, not the calendar doc, so this always needs one fetch per
 // member. Shared by renderAdminPage's Members card and renderAttendancePage.
 async function resolveCalMembers(cal){
-  const members=[];
   const calOwnerUid=cal.uid||cu.uid;
-  const ownerSnap=await getDoc(doc(db,'users',calOwnerUid));
+  const otherUids=(cal.members||[]).filter(uid=>uid!==cal.uid);
+  // One round trip per member fetched sequentially was the single biggest
+  // contributor to Admin/Attendance page load time on a team with a full
+  // roster (each getDoc waited for the previous one) — fetch them all at
+  // once instead. Promise.all preserves array order regardless of which
+  // resolves first, so member ordering is unchanged.
+  const [ownerSnap,...memberSnaps]=await Promise.all([
+    getDoc(doc(db,'users',calOwnerUid)),
+    ...otherUids.map(uid=>getDoc(doc(db,'users',uid)).catch(()=>null))
+  ]);
+  const members=[];
   if(ownerSnap.exists())members.push({uid:cal.uid,displayName:ownerSnap.data().displayName||'Owner',email:ownerSnap.data().email||'',subsection:cal.memberSubsections?.[cal.uid]||''});
-  for(const uid of (cal.members||[])){
-    if(uid===cal.uid)continue;
-    try{
-      const s=await getDoc(doc(db,'users',uid));
-      if(s.exists())members.push({uid,displayName:s.data().displayName||s.data().email?.split('@')[0]||'User',email:s.data().email||'',subsection:cal.memberSubsections?.[uid]||''});
-    }catch(e){}
-  }
+  otherUids.forEach((uid,i)=>{
+    const s=memberSnaps[i];
+    if(s&&s.exists())members.push({uid,displayName:s.data().displayName||s.data().email?.split('@')[0]||'User',email:s.data().email||'',subsection:cal.memberSubsections?.[uid]||''});
+  });
   return members;
 }
 async function renderAdminPage(){
@@ -8281,17 +8305,23 @@ async function renderAdminPage(){
     ...calendars.map(c=>c.id),
     ...sharedCalendars.map(c=>c.id)
   ]);
-  for(const calId of allCalIds){
+  // Fetched sequentially before (one round trip per calendar, waiting for
+  // each to finish before starting the next) — parallelized, since this was
+  // a real contributor to how long the Admin page took to open. Also now
+  // refreshes memberSubsections alongside roles/subsections — it was being
+  // left stale here (only those two fields were re-synced) while everything
+  // else came from this same fetch.
+  await Promise.all([...allCalIds].map(async calId=>{
     try{
       const freshCal=await getDoc(doc(db,'calendars',calId));
-      if(!freshCal.exists())continue;
+      if(!freshCal.exists())return;
       const fd=freshCal.data();
       const ownIdx=calendars.findIndex(c=>c.id===calId);
-      if(ownIdx>=0){calendars[ownIdx].roles=fd.roles||{};calendars[ownIdx].subsections=fd.subsections||[];}
+      if(ownIdx>=0){calendars[ownIdx].roles=fd.roles||{};calendars[ownIdx].subsections=fd.subsections||[];calendars[ownIdx].memberSubsections=fd.memberSubsections||{};}
       const shIdx=sharedCalendars.findIndex(c=>c.id===calId);
-      if(shIdx>=0){sharedCalendars[shIdx].roles=fd.roles||{};sharedCalendars[shIdx].subsections=fd.subsections||[];}
+      if(shIdx>=0){sharedCalendars[shIdx].roles=fd.roles||{};sharedCalendars[shIdx].subsections=fd.subsections||[];sharedCalendars[shIdx].memberSubsections=fd.memberSubsections||{};}
     }catch(e){console.error('Cal fetch error:',e);}
-  }
+  }));
   // Now build allCals with fresh data
   const allCals=[...calendars,...sharedCalendars];
   const leadCals=allCals.filter(cal=>{
@@ -8352,40 +8382,9 @@ async function renderAdminPage(){
   });
   document.getElementById('new-subsection-input').dataset.calId=adminCal.id;
 
-  // Absences — expanded over individual occurrences (expandRec), not raw
-  // per-series docs, so a recurring meeting's per-occurrence declines
-  // (rsvpByDate/declineReasonsByDate) each show as their own row instead of
-  // being missed/misattributed to whichever date the series doc happened to
-  // be sitting on. 6-month lookback covers a full season without pulling
-  // every event ever created.
-  const al=document.getElementById('admin-absences-list');al.innerHTML='';
-  const _absRs=new Date();_absRs.setMonth(_absRs.getMonth()-6);
-  const _absRe=new Date();_absRe.setMonth(_absRe.getMonth()+1);
-  const calEvents=expandRec(events.filter(e=>e.calendarId===adminCal.id),_absRs,_absRe);
-  let hasAny=false;
-  calEvents.forEach(ev=>{
-    const ppl=ev.type==='task'?ev.assignees:ev.invitees;if(!ppl)return;
-    ppl.forEach(p=>{
-      const rsvp=getMyRsvp(ev,p.uid);if(rsvp!=='declined'&&rsvp!=='leaving_early')return;
-      if(p.attendance==='optional'||getOptOut(ev,p.uid))return;
-      hasAny=true;
-      const ux=getUnexcused(ev,p.uid);const reason=getDeclineReason(ev,p.uid);const uxNote=getUnexcusedNote(ev,p.uid);
-      const declineCat=getDeclineCategory(ev,p.uid);
-      const isLeavingEarly=rsvp==='leaving_early';
-      const rsvpText=isLeavingEarly?'leaving early from':'declined';
-      const occArg=ev._occurrenceDate||'';
-      const sickTag=declineCat==='sick'?`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(56,189,248,.15);color:#38bdf8;margin-left:6px">🤒 Sick</span>`:'';
-      let actionHtml;
-      if(isLeavingEarly)actionHtml=`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(167,139,250,.25);color:#a78bfa;font-weight:700">LEAVING EARLY</span>`;
-      else if(ux)actionHtml=`<span style="font-size:9px;padding:2px 8px;border-radius:8px;background:rgba(239,68,68,.25);color:var(--q-red);font-weight:700">UNEXCUSED</span><button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','reverse','${ev.calendarId||''}','${occArg}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(34,197,94,.3);background:var(--q-green-dim);color:var(--q-green);cursor:pointer;font-family:var(--font-body)">Reverse</button>`;
-      else if(declineCat==='sick')actionHtml=''; // sick declines can never be marked unexcused going forward
-      else actionHtml=`<button onclick="openUnexcused('${ev.id}','${p.uid}','${jsStr(p.name||p.displayName)}','mark','${ev.calendarId||''}','${occArg}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:5px;border:1px solid rgba(239,68,68,.3);background:var(--q-red-dim);color:var(--q-red);cursor:pointer;font-family:var(--font-body)">Mark Unexcused</button>`;
-      const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--q-dark3);border-radius:7px;margin-bottom:5px;font-size:12px;flex-wrap:wrap';
-      row.innerHTML=`<div style="flex:1"><span style="color:var(--q-text);font-weight:600">${escHtml(p.name||p.displayName||"")}</span><span style="color:var(--q-muted);font-size:10px;margin-left:7px">${rsvpText} "${escHtml(ev.title)}"${ev.date?' · '+new Date(ev.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):''}</span>${sickTag}${reason?`<div style="font-size:10px;color:var(--q-muted2);margin-top:1px">${isLeavingEarly?'Departure note':'Reason'}: ${escHtml(reason)}</div>`:''}${uxNote?`<div style="font-size:10px;color:var(--q-amber);margin-top:1px">Admin note: ${escHtml(uxNote)}</div>`:''}</div>${actionHtml}`;
-      al.appendChild(row);
-    });
-  });
-  if(!hasAny)al.innerHTML='<div style="font-size:12px;color:var(--q-muted2)">No declined events yet</div>';
+  // The old standalone Absences card was removed (redundant, 2026-08-16) —
+  // Mark Unexcused/Reverse now lives inline per-meeting in renderViewPeople,
+  // and the season-wide picture lives on the Attendance page.
 
   // Leadership roles — Captain only, cannot remove self
   const rolesEl=document.getElementById('admin-roles-section');rolesEl.innerHTML='';
@@ -9607,6 +9606,15 @@ window.runSearch=(q)=>{
 // meeting's attendance is keyed per occurrence date, same rsvpByDate-style
 // override pattern, so marking week 3 no longer overwrites week 1's record.
 let attendanceState={};
+// One-tap entry point from the Home page's today-highlighted meeting row —
+// only has evId/occDate as strings (inline onclick can't reference the
+// loop's expanded-occurrence object directly), so re-derive the correct
+// per-occurrence date/title the same way expandRec itself builds one.
+window.quickOpenAttendance=(evId,occDate)=>{
+  const raw=events.find(e=>e.id===evId);if(!raw)return;
+  const ev=occDate?{...raw,date:occDate,_occurrenceDate:occDate}:raw;
+  openAttendanceModal(ev,occDate||null);
+};
 window.openAttendanceModal=async(ev,occDate=null)=>{
   if(!ev||ev.type!=='meeting')return;
   const key=occKey(ev)||occDate; // occKey already resolves ev._occurrenceDate for recurring events
@@ -9659,14 +9667,16 @@ window.saveAttendance=async()=>{
 };
 // Single-row present/absent write from the view-event invitee list
 // (renderViewPeople) — same occurrence-aware write as saveAttendance, just
-// for one person at a time instead of the bulk modal.
+// for one person at a time instead of the bulk modal. status='' clears the
+// mark back to unset (the third state in the row's cycling toggle).
 window.quickSetAttendance=async(evId,uid,status,occDate)=>{
   const ev=events.find(e=>e.id===evId);if(!ev)return;
+  const val=status||null;
   const key=occKey(ev)||occDate||null;
-  const patch=key?{[`attendanceByDate.${key}.${uid}`]:status}:{[`attendance.${uid}`]:status};
+  const patch=key?{[`attendanceByDate.${key}.${uid}`]:val}:{[`attendance.${uid}`]:val};
   await updateDoc(doc(db,'events',evId),patch);
-  if(key){if(!ev.attendanceByDate)ev.attendanceByDate={};if(!ev.attendanceByDate[key])ev.attendanceByDate[key]={};ev.attendanceByDate[key][uid]=status;}
-  else{if(!ev.attendance)ev.attendance={};ev.attendance[uid]=status;}
+  if(key){if(!ev.attendanceByDate)ev.attendanceByDate={};if(!ev.attendanceByDate[key])ev.attendanceByDate[key]={};ev.attendanceByDate[key][uid]=val;}
+  else{if(!ev.attendance)ev.attendance={};ev.attendance[uid]=val;}
   if(viewingEv?.id===evId)renderViewPeople();
 };
 
