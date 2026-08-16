@@ -4307,6 +4307,13 @@ body.light-mode .month-grid-day:hover {
     </div>
   </div>
 
+  <div class="modal-overlay" id="social-posts-modal">
+    <div class="modal" style="max-width:560px">
+      <button class="modal-close" onclick="closeModal('social-posts-modal')">✕</button>
+      <div id="social-posts-modal-content"></div>
+    </div>
+  </div>
+
   <!-- HELP PAGE -->
   <div class="page" id="page-help">
     <div style="max-width:760px;margin:0 auto;padding:32px 24px 64px">
@@ -5215,7 +5222,7 @@ window.handleForgotPassword=async()=>{
     if(btn)btn.disabled=false;
   }
 };
-window.signOut=async()=>{if(unsubEv)unsubEv();if(unsubCals)unsubCals();if(unsubSocial)unsubSocial();if(unsubSocialConfig)unsubSocialConfig();_invitedUnsubs.forEach(u=>u());_invitedUnsubs.length=0;_sharedCalUnsubs.forEach(unsubs=>unsubs.forEach(u=>u()));_sharedCalUnsubs.clear();await fbSignOut(auth);};
+window.signOut=async()=>{if(unsubEv)unsubEv();if(unsubCals)unsubCals();if(unsubSocial)unsubSocial();if(unsubSocialConfig)unsubSocialConfig();if(_socialUpdatedAgoTimer)clearInterval(_socialUpdatedAgoTimer);_invitedUnsubs.forEach(u=>u());_invitedUnsubs.length=0;_sharedCalUnsubs.forEach(unsubs=>unsubs.forEach(u=>u()));_sharedCalUnsubs.clear();await fbSignOut(auth);};
 function friendlyErr(c){return({'auth/user-not-found':'No account with that email.','auth/wrong-password':'Incorrect password. Use "Forgot password?" if needed.','auth/email-already-in-use':'Email already in use. Try signing in or resetting your password.','auth/weak-password':'Password needs 6+ chars.','auth/invalid-email':'Invalid email.','auth/invalid-credential':'Incorrect email or password. Use "Forgot password?" if needed.'})[c]||'Something went wrong.';}
 
 // ── Google sign-in ───────────────────────────────────────────────────────────
@@ -8293,7 +8300,7 @@ window.saveProfile=async()=>{
 const SOCIAL_ICONS={
   youtube:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="4" fill="#ef4444"/><path d="M10 9l6 3-6 3V9z" fill="#fff"/></svg>',
   instagram:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="igGrad" x1="0" y1="0" x2="24" y2="24"><stop offset="0" stop-color="#f9ce34"/><stop offset=".5" stop-color="#ee2a7b"/><stop offset="1" stop-color="#6228d7"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="6" fill="url(#igGrad)"/><circle cx="12" cy="12" r="5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="17.3" cy="6.7" r="1.3" fill="#fff"/></svg>',
-  tiktok:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="6" fill="#111827"/><circle cx="10" cy="16" r="2.6" fill="#25F4EE"/><circle cx="10.6" cy="15.6" r="2.6" fill="#FE2C55" opacity="0.85"/><path d="M10.6 15.6V6c1 2.4 3 3.8 5.4 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>'
+  tiktok:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="6" fill="#111827"/><g transform="translate(-.5,.35)"><circle cx="10" cy="15.8" r="2.7" fill="#25F4EE"/><rect x="11.3" y="5.3" width="1.9" height="10.8" rx=".95" fill="#25F4EE"/><path d="M13.2 5.3c0 2.5 1.9 4.4 4.3 4.4" stroke="#25F4EE" stroke-width="1.9" fill="none" stroke-linecap="round"/></g><g transform="translate(.5,-.35)"><circle cx="10" cy="15.8" r="2.7" fill="#FE2C55"/><rect x="11.3" y="5.3" width="1.9" height="10.8" rx=".95" fill="#FE2C55"/><path d="M13.2 5.3c0 2.5 1.9 4.4 4.3 4.4" stroke="#FE2C55" stroke-width="1.9" fill="none" stroke-linecap="round"/></g><circle cx="10" cy="15.8" r="2.7" fill="#fff"/><rect x="11.3" y="5.3" width="1.9" height="10.8" rx=".95" fill="#fff"/><path d="M13.2 5.3c0 2.5 1.9 4.4 4.3 4.4" stroke="#fff" stroke-width="1.9" fill="none" stroke-linecap="round"/></svg>'
 };
 const SOCIAL_PLATFORM_META={
   youtube:{label:'YouTube',connectLabel:'Connect YouTube'},
@@ -8335,24 +8342,44 @@ const SOCIAL_METRIC_TILES=[
 function socialEngagementTotal(d){
   return SOCIAL_METRIC_TILES.reduce((s,m)=>s+(d[m.key]||0),0);
 }
+// Every video/post row is clickable straight through to the real post when
+// a URL exists. `compact` (card preview) shows one headline metric off to
+// the side; the modal's full list instead lists every metric that post
+// actually has, inline under the date.
+function socialVideoMetricsText(v){
+  const parts=[];
+  if(v.views!=null)parts.push(v.views.toLocaleString()+' views');
+  if(v.likes!=null)parts.push(v.likes.toLocaleString()+' likes');
+  if(v.comments!=null)parts.push(v.comments.toLocaleString()+' comments');
+  if(v.shares!=null)parts.push(v.shares.toLocaleString()+' shares');
+  if(v.saves!=null)parts.push(v.saves.toLocaleString()+' saves');
+  return parts.join(' · ');
+}
+function renderSocialVideoRow(v,compact){
+  const primary=v.views!=null?{n:v.views,label:' views'}:v.likes!=null?{n:v.likes,label:' likes'}:null;
+  const metricsLine=socialVideoMetricsText(v);
+  const inner=`
+    ${v.thumbnail?`<img src="${escHtml(v.thumbnail)}" alt="" style="width:48px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0"/>`:'<div style="width:48px;height:36px;border-radius:6px;background:var(--q-dark4);flex-shrink:0"></div>'}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:12px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.isShort?'<span style="font-size:9px;font-weight:700;color:var(--q-blue2);border:1px solid var(--q-blue2);border-radius:4px;padding:1px 4px;margin-right:5px;vertical-align:1px">SHORT</span>':''}${escHtml(v.title||'Untitled')}</div>
+      <div style="font-size:10px;color:var(--q-muted2)">${v.date?new Date(v.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''}${!compact&&metricsLine?' · '+escHtml(metricsLine):''}</div>
+    </div>
+    ${compact?`<div style="font-size:12px;font-weight:700;color:var(--q-blue2);flex-shrink:0;white-space:nowrap">${primary?primary.n.toLocaleString()+primary.label:'—'}</div>`:''}
+    ${v.url?'<span style="font-size:13px;color:var(--q-muted2);flex-shrink:0">↗</span>':''}`;
+  return v.url
+    ?`<a href="${escHtml(v.url)}" target="_blank" rel="noopener" class="admin-member-row" style="align-items:center;cursor:pointer;text-decoration:none;color:inherit">${inner}</a>`
+    :`<div class="admin-member-row" style="align-items:center">${inner}</div>`;
+}
+let _lastSocialData={};
 function renderSocialPlatformCard(platform,d){
   const meta=SOCIAL_PLATFORM_META[platform];
   const hasViews=d.totalViews!=null; // Instagram never has this — hidden from logged-out visitors — so show "—" not a misleading 0
   const avg=hasViews&&d.postCount?Math.round(d.totalViews/d.postCount):null;
   const metricTiles=SOCIAL_METRIC_TILES.filter(m=>d[m.key]!=null)
     .map(m=>`<div><div class="dash-stat-num" style="font-size:20px">${d[m.key].toLocaleString()}</div><div class="dash-stat-label">${m.label}</div></div>`).join('');
-  const videos=(d.recentVideos||[]).slice(0,3);
-  const videoRows=videos.length?videos.map(v=>{
-    const metric=v.views!=null?{n:v.views,label:' views'}:v.likes!=null?{n:v.likes,label:' likes'}:null;
-    return `
-    <div class="admin-member-row" style="align-items:center">
-      ${v.thumbnail?`<img src="${escHtml(v.thumbnail)}" alt="" style="width:48px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0"/>`:'<div style="width:48px;height:36px;border-radius:6px;background:var(--q-dark4);flex-shrink:0"></div>'}
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600;color:var(--q-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.isShort?'<span style="font-size:9px;font-weight:700;color:var(--q-blue2);border:1px solid var(--q-blue2);border-radius:4px;padding:1px 4px;margin-right:5px;vertical-align:1px">SHORT</span>':''}${escHtml(v.title||'Untitled')}</div>
-        <div style="font-size:10px;color:var(--q-muted2)">${v.date?new Date(v.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''}</div>
-      </div>
-      <div style="font-size:12px;font-weight:700;color:var(--q-blue2);flex-shrink:0;white-space:nowrap">${metric?metric.n.toLocaleString()+metric.label:'—'}</div>
-    </div>`;}).join(''):'<div style="font-size:11px;color:var(--q-muted2)">No videos yet</div>';
+  const allVideos=d.recentVideos||[];
+  const videos=allVideos.slice(0,3);
+  const videoRows=videos.length?videos.map(v=>renderSocialVideoRow(v,true)).join(''):'<div style="font-size:11px;color:var(--q-muted2)">No videos yet</div>';
   return `
     <div class="admin-card">
       <div class="admin-card-title" style="justify-content:space-between">
@@ -8368,7 +8395,9 @@ function renderSocialPlatformCard(platform,d){
       ${!hasViews&&d.connected?'<div style="font-size:10px;color:var(--q-muted2);margin-bottom:14px">This platform doesn\'t show view counts to logged-out visitors — other metrics above are real.</div>':'<div style="margin-bottom:4px"></div>'}
       <div style="font-family:var(--font-mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--q-muted2);margin-bottom:8px">Recent videos</div>
       <div>${videoRows}</div>
-      ${meta.connectLabel?`<button class="btn-secondary" style="margin-top:14px;width:100%" onclick="connectSocialPlatform('${platform}')">${meta.connectLabel}</button>`:'<div style="margin-top:14px;font-size:10px;color:var(--q-muted2)">View-stats only — TikTok posting is out of scope, and live stats aren\'t wired up yet.</div>'}
+      ${allVideos.length>3?`<button class="btn-secondary" style="margin-top:8px;width:100%;font-size:11px;padding:7px" onclick="openSocialPostsModal('${platform}')">View all ${allVideos.length} posts</button>`:''}
+      ${meta.connectLabel&&!d.connected?`<button class="btn-secondary" style="margin-top:14px;width:100%" onclick="connectSocialPlatform('${platform}')">${meta.connectLabel}</button>`:''}
+      ${!meta.connectLabel?'<div style="margin-top:14px;font-size:10px;color:var(--q-muted2)">View-stats only — TikTok posting is out of scope, and live stats aren\'t wired up yet.</div>':''}
       ${renderSocialLinkManager(platform)}
     </div>`;
 }
@@ -8437,13 +8466,47 @@ function renderSocialPage(){
       <div class="dash-stat-label">Total engagement · views + likes + comments + shares + saves · YouTube + Instagram + TikTok · since Jan 1, 2026</div>
       <div style="font-size:11px;color:var(--q-muted2)">${totalViews.toLocaleString()} of that is views · this counts every action, not unique people — the same person liking and commenting counts twice</div>
       ${previewNote?`<div style="margin-top:4px"><span class="admin-badge" style="background:rgba(255,184,48,.15);color:var(--q-amber)">${previewNote}</span></div>`:''}
+      <div id="social-updated-ago" style="font-size:10px;color:var(--q-muted2);font-family:var(--font-mono)"></div>
     </div>`;
   const cardsEl=document.getElementById('social-cards');
   if(cardsEl)cardsEl.innerHTML=plats.map(p=>renderSocialPlatformCard(p,data[p])).join('');
+  _lastSocialData=data;
+  renderSocialUpdatedAgo();
+}
+// Data itself only changes when the scraper runs (every 6h, or a manual
+// trigger from the repo's Actions tab) — Firestore's onSnapshot already
+// pushes that the instant it happens, no polling needed. This just ticks
+// the "updated Xs ago" label once a second so the page visibly feels live
+// between those real updates, instead of silently going stale-looking.
+let _socialUpdatedAgoTimer=null;
+function renderSocialUpdatedAgo(){
+  const el=document.getElementById('social-updated-ago');
+  const ts=socialSummary?.updatedAt?.toDate?.();
+  if(_socialUpdatedAgoTimer)clearInterval(_socialUpdatedAgoTimer);
+  if(!el||!ts)return;
+  const tick=()=>{
+    const secs=Math.max(0,Math.round((Date.now()-ts.getTime())/1000));
+    const label=secs<60?`${secs}s ago`:secs<3600?`${Math.floor(secs/60)}m ago`:secs<86400?`${Math.floor(secs/3600)}h ago`:`${Math.floor(secs/86400)}d ago`;
+    el.textContent=`Updated ${label}`;
+  };
+  tick();
+  _socialUpdatedAgoTimer=setInterval(tick,1000);
 }
 window.connectSocialPlatform=(platform)=>{
   // TODO: once OAuth credentials exist, replace with: location.href='/api/oauth/start?platform='+platform;
   toast('Not yet configured — see SOCIAL_SETUP.md');
+};
+window.openSocialPostsModal=(platform)=>{
+  const d=_lastSocialData?.[platform];
+  if(!d)return;
+  const meta=SOCIAL_PLATFORM_META[platform];
+  const videos=d.recentVideos||[];
+  const rows=videos.length?videos.map(v=>renderSocialVideoRow(v,false)).join(''):'<div style="font-size:11px;color:var(--q-muted2)">No videos yet</div>';
+  const el=document.getElementById('social-posts-modal-content');
+  if(el)el.innerHTML=`
+    <div class="admin-card-title" style="margin-bottom:14px">${SOCIAL_ICONS[platform]}${meta.label} — all posts</div>
+    <div style="max-height:60vh;overflow-y:auto">${rows}</div>`;
+  document.getElementById('social-posts-modal')?.classList.add('open');
 };
 // ── Utilities ──────────────────────────────────────────────────────────────
 window.closeModal=(id)=>{
