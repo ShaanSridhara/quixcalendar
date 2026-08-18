@@ -23,9 +23,17 @@
  *    Actions, unlike crawling the whole profile) still yields an exact
  *    publish date plus likes+comments via the og:description meta tag —
  *    so new posts need to be added to config.json by URL, same as TikTok.
- *    View/play counts are NOT available on Instagram even this way —
- *    Instagram hides that number from logged-out viewers entirely, so it's
- *    simply omitted rather than faked.
+ *    View/play counts are NOT available on Instagram this way — hidden from
+ *    logged-out viewers entirely, so it's simply omitted rather than faked.
+ *    A logged-in-session variant (IG_SESSION_ID) was also tried for real
+ *    view counts and is confirmed (2026-08-17, many runs) to get the exact
+ *    same block as the logged-out path once it's coming from a GitHub
+ *    Actions IP — so this isn't a "logged out" limitation specifically, it's
+ *    an Actions-IP block that no cookie gets around. scrape-social.yml keeps
+ *    that path permanently disabled as a result. Real Instagram view counts
+ *    need the official Graph API (see fetchInstagramStatsViaAPI below and
+ *    SOCIAL_SETUP.md) — a normal authenticated API call, not a scrape, so it
+ *    isn't subject to the same IP block.
  *  - TikTok: per-video page HTML embeds a JSON blob
  *    (__UNIVERSAL_DATA_FOR_REHYDRATION__) with playCount/diggCount/
  *    shareCount/commentCount — confirmed working via plain fetch, no
@@ -340,18 +348,19 @@ async function fetchInstagramStats(cfg, cutoffMs, db) {
   }
 
   // IG_SESSION_ID (optional): a sessionid cookie value from a normal,
-  // human login — the script itself never logs in or sees a password. Not
-  // risk-free (the session was created wherever you logged in, but gets
-  // used from this runner's IP instead, which Instagram might flag; and
-  // sessions expire and need periodically re-extracting), but a real step
-  // down from storing actual credentials or running automated logins.
-  // Confirmed 2026-08-16: a fresh cookie works for exactly one login before
-  // Instagram blocks it again within ~60s — the workflow's own inner loop
-  // was retrying every ~60s, which reflagged the session almost
-  // immediately. IG_ALLOW_LOGIN (set by the workflow, see
-  // scrape-social.yml) restricts the authenticated attempt to once per
-  // ~8min job instead of once per ~60s iteration, to stop needlessly
-  // burning through the session and hammering the real account.
+  // human login — the script itself never logs in or sees a password.
+  // Status as of 2026-08-17: confirmed dead from GitHub Actions specifically
+  // — many consecutive runs at different times of day all got the exact
+  // same blocked response a logged-out request gets ("profile grid returned
+  // 0 links", "read 0 view count(s) from the Reels tab"), 100% of the time.
+  // scrape-social.yml now leaves IG_ALLOW_LOGIN at 0 permanently as a
+  // result, since presenting the real account's session cookie to Instagram
+  // from a flagged datacenter IP for a guaranteed-failed request is pure
+  // account risk with no payoff. This code path is kept only in case that
+  // ever changes (Instagram IP ranges, Actions' egress IPs, etc.) — it does
+  // nothing unless IG_ALLOW_LOGIN is deliberately set to 1 by hand for a
+  // one-off diagnostic re-test. Real view counts need the official Graph
+  // API instead (see SOCIAL_SETUP.md) — that path isn't IP-blocked.
   const sessionId = process.env.IG_ALLOW_LOGIN === '1' ? process.env.IG_SESSION_ID : null;
   if (process.env.IG_SESSION_ID && !sessionId) {
     console.log('[instagram] skipping logged-in session this iteration (IG_ALLOW_LOGIN throttle) — reusing last known-good view counts instead');

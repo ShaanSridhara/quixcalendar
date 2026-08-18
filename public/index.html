@@ -8520,6 +8520,12 @@ window.deleteSubsection=async(calId,name)=>{
 // Today card is the season-wide picture: rate over time, per-member
 // history, per-meeting drill-down — all computed client-side from the same
 // event data (no new Firestore reads, no Cloud Function).
+// The day tracking launched — fixed anchor, same pattern as social-scraper/
+// config.json's cutoffDate. Meetings before this date are voided from every
+// stat (see renderAttendancePage): they predate the feature and were never
+// actually checked off, so counting them would just be silent, fake perfect
+// attendance.
+const ATTENDANCE_TRACKING_START='2026-08-16';
 function renderAttendanceTodayCard(){
   const container=document.getElementById('att-today-card');
   if(!container)return;
@@ -8563,14 +8569,23 @@ async function renderAttendancePage(){
   renderAttendanceTodayCard();
   const members=await resolveCalMembers(attCal);
 
-  // Tracking starts today, not from some lookback into the past — meetings
-  // before today were never actually checked off, so counting them would
-  // let the assumed-present default silently claim perfect attendance for
-  // meetings nobody was tracking. Every stat below only reflects meetings
-  // from the day this was turned on, onward.
-  const rs=new Date(getTodayStr()+'T00:00:00');
+  // Tracking starts the day this feature launched, not from some lookback
+  // into the past — meetings before that were never actually checked off,
+  // so counting them would let the assumed-present default silently claim
+  // perfect attendance for meetings nobody was tracking. Every stat below
+  // only reflects meetings from ATTENDANCE_TRACKING_START onward, and keeps
+  // accumulating real history as more days pass (fixed anchor — NOT
+  // getTodayStr(), which would recompute to "today" on every render and
+  // silently shrink the window back down to ~24h every time this page
+  // loads on a later day).
+  const rs=new Date(ATTENDANCE_TRACKING_START+'T00:00:00');
   const re=new Date();re.setDate(re.getDate()+1);
   const occs=expandRec(events.filter(e=>e.type==='meeting'&&e.calendarId===attCal.id),rs,re)
+    // expandRec only date-bounds recurring occurrences — a non-recurring
+    // (one-off) meeting is pushed through unconditionally regardless of rs/
+    // re, so without this filter an old one-off meeting from before the
+    // tracking start date would slip back in and count toward stats.
+    .filter(ev=>(ev._occurrenceDate||ev.date)>=ATTENDANCE_TRACKING_START)
     .filter(ev=>hasMeetingStarted(ev,occDateFor(ev,ev._occurrenceDate)))
     .sort((a,b)=>(a._occurrenceDate||a.date).localeCompare(b._occurrenceDate||b.date));
 
@@ -8890,7 +8905,7 @@ function renderSocialBestTime(d){
 }
 function renderSocialPlatformCard(platform,d){
   const meta=SOCIAL_PLATFORM_META[platform];
-  const hasViews=d.totalViews!=null; // Instagram never has this — hidden from logged-out visitors — so show "—" not a misleading 0
+  const hasViews=d.totalViews!=null; // show "—" not a misleading 0 when a platform has no real view count yet
   const avg=hasViews&&d.postCount?Math.round(d.totalViews/d.postCount):null;
   const metricTiles=SOCIAL_METRIC_TILES.filter(m=>d[m.key]!=null)
     .map(m=>`<div><div class="dash-stat-num" style="font-size:20px">${d[m.key].toLocaleString()}</div><div class="dash-stat-label">${m.label}</div></div>`).join('');
@@ -8910,7 +8925,7 @@ function renderSocialPlatformCard(platform,d){
         <div><div class="dash-stat-num" style="font-size:20px">${d.postCount||0}</div><div class="dash-stat-label">Posts</div></div>
         ${avg!=null?`<div><div class="dash-stat-num" style="font-size:20px">${avg.toLocaleString()}</div><div class="dash-stat-label">Avg/Post</div></div>`:''}
       </div>
-      ${!hasViews&&d.connected?'<div style="font-size:10px;color:var(--q-muted2);margin-bottom:14px">This platform doesn\'t show view counts to logged-out visitors — other metrics above are real.</div>':'<div style="margin-bottom:4px"></div>'}
+      ${!hasViews&&d.connected?`<div style="font-size:10px;color:var(--q-muted2);margin-bottom:14px">${platform==='instagram'?'Real view counts aren\'t wired up yet — needs the Instagram Graph API (see SOCIAL_SETUP.md); other metrics above are real.':'View counts aren\'t available for this platform yet — other metrics above are real.'}</div>`:'<div style="margin-bottom:4px"></div>'}
       ${renderSocialGrowthChart(platform)}
       ${renderSocialWorkingInsight(d)}
       ${renderSocialFormatInsight(d)}

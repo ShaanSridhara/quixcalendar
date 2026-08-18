@@ -59,23 +59,23 @@ Today the panel shows mock "Preview data" until step 1 below is configured.
         API instead of scraping for Instagram — real views included. If
         the API call ever fails (expired token, etc.), it falls back to
         the scraping path above rather than losing data entirely.
-   - **Logged-in session (alternative to the API, also gets real views)**:
-     reuses a session *you* create by logging in normally in a browser — the
-     script never sees a password and never performs a login itself, which
-     is meaningfully different from (and lower-risk than) an automated
-     login bot. Still not risk-free: the session is created wherever you
-     log in but gets *used* from GitHub Actions' servers instead, which
-     Instagram might notice as a mismatch, and sessions expire and need
-     periodically re-extracting (not a "log in once forever" thing). To set
-     it up: log into Instagram in Chrome → DevTools (F12) → **Application**
-     → **Cookies** → `instagram.com` → copy the `sessionid` cookie's value
-     → add it as the GitHub Actions secret `IG_SESSION_ID` (**never** paste
-     it in chat or commit it anywhere — it's equivalent to your password).
-     The exact page markup for reading a logged-in view count hasn't been
-     tested against a real session (there's no test account available for
-     this), so the first real run may need a look at the logs
-     (`social-scraper/scrape.mjs`, search for "no view-count pattern
-     matched") to confirm or adjust the detection.
+   - **Logged-in session — tried, confirmed dead from GitHub Actions
+     (2026-08-17)**: the idea was to reuse a session *you* create by logging
+     in normally in a browser (`IG_SESSION_ID` secret, `sessionid` cookie).
+     It's implemented and still in the code, but many consecutive live runs
+     at different times of day all came back blocked exactly like a
+     logged-out request — 0 profile links, 0 view counts, every time. GitHub
+     Actions' runner IPs are well-known datacenter ranges, and Instagram
+     appears to block those outright regardless of whether the session
+     cookie is valid. `scrape-social.yml` now leaves this path permanently
+     disabled (`IG_ALLOW_LOGIN=0`) rather than repeatedly presenting the
+     real team account's session to Instagram from a flagged IP for a
+     guaranteed-failed request — that was pure account risk (Instagram
+     might flag the session) with zero payoff. **Don't re-enable this as a
+     fix for missing views** — it structurally cannot get real Instagram
+     view counts from Actions. The Graph API above is the only path that
+     actually works for that, since it's a normal authenticated API call,
+     not a scrape, so it isn't subject to the same IP block.
 3. **TikTok** — same manual-URL model as Instagram above, and for the same
    underlying reason: TikTok actively blocks even a real headless browser
    from loading a profile's video grid (tested — it renders a "Something
